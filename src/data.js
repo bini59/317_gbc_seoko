@@ -20,6 +20,7 @@ export const circles = [
     day: "양일",
     genre: "걸즈 밴드 크라이 (전문)",
     highlight: true,
+    boothUrl: "https://comicw.net/map/334/CF62",
     links: [
       { label: "코믹월드 부스컷/샵", url: "https://comicw.net/g/?it_id=1026" },
     ],
@@ -30,6 +31,7 @@ export const circles = [
     name: "자고싶은 새벽반 (윗치폼: 달세개)",
     day: "양일",
     genre: "걸즈밴드크라이 / 블루아카이브 / 원신",
+    boothUrl: "https://comicw.net/map/334/BE01",
     note: "윗치폼 통판폼에 걸밴크 굿즈(니나·모모카·스바루·토모·루파 마그넷/핀버튼, 걸밴크 회전 아크릴스탠드 등) 판매 · 판매기간 6/21~7/24",
     links: [
       { label: "X (@onetwomoon)", url: "https://x.com/onetwomoon" },
@@ -42,6 +44,7 @@ export const circles = [
     name: "백합은 돈이 된다",
     day: "양일",
     genre: "걸즈밴드크라이 + 봇치더록 / 초가구야공주 등 백합물",
+    boothUrl: "https://comicw.net/map/334/CL25",
     links: [
       { label: "X (@_dshsh007)", url: "https://x.com/_dshsh007" },
     ],
@@ -52,6 +55,7 @@ export const circles = [
     name: "카키나라세",
     day: "양일",
     genre: "걸즈밴드크라이 / 초가구야공주 / 봇치더록",
+    boothUrl: "https://comicw.net/map/334/CH15",
     links: [
       { label: "X (@daj8_b4)", url: "https://x.com/daj8_b4" },
       { label: "Instagram (@doj8p4)", url: "https://instagram.com/doj8p4" },
@@ -64,6 +68,7 @@ export const circles = [
     name: "걸즈 뮤직 포에버",
     day: "양일",
     genre: "걸즈밴드크라이 / 보컬로이드 / 봇치더록",
+    boothUrl: "https://comicw.net/map/334/CH42",
     links: [
       { label: "X (@seohaengma)", url: "https://x.com/seohaengma" },
     ],
@@ -74,6 +79,7 @@ export const circles = [
     name: "악기상점",
     day: "양일",
     genre: "걸즈밴드크라이 / 뱅드림 / 봇치더록 / 블루아카이브 등 밴드물 다수",
+    boothUrl: "https://comicw.net/map/334/BH01",
     links: [
       { label: "X (@akgi_store)", url: "https://x.com/akgi_store" },
       { label: "Instagram (@akgi_store)", url: "https://instagram.com/akgi_store" },
@@ -85,6 +91,7 @@ export const circles = [
     name: "걸즈밴드붐은온다",
     day: "양일",
     genre: "걸즈밴드크라이 / 뱅드림 / 보컬로이드 / 봇치더록",
+    boothUrl: "https://comicw.net/map/334/BH60",
     links: [
       { label: "X (@recma5)", url: "https://x.com/recma5" },
       { label: "Instagram (@cma.day)", url: "https://instagram.com/cma.day" },

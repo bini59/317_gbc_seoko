@@ -170,6 +170,26 @@ section h2 {
 }
 .links a:hover { border-color: var(--accent2); color: #fff; }
 
+.links a.booth-link {
+  color: #7ee0a8;
+  background: #10241a;
+  border-color: #275c3f;
+  font-weight: 700;
+}
+.links a.booth-link:hover { border-color: #7ee0a8; color: #d6ffe6; }
+
+.event .hint {
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted);
+  background: #0d0f22;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 9px 11px;
+}
+.event .hint b { color: #7ee0a8; }
+
 footer {
   margin-top: 36px;
   color: var(--muted);

@@ -33,6 +33,11 @@ function Card({ item, checked, onToggle }) {
       <div className="genre">{item.genre}</div>
       {item.note && <div className="note">{item.note}</div>}
       <div className="links">
+        {item.boothUrl && (
+          <a className="booth-link" href={item.boothUrl} target="_blank" rel="noopener noreferrer">
+            📍 배치도 {item.booth} 확인 ↗
+          </a>
+        )}
         {item.links.map((l) => (
           <a key={l.url} href={l.url} target="_blank" rel="noopener noreferrer">
             {l.label} ↗
@@ -59,8 +64,12 @@ export default function App() {
             📅 {event.date} · 📍 {event.venue}
           </div>
           <a className="map" href={event.mapUrl} target="_blank" rel="noopener noreferrer">
-            서울코믹월드 부스배치도 ↗
+            서울코믹월드 전체 부스배치도 ↗
           </a>
+          <div className="hint">
+            ✅ 각 카드의 <b>📍 배치도 확인</b> 버튼 = 서울코믹월드 공식 부스배치도의 해당 부스로 바로 열립니다 (이번 서코 참가 증거).
+            X/윗치폼 링크는 서클 연락처/판매 채널입니다.
+          </div>
         </div>
         <div className="progress">
           체크 {doneCount} / {allItems.length}
