@@ -38,4 +38,4 @@ npx wrangler pages deploy dist --project-name gbc-seoko
 npx wrangler pages deploy dist --project-name gbc-seoko
 ```
 
-`public/_redirects` 에 SPA 폴백(`/* /index.html 200`)이 포함돼 있습니다.
+라우트가 `/` 하나뿐인 SPA라 별도 리라이트 설정은 필요 없습니다. (Cloudflare Workers 정적 자산 배포에서 `_redirects`의 `/* /index.html 200` 규칙은 무한 루프로 거부되므로 사용하지 않습니다.)
