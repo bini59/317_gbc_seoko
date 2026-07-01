@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { event, circles, witchformExtra } from "./data.js";
+import { event, circles } from "./data.js";
 
 const STORAGE_KEY = "gbc-seoko-2026-07-checks";
 
@@ -50,7 +50,7 @@ function Card({ item, checked, onToggle }) {
 
 export default function App() {
   const [checks, toggle, setChecks] = useChecks();
-  const allItems = useMemo(() => [...circles, ...witchformExtra], []);
+  const allItems = useMemo(() => circles, []);
   const doneCount = allItems.filter((i) => checks[i.id]).length;
 
   return (
@@ -82,13 +82,6 @@ export default function App() {
       <section>
         <h2>참가 서클 (서울코믹월드 배치도 기준 · 모두 양일)</h2>
         {circles.map((c) => (
-          <Card key={c.id} item={c} checked={checks[c.id]} onToggle={() => toggle(c.id)} />
-        ))}
-      </section>
-
-      <section>
-        <h2>윗치폼 추가 통판</h2>
-        {witchformExtra.map((c) => (
           <Card key={c.id} item={c} checked={checks[c.id]} onToggle={() => toggle(c.id)} />
         ))}
       </section>
