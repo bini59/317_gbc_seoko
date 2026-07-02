@@ -18,6 +18,8 @@ export type Circle = {
   highlight?: boolean;
   note?: string;
   boothUrl?: string;
+  /** 함께 파는 2차 팬덤 태그 (필터/칩 표시용). 걸밴크는 모든 서클 공통이라 제외. */
+  genres?: string[];
 };
 
 export const event = {
@@ -35,21 +37,21 @@ export const circles: Circle[] = [
     booth: "CF62",
     name: "걸밴크는멈추지않아!",
     day: "양일",
-    genre: "걸즈 밴드 크라이 (전문)",
+    genre: "걸즈밴드크라이 전문 서클",
+    genres: [],
     highlight: true,
     boothUrl: "https://comicw.net/map/334/CF62",
-    links: [
-      { label: "코믹월드 부스컷/샵", url: "https://comicw.net/g/?it_id=1026" },
-    ],
+    links: [{ label: "코믹월드 부스컷/샵", url: "https://comicw.net/g/?it_id=1026" }],
   },
   {
     id: "be01",
     booth: "BE01·BE02",
-    name: "자고싶은 새벽반 (윗치폼: 달세개)",
+    name: "자고싶은 새벽반",
     day: "양일",
     genre: "걸즈밴드크라이 / 블루아카이브 / 원신",
+    genres: ["블루아카이브", "원신"],
     boothUrl: "https://comicw.net/map/334/BE01",
-    note: "윗치폼 통판폼에 걸밴크 굿즈(니나·모모카·스바루·토모·루파 마그넷/핀버튼, 걸밴크 회전 아크릴스탠드 등) 판매 · 판매기간 6/21~7/24",
+    note: "윗치폼 통판폼에서 걸밴크 굿즈(니나·모모카·스바루 마그넷·핀버튼, 회전 아크릴스탠드 등) 판매 · 6/21~7/24",
     links: [
       { label: "X (@onetwomoon)", url: "https://x.com/onetwomoon" },
       { label: "윗치폼 통판폼", url: "https://witchform.com/deposit_form.php?idx=1039234" },
@@ -61,10 +63,9 @@ export const circles: Circle[] = [
     name: "백합은 돈이 된다",
     day: "양일",
     genre: "걸즈밴드크라이 + 봇치더록 / 초가구야공주 등 백합물",
+    genres: ["봇치더록", "초가구야공주", "백합"],
     boothUrl: "https://comicw.net/map/334/CL25",
-    links: [
-      { label: "X (@_dshsh007)", url: "https://x.com/_dshsh007" },
-    ],
+    links: [{ label: "X (@_dshsh007)", url: "https://x.com/_dshsh007" }],
   },
   {
     id: "ch15",
@@ -72,6 +73,7 @@ export const circles: Circle[] = [
     name: "카키나라세",
     day: "양일",
     genre: "걸즈밴드크라이 / 초가구야공주 / 봇치더록",
+    genres: ["초가구야공주", "봇치더록"],
     boothUrl: "https://comicw.net/map/334/CH15",
     links: [
       { label: "X (@daj8_b4)", url: "https://x.com/daj8_b4" },
@@ -85,17 +87,17 @@ export const circles: Circle[] = [
     name: "걸즈 뮤직 포에버",
     day: "양일",
     genre: "걸즈밴드크라이 / 보컬로이드 / 봇치더록",
+    genres: ["보컬로이드", "봇치더록"],
     boothUrl: "https://comicw.net/map/334/CH42",
-    links: [
-      { label: "X (@seohaengma)", url: "https://x.com/seohaengma" },
-    ],
+    links: [{ label: "X (@seohaengma)", url: "https://x.com/seohaengma" }],
   },
   {
     id: "bh01",
     booth: "BH01·BH02",
     name: "악기상점",
     day: "양일",
-    genre: "걸즈밴드크라이 / 뱅드림 / 봇치더록 / 블루아카이브 등 밴드물 다수",
+    genre: "걸즈밴드크라이 / 뱅드림 / 봇치더록 / 블루아카이브 등 밴드물",
+    genres: ["뱅드림", "봇치더록", "블루아카이브"],
     boothUrl: "https://comicw.net/map/334/BH01",
     links: [
       { label: "X (@akgi_store)", url: "https://x.com/akgi_store" },
@@ -108,6 +110,7 @@ export const circles: Circle[] = [
     name: "걸즈밴드붐은온다",
     day: "양일",
     genre: "걸즈밴드크라이 / 뱅드림 / 보컬로이드 / 봇치더록",
+    genres: ["뱅드림", "보컬로이드", "봇치더록"],
     boothUrl: "https://comicw.net/map/334/BH60",
     links: [
       { label: "X (@recma5)", url: "https://x.com/recma5" },
@@ -122,16 +125,14 @@ export const witchformExtra: Circle[] = [
     id: "wf-saekji",
     name: "감성적인초롱꽃361 · 라온색지",
     genre: "걸밴크 포함 다수 팬덤 색지 10장 주문폼 (서코)",
-    links: [
-      { label: "윗치폼 주문폼", url: "https://witchform.com/payform/?uuid=YEQCXSDCLP" },
-    ],
+    genres: [],
+    links: [{ label: "윗치폼 주문폼", url: "https://witchform.com/payform/?uuid=YEQCXSDCLP" }],
   },
   {
     id: "wf-cd",
     name: "정상작동센터_CD (참고)",
     genre: "걸밴크(토게나시토게아리) 공식 CD 상시 통판 · 서코 특정 아님",
-    links: [
-      { label: "윗치폼 통판폼", url: "https://witchform.com/deposit_form.php?idx=1019818" },
-    ],
+    genres: [],
+    links: [{ label: "윗치폼 통판폼", url: "https://witchform.com/deposit_form.php?idx=1019818" }],
   },
 ];

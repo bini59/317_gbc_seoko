@@ -1,11 +1,43 @@
-import { useEffect, useState } from "react";
-import { event, circles } from "./data";
+import { useEffect, useMemo, useState } from "react";
+import { circles, witchformExtra, event } from "./data";
 import type { Circle } from "./data";
 
 const STORAGE_KEY = "gbc-seoko-2026-07-checks";
 
-type Checks = Record<string, boolean>;
+/* 카드 앞 아이콘(부스 배지) 색상 팔레트 */
+const BADGE = ["#3e5bff", "#7c5cff", "#f43f72", "#0ea5a5", "#f59e0b", "#6366f1", "#22a559"];
+const badgeColor = (id: string) => {
+  const i = circles.findIndex((c) => c.id === id);
+  return BADGE[(i < 0 ? 2 : i) % BADGE.length];
+};
 
+/* 연속 부스(BE01·BE02)는 앞쪽만. 부스 없으면 이름 첫 글자. */
+const boothShort = (c: Circle) =>
+  c.booth ? c.booth.split("·")[0].trim() : (c.name || "?").trim().charAt(0);
+
+/* 링크 URL → 짧은 칩 라벨 */
+const chipLabel = (url: string) => {
+  if (/comicw\.net\/map/.test(url)) return "배치도";
+  if (/comicw\.net\/g/.test(url)) return "샵";
+  if (/witchform/.test(url)) return "윗치폼";
+  if (/instagram/.test(url)) return "Insta";
+  if (/x\.com|twitter/.test(url)) return "X";
+  return "링크";
+};
+
+type Chip = { label: string; full: string; url: string; primary: boolean };
+const chipsFor = (c: Circle): Chip[] => {
+  const out: Chip[] = [];
+  if (c.boothUrl)
+    out.push({ label: "배치도", full: `배치도에서 ${c.booth ?? ""} 확인`, url: c.boothUrl, primary: true });
+  c.links.forEach((l) => out.push({ label: chipLabel(l.url), full: l.label, url: l.url, primary: false }));
+  return out;
+};
+
+const norm = (s: string) => s.replace(/\s/g, "");
+
+/* ---------- 체크(방문) 상태: localStorage ---------- */
+type Checks = Record<string, boolean>;
 function useChecks(): [Checks, (id: string) => void, () => void] {
   const [checks, setChecks] = useState<Checks>(() => {
     try {
@@ -18,136 +50,381 @@ function useChecks(): [Checks, (id: string) => void, () => void] {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(checks));
     } catch {
-      // storage unavailable (private mode / quota) — checks stay in-memory
+      /* private mode / quota */
     }
   }, [checks]);
   const toggle = (id: string) => setChecks((c) => ({ ...c, [id]: !c[id] }));
   return [checks, toggle, () => setChecks({})];
 }
 
-const linkChip =
-  "text-xs font-mono uppercase tracking-wider no-underline text-ink border border-ink px-2.5 py-1.5 hover:bg-ink hover:text-paper transition-colors duration-200";
-const boothChip =
-  "text-xs font-mono uppercase tracking-wider no-underline bg-ink text-paper border border-ink px-2.5 py-1.5 hover:bg-paper hover:text-ink transition-colors duration-200";
+type Status = "all" | "done" | "undone";
+const STATUS: { k: Status; label: string }[] = [
+  { k: "all", label: "전체" },
+  { k: "done", label: "체크함" },
+  { k: "undone", label: "안 본 것" },
+];
+const GENRES = ["걸즈밴드크라이", "뱅드림"];
 
-function Card({ item, checked, onToggle }: { item: Circle; checked: boolean; onToggle: () => void }) {
-  // Newsprint: 라운드 0, 잉크 보더. 하이라이트는 빨간 좌측 룰, 체크 완료는 회지 배경.
+/* ---------- 링크 칩 ---------- */
+function LinkChips({ chips }: { chips: Chip[] }) {
+  return (
+    <div className="flex flex-wrap gap-[7px] mt-3">
+      {chips.map((lk) => (
+        <a
+          key={lk.url}
+          href={lk.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={lk.full}
+          className={
+            "inline-flex items-center gap-0.5 h-7 px-[11px] rounded-lg text-xs font-bold no-underline " +
+            (lk.primary ? "bg-accent/10 text-accent" : "bg-chip text-[#4b5563]")
+          }
+        >
+          {lk.label} ↗
+        </a>
+      ))}
+    </div>
+  );
+}
+
+/* ---------- 목록 카드 ---------- */
+function Card({
+  item,
+  checked,
+  onToggle,
+  onOpen,
+}: {
+  item: Circle;
+  checked: boolean;
+  onToggle: () => void;
+  onOpen: () => void;
+}) {
+  const short = boothShort(item);
   const cardCls = [
-    "border border-ink px-4 py-3.5 mb-3 transition-colors duration-200",
-    item.highlight ? "border-l-4 border-l-accent" : "",
-    checked ? "bg-divider opacity-70" : "bg-paper hover:bg-neutral-100",
+    "relative rounded-[18px] p-4 bg-card border transition-colors",
+    item.highlight
+      ? "border-transparent ring-[1.6px] ring-accent/40"
+      : "border-[#eeeff2] shadow-[0_1px_2px_rgba(20,22,30,0.04)]",
+    checked ? "!bg-[#f3f5f8] opacity-80" : "",
   ].join(" ");
 
   return (
     <div className={cardCls}>
-      <label className="flex items-start gap-2.5 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={checked}
-          onChange={onToggle}
-          className="mt-[3px] w-[18px] h-[18px] accent-ink flex-none"
-        />
-        <span className="flex flex-wrap items-center gap-2">
-          {item.booth && (
-            <span className="font-mono text-xs border border-ink px-2 py-0.5">{item.booth}</span>
-          )}
-          <span className={"font-serif font-bold text-lg leading-tight" + (checked ? " line-through" : "")}>
+      <div className="flex items-start gap-[11px]">
+        <div
+          className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center text-white font-extrabold flex-none -tracking-[0.02em]"
+          style={{ background: badgeColor(item.id), fontSize: short.length > 2 ? 11 : 15 }}
+        >
+          {short}
+        </div>
+        <button onClick={onOpen} className="flex-1 min-w-0 text-left bg-transparent border-0 p-0 cursor-pointer">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-extrabold tracking-[0.05em] text-faint">
+              {(item.booth || "통판").toUpperCase()}
+            </span>
+            {item.highlight && (
+              <span className="inline-flex items-center h-5 px-2 rounded-md bg-accent/10 text-accent text-[10.5px] font-extrabold">
+                걸밴크 전문
+              </span>
+            )}
+          </div>
+          <div
+            className={
+              "text-[16.5px] font-extrabold -tracking-[0.01em] text-ink leading-[1.28] mt-0.5 " +
+              (checked ? "line-through decoration-[#b8bcc4]" : "")
+            }
+          >
             {item.name}
-          </span>
-          {item.day && (
-            <span className="text-[11px] font-mono uppercase text-neutral-500 border border-neutral-400 px-[7px] py-px">
-              {item.day}
-            </span>
+          </div>
+        </button>
+        <button
+          onClick={onToggle}
+          aria-label={checked ? "방문 체크 해제" : "방문 체크"}
+          className={
+            "w-[26px] h-[26px] rounded-full flex items-center justify-center flex-none border-2 cursor-pointer transition-colors " +
+            (checked ? "bg-accent border-accent" : "bg-white border-[#d5d7de]")
+          }
+        >
+          {checked && (
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#fff" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 6L9 17l-5-5" />
+            </svg>
           )}
-          {item.highlight && (
-            <span className="text-[11px] font-mono uppercase tracking-wider bg-accent text-white px-2 py-0.5 font-bold">
-              걸밴크 전문
-            </span>
-          )}
-        </span>
-      </label>
-      <div className="text-neutral-500 text-[13px] mt-2 ml-7">{item.genre}</div>
+        </button>
+      </div>
+
+      <button onClick={onOpen} className="block w-full text-left bg-transparent border-0 p-0 cursor-pointer">
+        <div className="text-[13.5px] text-muted leading-[1.5] mt-[9px]">{item.genre}</div>
+      </button>
+
       {item.note && (
-        <div className="text-neutral-600 italic text-[12.5px] mt-1.5 ml-7 leading-[1.5]">{item.note}</div>
+        <div className="text-[12.5px] text-[#8a8f98] leading-[1.55] mt-[7px] bg-[#f6f7f9] rounded-[10px] px-[11px] py-[9px]">
+          {item.note}
+        </div>
       )}
-      <div className="flex flex-wrap gap-2 mt-3 ml-7">
-        {item.boothUrl && (
-          <a className={boothChip} href={item.boothUrl} target="_blank" rel="noopener noreferrer">
-            📍 배치도 {item.booth} 확인 ↗
-          </a>
+
+      {item.genres && item.genres.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-[11px]">
+          {item.genres.map((g) => (
+            <span key={g} className="inline-flex items-center h-6 px-[9px] rounded-md bg-chip text-[#5b6270] text-[11.5px] font-bold">
+              {g}
+            </span>
+          ))}
+        </div>
+      )}
+
+      <LinkChips chips={chipsFor(item)} />
+    </div>
+  );
+}
+
+/* ---------- 상세 화면 ---------- */
+function Detail({
+  item,
+  checked,
+  onToggle,
+  onBack,
+}: {
+  item: Circle;
+  checked: boolean;
+  onToggle: () => void;
+  onBack: () => void;
+}) {
+  const short = boothShort(item);
+  const links: { label: string; url: string; primary: boolean }[] = [];
+  if (item.boothUrl)
+    links.push({ label: `📍 배치도에서 ${item.booth} 확인`, url: item.boothUrl, primary: true });
+  item.links.forEach((l) => links.push({ label: l.label, url: l.url, primary: false }));
+
+  return (
+    <div className="min-h-full">
+      <div className="sticky top-0 z-10 bg-bg flex items-center gap-1.5 px-4 pt-5 pb-3.5">
+        <button onClick={onBack} aria-label="뒤로" className="w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer bg-transparent border-0">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#17181c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </button>
+        <span className="text-[15px] font-bold text-[#3a3d44]">서클 상세</span>
+      </div>
+
+      <div className="px-[22px] pt-1.5">
+        <div className="flex items-center gap-3.5">
+          <div
+            className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-extrabold flex-none -tracking-[0.02em]"
+            style={{ background: badgeColor(item.id), fontSize: short.length > 2 ? 17 : 24 }}
+          >
+            {short}
+          </div>
+          <div className="min-w-0">
+            <div className="text-xs font-extrabold tracking-[0.05em] text-faint">
+              {(item.booth || "윗치폼 통판").toUpperCase()}
+            </div>
+            <div className="text-[23px] font-extrabold -tracking-[0.02em] text-ink leading-[1.15] mt-[3px]">
+              {item.name}
+            </div>
+          </div>
+        </div>
+
+        {item.highlight && (
+          <div className="inline-flex items-center h-7 px-3 rounded-full mt-4 bg-accent/10 text-accent text-[12.5px] font-extrabold">
+            ★ 걸밴크 전문 서클
+          </div>
         )}
-        {item.links.map((l) => (
-          <a key={l.url} className={linkChip} href={l.url} target="_blank" rel="noopener noreferrer">
-            {l.label} ↗
-          </a>
-        ))}
+
+        <div className="text-[15px] text-[#4b5563] leading-[1.6] mt-4">{item.genre}</div>
+
+        {item.genres && item.genres.length > 0 && (
+          <div className="flex flex-wrap gap-[7px] mt-3.5">
+            {item.genres.map((g) => (
+              <span key={g} className="inline-flex items-center h-7 px-[11px] rounded-lg bg-chip text-[#5b6270] text-[12.5px] font-bold">
+                {g}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {item.note && (
+          <div className="mt-5">
+            <div className="text-xs font-extrabold tracking-[0.04em] text-faint mb-2">MEMO</div>
+            <div className="text-sm text-[#4b5563] leading-[1.65] bg-card border border-line rounded-2xl px-4 py-[15px]">
+              {item.note}
+            </div>
+          </div>
+        )}
+
+        <div className="mt-[22px]">
+          <div className="text-xs font-extrabold tracking-[0.04em] text-faint mb-2.5">링크</div>
+          <div className="flex flex-col gap-[9px]">
+            {links.map((lk) => (
+              <a
+                key={lk.url}
+                href={lk.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={
+                  "flex items-center justify-between h-[52px] px-[18px] rounded-2xl text-[14.5px] no-underline border " +
+                  (lk.primary
+                    ? "border-transparent bg-accent/10 text-accent font-extrabold"
+                    : "border-line bg-card text-ink font-bold")
+                }
+              >
+                <span>{lk.label}</span>
+                <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M7 17L17 7" />
+                  <path d="M8 7h9v9" />
+                </svg>
+              </a>
+            ))}
+          </div>
+        </div>
+
+        <button
+          onClick={onToggle}
+          className={
+            "flex items-center justify-center gap-2 w-full h-[54px] mt-[26px] mb-6 rounded-2xl text-[15.5px] font-extrabold cursor-pointer border-0 text-white " +
+            (checked ? "bg-accent" : "bg-ink")
+          }
+        >
+          {checked && (
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 6L9 17l-5-5" />
+            </svg>
+          )}
+          <span>{checked ? "방문함" : "방문 체크"}</span>
+        </button>
       </div>
     </div>
   );
 }
 
+/* ---------- 앱 ---------- */
 export default function App() {
   const [checks, toggle, resetChecks] = useChecks();
-  const doneCount = circles.filter((i) => checks[i.id]).length;
+  const [status, setStatus] = useState<Status>("all");
+  const [genre, setGenre] = useState<string>("all");
+  const [query, setQuery] = useState("");
+  const [detailId, setDetailId] = useState<string | null>(null);
+
+  const doneCount = circles.filter((c) => checks[c.id]).length;
+
+  const list = useMemo(() => {
+    const q = norm(query.toLowerCase());
+    return circles.filter((c) => {
+      if (status === "done" && !checks[c.id]) return false;
+      if (status === "undone" && checks[c.id]) return false;
+      if (genre !== "all") {
+        const hay = norm(c.genre) + norm((c.genres || []).join(""));
+        if (!hay.includes(norm(genre))) return false;
+      }
+      if (q) {
+        const hay = norm(
+          (c.name + c.genre + (c.booth || "") + (c.genres || []).join("")).toLowerCase(),
+        );
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [checks, status, genre, query]);
+
+  const detail = detailId
+    ? circles.find((c) => c.id === detailId) || witchformExtra.find((c) => c.id === detailId)
+    : null;
+
+  const statusChip = (active: boolean) =>
+    "inline-flex items-center h-[34px] px-4 rounded-full text-[13.5px] font-bold cursor-pointer whitespace-nowrap border " +
+    (active ? "bg-ink text-white border-ink" : "bg-card text-[#7b818c] border-line");
+  const genreChip = (active: boolean) =>
+    "inline-flex items-center h-8 px-[13px] rounded-full text-[13px] font-bold cursor-pointer whitespace-nowrap border " +
+    (active ? "bg-accent/10 text-accent border-accent/30" : "bg-card text-[#7b818c] border-line");
 
   return (
-    <div className="max-w-[780px] mx-auto px-[18px] pt-7 pb-20">
-      <header>
-        <div className="border-b-4 border-ink pb-3 mb-4">
-          <div className="font-mono text-xs uppercase tracking-widest text-neutral-500 mb-2">
-            Vol. 1 · {event.date} · Seoul Comic World Edition
+    <div className="min-h-screen flex items-start justify-center p-5">
+      <div className="w-[432px] h-[892px] bg-bg rounded-[34px] overflow-hidden relative shadow-[0_30px_70px_-20px_rgba(20,22,30,0.34)] border border-[#e1e2e8]">
+        {detail ? (
+          <div className="h-full overflow-y-auto no-scrollbar bg-bg">
+            <Detail
+              item={detail}
+              checked={!!checks[detail.id]}
+              onToggle={() => toggle(detail.id)}
+              onBack={() => setDetailId(null)}
+            />
           </div>
-          <h1 className="font-serif font-black text-4xl sm:text-5xl tracking-tighter leading-[0.95]">
-            걸즈밴드크라이 @ 7월 서코
-          </h1>
-        </div>
-        <div className="border border-ink bg-paper px-[18px] py-4">
-          <strong className="font-serif text-xl font-bold">{event.title}</strong>
-          <span className="ml-2 font-mono text-xs uppercase text-neutral-500 border border-neutral-400 px-2 py-0.5">
-            {event.alias}
-          </span>
-          <div className="mt-2 text-neutral-600 text-sm">
-            📅 {event.date} · 📍 {event.venue}
-          </div>
-          <a
-            className="inline-block mt-2.5 text-ink text-sm font-semibold underline-offset-4 decoration-2 decoration-accent hover:underline"
-            href={event.mapUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            서울코믹월드 전체 부스배치도 ↗
-          </a>
-          <div className="mt-2.5 text-xs leading-[1.6] text-neutral-600 bg-neutral-100 border border-divider px-[11px] py-[9px] [&_b]:text-ink">
-            ✅ 각 카드의 <b>📍 배치도 확인</b> 버튼 = 서울코믹월드 공식 부스배치도의 해당 부스로 바로 열립니다 (이번 서코 참가 증거).
-            X/윗치폼 링크는 서클 연락처/판매 채널입니다.
-          </div>
-        </div>
-        <div className="flex items-center gap-3 mt-[18px] mx-0.5 mb-1.5 font-mono text-sm text-neutral-600">
-          체크 {doneCount} / {circles.length}
-          <button
-            className="ml-auto bg-transparent border border-ink text-ink px-3 py-1.5 cursor-pointer font-mono text-xs uppercase tracking-wider hover:bg-ink hover:text-paper transition-colors duration-200"
-            onClick={resetChecks}
-          >
-            초기화
-          </button>
-        </div>
-      </header>
+        ) : (
+          <div className="h-full overflow-y-auto no-scrollbar pb-7">
+            {/* sticky 헤더 */}
+            <div className="sticky top-0 z-10 bg-bg px-5 pt-[22px] pb-3">
+              <div className="mb-4">
+                <div className="text-[22px] font-extrabold -tracking-[0.02em] text-ink leading-none">걸밴크 서코</div>
+                <div className="text-xs font-semibold text-faint mt-[5px]">334회 · 7코 일산 킨텍스 · 7/18–19</div>
+              </div>
 
-      <section>
-        <h2 className="font-mono text-xs uppercase tracking-widest font-bold border-b border-ink pb-2 mt-8 mx-0.5 mb-3">
-          참가 서클 (서울코믹월드 배치도 기준 · 모두 양일)
-        </h2>
-        {circles.map((c) => (
-          <Card key={c.id} item={c} checked={!!checks[c.id]} onToggle={() => toggle(c.id)} />
-        ))}
-      </section>
+              <div className="flex items-center gap-2.5 h-12 bg-card border border-line rounded-[14px] px-3.5">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#9aa0aa" strokeWidth="2" strokeLinecap="round">
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="M21 21l-4-4" />
+                </svg>
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="서클 · 부스 · 장르 검색"
+                  className="flex-1 border-0 outline-none bg-transparent text-[15px] text-ink placeholder:text-faint"
+                />
+                <a href={event.mapUrl} target="_blank" rel="noopener noreferrer" title="전체 부스배치도" className="flex items-center">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#9aa0aa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z" />
+                    <circle cx="12" cy="10" r="3" />
+                  </svg>
+                </a>
+              </div>
 
-      <footer className="mt-9 font-mono text-neutral-500 text-xs leading-[1.6] border-t-4 border-ink pt-4">
-        <p>
-          출처: 서울코믹월드(comicw.net) 부스배치도 · 윗치폼(witchform.com) · X — 2026-07-01 기준.
-          체크 상태는 이 브라우저에 저장됩니다.
-        </p>
-      </footer>
+              <div className="flex gap-2 mt-3.5">
+                {STATUS.map((s) => (
+                  <button key={s.k} onClick={() => setStatus(s.k)} className={statusChip(status === s.k)}>
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 장르 칩 (가로 스크롤) */}
+            <div className="flex gap-2 overflow-x-auto no-scrollbar px-5 pt-1 pb-0.5">
+              <button onClick={() => setGenre("all")} className={genreChip(genre === "all")}>
+                전체 장르
+              </button>
+              {GENRES.map((g) => (
+                <button key={g} onClick={() => setGenre(g)} className={genreChip(genre === g)}>
+                  {g}
+                </button>
+              ))}
+            </div>
+
+            {/* 진행 표시 */}
+            <div className="flex items-center justify-between px-[22px] pt-3.5 pb-2">
+              <div className="text-[12.5px] font-bold text-faint">참가 서클 {list.length}곳</div>
+              <div className="text-[12.5px] font-bold text-accent">
+                방문 {doneCount}/{circles.length}
+              </div>
+            </div>
+
+            {/* 카드 목록 */}
+            <div className="flex flex-col gap-3 px-5">
+              {list.map((c) => (
+                <Card
+                  key={c.id}
+                  item={c}
+                  checked={!!checks[c.id]}
+                  onToggle={() => toggle(c.id)}
+                  onOpen={() => setDetailId(c.id)}
+                />
+              ))}
+              {list.length === 0 && (
+                <div className="text-center py-14 text-[#b0b4bc] text-sm font-semibold">조건에 맞는 서클이 없어요</div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,22 +1,37 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,400;0,700;0,900&family=Lora:ital,wght@0,400;0,600;1,400&display=swap");
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css");
 @import "tailwindcss";
 
 @theme {
-  --color-paper: #f9f9f7;
-  --color-ink: #111111;
-  --color-divider: #e5e5e0;
-  --color-accent: #cc0000;
-  --font-serif: "Playfair Display", "Times New Roman", serif;
-  --font-body: "Lora", Georgia, serif;
-  --font-sans: "Inter", "Helvetica Neue", sans-serif;
-  --font-mono: "JetBrains Mono", "Courier New", monospace;
+  /* Blink 스타일 팔레트 (구 Newsprint 대체) */
+  --color-bg: #f4f5f7;        /* 앱 배경 */
+  --color-card: #ffffff;      /* 카드 배경 */
+  --color-ink: #17181c;       /* 기본 텍스트 */
+  --color-muted: #6b7280;     /* 본문 보조 텍스트 */
+  --color-faint: #9aa0aa;     /* 메타/라벨 */
+  --color-line: #ecedf0;      /* 보더 */
+  --color-chip: #f1f3f6;      /* 태그/링크 칩 배경 */
+  --color-accent: #3e5bff;    /* 액센트(블루) */
+
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
+    "Apple SD Gothic Neo", sans-serif;
 }
 
-/* Newsprint(DESIGN.md): 4px 도트 그레인 배경 + Lora 본문 */
+html,
 body {
-  background-color: var(--color-paper);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4' viewBox='0 0 4 4'%3E%3Cpath fill='%23111111' fill-opacity='0.04' d='M1 3h1v1H1V3zm2-2h1v1H3V1z'%3E%3C/path%3E%3C/svg%3E");
+  margin: 0;
+}
+
+body {
+  background-color: var(--color-bg);
   color: var(--color-ink);
-  font-family: var(--font-body);
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+}
+
+/* 가로 스크롤 칩 줄: 스크롤바 숨김 */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
 }
