@@ -8,6 +8,15 @@ export type LinkItem = {
   url: string;
 };
 
+/** X(트위터) 참가 공지 트윗 — og 태그 그대로 캡처해서 상세페이지 카드로 노출 */
+export type TweetInfo = {
+  url: string;
+  ogTitle?: string;
+  ogDescription?: string;
+  ogImage?: string;
+  ogSiteName?: string;
+};
+
 export type Circle = {
   id: string;
   name: string;
@@ -22,6 +31,8 @@ export type Circle = {
   genres?: string[];
   /** highlight 배지 라벨 (기본: "걸밴크 전문") */
   badge?: string;
+  /** 이번 서코 참가를 공지한 X 트윗 (og 태그 캡처) */
+  tweetInfo?: TweetInfo;
 };
 
 export const event = {
@@ -217,6 +228,13 @@ export const circles: Circle[] = [
     boothUrl: "https://comicw.net/map/334/CH08",
     note: "X 계정명 'Allsm(7서코양일CH_08)'로 이번 서코 부스 확인됨",
     links: [{ label: "X (@foryou712358)", url: "https://x.com/foryou712358" }],
+    tweetInfo: {
+      url: "https://x.com/foryou712358/status/2061354843575619751",
+      ogTitle: "Allsm(7서코양일CH_08) (@foryou712358) on X",
+      ogImage:
+        "https://pbs.twimg.com/profile_images/1767938041283489792/cmedJ8gc_200x200.jpg",
+      ogSiteName: "X (formerly Twitter)",
+    },
   },
   {
     id: "keon-leesangmyang",
@@ -359,6 +377,13 @@ export const circles: Circle[] = [
     genres: ["봇치더록", "장송의프리렌", "프로젝트세카이"],
     boothUrl: "https://comicw.net/map/334/CL05",
     links: [{ label: "X (@QUICHE_E)", url: "https://x.com/QUICHE_E" }],
+    tweetInfo: {
+      url: "https://x.com/QUICHE_E/status/2066571431002145227",
+      ogTitle: "우냐냥🔌 (@QUICHE_E) on X",
+      ogDescription: "7월 서코 신굿즈 쪼끔씩 그리는중~",
+      ogImage: "https://pbs.twimg.com/media/HK3vt63aIAEe0W4.png:large",
+      ogSiteName: "X (formerly Twitter)",
+    },
   },
   {
     id: "br-chawonband",
@@ -404,6 +429,12 @@ export const circles: Circle[] = [
     boothUrl: "https://comicw.net/map/334/CJ44",
     note: "봇치더록 x 스타크래프트 크로스오버 동인 콘셉트 부스",
     links: [{ label: "X (@Raybolt_HERO)", url: "https://x.com/Raybolt_HERO" }],
+    tweetInfo: {
+      url: "https://x.com/Raybolt_HERO/status/2068961195844051111",
+      ogTitle: "RAYBOLT_HERO (@Raybolt_HERO) on X",
+      ogImage: "https://pbs.twimg.com/media/HLZtPnSbQAACDHh.jpg:large",
+      ogSiteName: "X (formerly Twitter)",
+    },
   },
   {
     id: "br-amugeona",
