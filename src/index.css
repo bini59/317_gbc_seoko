@@ -19,6 +19,9 @@
 html,
 body {
   margin: 0;
+  /* 모바일에서 페이지 자체가 좌우로 밀리는 것 방지 (칩 줄 내부 스크롤은 유지) */
+  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 body {
