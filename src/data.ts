@@ -428,7 +428,10 @@ export const circles: Circle[] = [
     genres: ["봇치더록", "스타크래프트"],
     boothUrl: "https://comicw.net/map/334/CJ44",
     note: "봇치더록 x 스타크래프트 크로스오버 동인 콘셉트 부스",
-    links: [{ label: "X (@Raybolt_HERO)", url: "https://x.com/Raybolt_HERO" }],
+    links: [
+      { label: "X (@Raybolt_HERO)", url: "https://x.com/Raybolt_HERO" },
+      { label: "코믹인포", url: "https://comicw.net/g/987" },
+    ],
     tweetInfo: {
       url: "https://x.com/Raybolt_HERO/status/2068961195844051111",
       ogTitle: "RAYBOLT_HERO (@Raybolt_HERO) on X",
