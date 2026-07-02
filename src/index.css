@@ -1,23 +1,22 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,400;0,700;0,900&family=Lora:ital,wght@0,400;0,600;1,400&display=swap");
 @import "tailwindcss";
 
 @theme {
-  --color-bg: #0f1020;
-  --color-card: #1b1d33;
-  --color-card-hl: #2a1d3a;
-  --color-line: #2e3150;
-  --color-text: #eceeffe6;
-  --color-muted: #9aa0c7;
-  --color-accent: #ff5c8a;
-  --color-accent2: #6c8bff;
-  --color-done: #1f3a2a;
-  --font-sans: "Pretendard", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
-    "Malgun Gothic", system-ui, sans-serif;
+  --color-paper: #f9f9f7;
+  --color-ink: #111111;
+  --color-divider: #e5e5e0;
+  --color-accent: #cc0000;
+  --font-serif: "Playfair Display", "Times New Roman", serif;
+  --font-body: "Lora", Georgia, serif;
+  --font-sans: "Inter", "Helvetica Neue", sans-serif;
+  --font-mono: "JetBrains Mono", "Courier New", monospace;
 }
 
-/* radial-gradient 배경은 유틸리티로 표현 불가 → 커스텀 CSS 유지 */
+/* Newsprint(DESIGN.md): 4px 도트 그레인 배경 + Lora 본문 */
 body {
-  background: radial-gradient(1200px 600px at 20% -10%, #26123a, transparent),
-    radial-gradient(900px 500px at 100% 0%, #10243f, transparent), var(--color-bg);
-  color: var(--color-text);
+  background-color: var(--color-paper);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4' viewBox='0 0 4 4'%3E%3Cpath fill='%23111111' fill-opacity='0.04' d='M1 3h1v1H1V3zm2-2h1v1H3V1z'%3E%3C/path%3E%3C/svg%3E");
+  color: var(--color-ink);
+  font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
 }

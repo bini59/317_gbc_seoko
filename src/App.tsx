@@ -26,16 +26,16 @@ function useChecks(): [Checks, (id: string) => void, () => void] {
 }
 
 const linkChip =
-  "text-[13px] no-underline text-accent2 bg-[#12142b] border border-line px-[11px] py-1.5 rounded-lg font-semibold hover:border-accent2 hover:text-white";
+  "text-xs font-mono uppercase tracking-wider no-underline text-ink border border-ink px-2.5 py-1.5 hover:bg-ink hover:text-paper transition-colors duration-200";
 const boothChip =
-  "text-[13px] no-underline text-[#7ee0a8] bg-[#10241a] border border-[#275c3f] px-[11px] py-1.5 rounded-lg font-bold hover:border-[#7ee0a8] hover:text-[#d6ffe6]";
+  "text-xs font-mono uppercase tracking-wider no-underline bg-ink text-paper border border-ink px-2.5 py-1.5 hover:bg-paper hover:text-ink transition-colors duration-200";
 
 function Card({ item, checked, onToggle }: { item: Circle; checked: boolean; onToggle: () => void }) {
-  // bg/border는 상태별로 하나만 출력 (bg-card + bg-done 동시 지정 시 우선순위가 불명확)
+  // Newsprint: 라운드 0, 잉크 보더. 하이라이트는 빨간 좌측 룰, 체크 완료는 회지 배경.
   const cardCls = [
-    "rounded-[14px] border px-4 py-3.5 mb-3 transition-[border-color,opacity,background-color] duration-150",
-    item.highlight ? "border-[#4a2f66]" : "border-line",
-    checked ? "bg-done opacity-[0.72]" : item.highlight ? "bg-card-hl" : "bg-card",
+    "border border-ink px-4 py-3.5 mb-3 transition-colors duration-200",
+    item.highlight ? "border-l-4 border-l-accent" : "",
+    checked ? "bg-divider opacity-70" : "bg-paper hover:bg-neutral-100",
   ].join(" ");
 
   return (
@@ -45,29 +45,31 @@ function Card({ item, checked, onToggle }: { item: Circle; checked: boolean; onT
           type="checkbox"
           checked={checked}
           onChange={onToggle}
-          className="mt-[3px] w-[18px] h-[18px] accent-accent flex-none"
+          className="mt-[3px] w-[18px] h-[18px] accent-ink flex-none"
         />
         <span className="flex flex-wrap items-center gap-2">
           {item.booth && (
-            <span className="font-mono text-xs bg-[#0d0f22] border border-line text-accent2 px-2 py-0.5 rounded-md">
-              {item.booth}
-            </span>
+            <span className="font-mono text-xs border border-ink px-2 py-0.5">{item.booth}</span>
           )}
-          <span className={"font-bold text-base" + (checked ? " line-through" : "")}>{item.name}</span>
+          <span className={"font-serif font-bold text-lg leading-tight" + (checked ? " line-through" : "")}>
+            {item.name}
+          </span>
           {item.day && (
-            <span className="text-[11px] text-muted border border-line px-[7px] py-px rounded-full">
+            <span className="text-[11px] font-mono uppercase text-neutral-500 border border-neutral-400 px-[7px] py-px">
               {item.day}
             </span>
           )}
           {item.highlight && (
-            <span className="text-[11px] bg-accent text-white px-2 py-0.5 rounded-full font-bold">
+            <span className="text-[11px] font-mono uppercase tracking-wider bg-accent text-white px-2 py-0.5 font-bold">
               걸밴크 전문
             </span>
           )}
         </span>
       </label>
-      <div className="text-muted text-[13px] mt-2 ml-7">{item.genre}</div>
-      {item.note && <div className="text-[#ffd7a1] text-[12.5px] mt-1.5 ml-7 leading-[1.5]">{item.note}</div>}
+      <div className="text-neutral-500 text-[13px] mt-2 ml-7">{item.genre}</div>
+      {item.note && (
+        <div className="text-neutral-600 italic text-[12.5px] mt-1.5 ml-7 leading-[1.5]">{item.note}</div>
+      )}
       <div className="flex flex-wrap gap-2 mt-3 ml-7">
         {item.boothUrl && (
           <a className={boothChip} href={item.boothUrl} target="_blank" rel="noopener noreferrer">
@@ -91,32 +93,39 @@ export default function App() {
   return (
     <div className="max-w-[780px] mx-auto px-[18px] pt-7 pb-20">
       <header>
-        <h1 className="text-[26px] font-bold mb-3.5 tracking-[-0.5px]">🎸 걸즈밴드크라이 @ 7월 서코</h1>
-        <div className="bg-[linear-gradient(135deg,#221a3d,#16233f)] border border-line rounded-2xl px-[18px] py-4">
-          <strong className="text-lg">{event.title}</strong>
-          <span className="ml-2 text-xs text-muted border border-line px-2 py-0.5 rounded-full">
+        <div className="border-b-4 border-ink pb-3 mb-4">
+          <div className="font-mono text-xs uppercase tracking-widest text-neutral-500 mb-2">
+            Vol. 1 · {event.date} · Seoul Comic World Edition
+          </div>
+          <h1 className="font-serif font-black text-4xl sm:text-5xl tracking-tighter leading-[0.95]">
+            걸즈밴드크라이 @ 7월 서코
+          </h1>
+        </div>
+        <div className="border border-ink bg-paper px-[18px] py-4">
+          <strong className="font-serif text-xl font-bold">{event.title}</strong>
+          <span className="ml-2 font-mono text-xs uppercase text-neutral-500 border border-neutral-400 px-2 py-0.5">
             {event.alias}
           </span>
-          <div className="mt-2 text-muted text-sm">
+          <div className="mt-2 text-neutral-600 text-sm">
             📅 {event.date} · 📍 {event.venue}
           </div>
           <a
-            className="inline-block mt-2.5 text-accent2 no-underline text-sm font-semibold hover:underline"
+            className="inline-block mt-2.5 text-ink text-sm font-semibold underline-offset-4 decoration-2 decoration-accent hover:underline"
             href={event.mapUrl}
             target="_blank"
             rel="noopener noreferrer"
           >
             서울코믹월드 전체 부스배치도 ↗
           </a>
-          <div className="mt-2.5 text-xs leading-[1.6] text-muted bg-[#0d0f22] border border-line rounded-[10px] px-[11px] py-[9px] [&_b]:text-[#7ee0a8]">
+          <div className="mt-2.5 text-xs leading-[1.6] text-neutral-600 bg-neutral-100 border border-divider px-[11px] py-[9px] [&_b]:text-ink">
             ✅ 각 카드의 <b>📍 배치도 확인</b> 버튼 = 서울코믹월드 공식 부스배치도의 해당 부스로 바로 열립니다 (이번 서코 참가 증거).
             X/윗치폼 링크는 서클 연락처/판매 채널입니다.
           </div>
         </div>
-        <div className="flex items-center gap-3 mt-[18px] mx-0.5 mb-1.5 text-sm text-muted">
+        <div className="flex items-center gap-3 mt-[18px] mx-0.5 mb-1.5 font-mono text-sm text-neutral-600">
           체크 {doneCount} / {circles.length}
           <button
-            className="ml-auto bg-transparent border border-line text-muted rounded-full px-3 py-1 cursor-pointer text-xs hover:text-text hover:border-accent"
+            className="ml-auto bg-transparent border border-ink text-ink px-3 py-1.5 cursor-pointer font-mono text-xs uppercase tracking-wider hover:bg-ink hover:text-paper transition-colors duration-200"
             onClick={resetChecks}
           >
             초기화
@@ -125,7 +134,7 @@ export default function App() {
       </header>
 
       <section>
-        <h2 className="text-[15px] text-muted mt-[26px] mx-0.5 mb-3 font-bold">
+        <h2 className="font-mono text-xs uppercase tracking-widest font-bold border-b border-ink pb-2 mt-8 mx-0.5 mb-3">
           참가 서클 (서울코믹월드 배치도 기준 · 모두 양일)
         </h2>
         {circles.map((c) => (
@@ -133,7 +142,7 @@ export default function App() {
         ))}
       </section>
 
-      <footer className="mt-9 text-muted text-xs leading-[1.6] border-t border-line pt-4">
+      <footer className="mt-9 font-mono text-neutral-500 text-xs leading-[1.6] border-t-4 border-ink pt-4">
         <p>
           출처: 서울코믹월드(comicw.net) 부스배치도 · 윗치폼(witchform.com) · X — 2026-07-01 기준.
           체크 상태는 이 브라우저에 저장됩니다.
