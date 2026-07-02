@@ -444,7 +444,7 @@ function Detail({
 export default function App() {
   const [checks, toggle, resetChecks] = useChecks();
   const [status, setStatus] = useState<Status>("all");
-  const [genre, setGenre] = useState<string>("all");
+  const [genres, setGenres] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [detailId, setDetailId] = useState<string | null>(null);
 
@@ -455,9 +455,9 @@ export default function App() {
     return circles.filter((c) => {
       if (status === "done" && !checks[c.id]) return false;
       if (status === "undone" && checks[c.id]) return false;
-      if (genre !== "all") {
+      if (genres.length > 0) {
         const hay = norm(c.genre) + norm((c.genres || []).join(""));
-        if (!hay.includes(norm(genre))) return false;
+        if (!genres.some((g) => hay.includes(norm(g)))) return false;
       }
       if (q) {
         const hay = norm(
@@ -478,7 +478,7 @@ export default function App() {
           numeric: true,
         });
       });
-  }, [checks, status, genre, query]);
+  }, [checks, status, genres, query]);
 
   const detail = detailId
     ? circles.find((c) => c.id === detailId) ||
@@ -597,16 +597,22 @@ export default function App() {
           {/* 장르 칩 (가로 스크롤) */}
           <div className="flex gap-2 overflow-x-auto no-scrollbar px-5 pt-1 pb-0.5">
             <button
-              onClick={() => setGenre("all")}
-              className={genreChip(genre === "all")}
+              onClick={() => setGenres([])}
+              className={genreChip(genres.length === 0)}
             >
               전체 장르
             </button>
             {GENRES.map((g) => (
               <button
                 key={g}
-                onClick={() => setGenre(g)}
-                className={genreChip(genre === g)}
+                onClick={() =>
+                  setGenres((prev) =>
+                    prev.includes(g)
+                      ? prev.filter((x) => x !== g)
+                      : [...prev, g],
+                  )
+                }
+                className={genreChip(genres.includes(g))}
               >
                 {g}
               </button>
