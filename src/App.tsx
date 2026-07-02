@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import type { Dispatch, SetStateAction } from "react";
 import { event, circles } from "./data";
 import type { Circle } from "./data";
 
@@ -7,7 +6,7 @@ const STORAGE_KEY = "gbc-seoko-2026-07-checks";
 
 type Checks = Record<string, boolean>;
 
-function useChecks(): [Checks, (id: string) => void, Dispatch<SetStateAction<Checks>>] {
+function useChecks(): [Checks, (id: string) => void, () => void] {
   const [checks, setChecks] = useState<Checks>(() => {
     try {
       return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}") || {};
@@ -16,10 +15,14 @@ function useChecks(): [Checks, (id: string) => void, Dispatch<SetStateAction<Che
     }
   });
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(checks));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(checks));
+    } catch {
+      // storage unavailable (private mode / quota) — checks stay in-memory
+    }
   }, [checks]);
   const toggle = (id: string) => setChecks((c) => ({ ...c, [id]: !c[id] }));
-  return [checks, toggle, setChecks];
+  return [checks, toggle, () => setChecks({})];
 }
 
 const linkChip =
@@ -82,7 +85,7 @@ function Card({ item, checked, onToggle }: { item: Circle; checked: boolean; onT
 }
 
 export default function App() {
-  const [checks, toggle, setChecks] = useChecks();
+  const [checks, toggle, resetChecks] = useChecks();
   const doneCount = circles.filter((i) => checks[i.id]).length;
 
   return (
@@ -114,7 +117,7 @@ export default function App() {
           체크 {doneCount} / {circles.length}
           <button
             className="ml-auto bg-transparent border border-line text-muted rounded-full px-3 py-1 cursor-pointer text-xs hover:text-text hover:border-accent"
-            onClick={() => setChecks({})}
+            onClick={resetChecks}
           >
             초기화
           </button>
