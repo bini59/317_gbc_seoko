@@ -471,7 +471,13 @@ export default function App() {
         if (!hay.includes(q)) return false;
       }
       return true;
-    });
+    })
+      .sort((a, b) => {
+        if (!a.booth !== !b.booth) return a.booth ? -1 : 1; // 통판(부스 없음)은 뒤로
+        return (a.booth || a.name).localeCompare(b.booth || b.name, "ko", {
+          numeric: true,
+        });
+      });
   }, [checks, status, genre, query]);
 
   const detail = detailId
