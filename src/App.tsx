@@ -125,7 +125,7 @@ function Card({
             </span>
             {item.highlight && (
               <span className="inline-flex items-center h-5 px-2 rounded-md bg-accent/10 text-accent text-[10.5px] font-extrabold">
-                걸밴크 전문
+                {item.badge ?? "걸밴크 전문"}
               </span>
             )}
           </div>
@@ -228,7 +228,7 @@ function Detail({
 
         {item.highlight && (
           <div className="inline-flex items-center h-7 px-3 rounded-full mt-4 bg-accent/10 text-accent text-[12.5px] font-extrabold">
-            ★ 걸밴크 전문 서클
+            ★ {item.badge ?? "걸밴크 전문"} 서클
           </div>
         )}
 

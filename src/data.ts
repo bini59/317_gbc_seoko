@@ -18,8 +18,10 @@ export type Circle = {
   highlight?: boolean;
   note?: string;
   boothUrl?: string;
-  /** 함께 파는 2차 팬덤 태그 (필터/칩 표시용). 걸밴크는 모든 서클 공통이라 제외. */
+  /** 함께 파는 2차 팬덤 태그 (필터/칩 표시용). 걸밴크 서클은 걸밴크 태그 제외. */
   genres?: string[];
+  /** highlight 배지 라벨 (기본: "걸밴크 전문") */
+  badge?: string;
 };
 
 export const event = {
@@ -30,7 +32,7 @@ export const event = {
   mapUrl: "https://comicw.net/map/",
 };
 
-// 서울코믹월드 배치도 기준: 장르에 걸즈밴드크라이가 등록된 서클 (모두 양일)
+// 서울코믹월드 배치도 기준: 장르에 걸즈밴드크라이 또는 뱅드림이 등록된 서클 (모두 양일)
 export const circles: Circle[] = [
   {
     id: "cf62",
@@ -116,6 +118,81 @@ export const circles: Circle[] = [
       { label: "X (@recma5)", url: "https://x.com/recma5" },
       { label: "Instagram (@cma.day)", url: "https://instagram.com/cma.day" },
     ],
+  },
+  {
+    id: "bd-buuuu",
+    booth: "CA17·CA18",
+    name: "buuuu",
+    day: "양일",
+    genre: "뱅드림 전문 서클",
+    genres: ["뱅드림"],
+    highlight: true,
+    badge: "뱅드림 전문",
+    boothUrl: "https://comicw.net/map/334/CA17",
+    note: "배치도상 트위터 미등록 — 부스 위치로 확인",
+    links: [],
+  },
+  {
+    id: "bd-firefly",
+    booth: "CA19",
+    name: "반딧불이 정원",
+    day: "양일",
+    genre: "뱅드림 전문 서클",
+    genres: ["뱅드림"],
+    highlight: true,
+    badge: "뱅드림 전문",
+    boothUrl: "https://comicw.net/map/334/CA19",
+    note: "X 계정명 'GoAnchor⚓️CA_19'로 이번 서코 부스 확인됨",
+    links: [
+      { label: "X (@GoAnchor)", url: "https://x.com/GoAnchor" },
+      { label: "코믹월드 샵", url: "https://comicw.net/g/?it_id=1480" },
+    ],
+  },
+  {
+    id: "bd-sakanadrop",
+    booth: "CF10",
+    name: "sakanadrop",
+    day: "양일",
+    genre: "뱅드림 / 원신 / 프로젝트세카이 / 하츠네미쿠 / 카게프로",
+    genres: ["뱅드림", "원신", "프로젝트세카이", "하츠네미쿠", "카게프로"],
+    boothUrl: "https://comicw.net/map/334/CF10",
+    links: [{ label: "X (@kanachiaki)", url: "https://x.com/kanachiaki" }],
+  },
+  {
+    id: "bd-pastelgirls",
+    booth: "CL64",
+    name: "파스텔 걸즈",
+    day: "양일",
+    genre: "뱅드림 / 블루아카이브 / 원신",
+    genres: ["뱅드림", "블루아카이브", "원신"],
+    boothUrl: "https://comicw.net/map/334/CL64",
+    note: "X 계정명 '花ゆい🌸HanaYui 7월서코 CL_64'로 이번 서코 부스 확인됨",
+    links: [
+      { label: "X (@hanayui132)", url: "https://x.com/hanayui132" },
+      { label: "Instagram (@hanayui132)", url: "https://instagram.com/hanayui132" },
+    ],
+  },
+  {
+    id: "bd-ttudduns",
+    booth: "BA35·BA36",
+    name: "뚜뚠",
+    day: "양일",
+    genre: "다장르 종합 리셀(33개 장르) · 뱅드림 포함",
+    genres: ["뱅드림", "종합 리셀"],
+    boothUrl: "https://comicw.net/map/334/BA35",
+    note: "종합/부재고 리셀 부스 — 뱅드림 굿즈는 일부",
+    links: [{ label: "코믹월드 샵", url: "https://comicw.net/g/?it_id=1721" }],
+  },
+  {
+    id: "bd-adamspra",
+    booth: "DA15·DA16",
+    name: "아담스프라",
+    day: "양일",
+    genre: "고전 프라/피규어/문구 종합 · 뱅드림 포함",
+    genres: ["뱅드림", "종합 리셀"],
+    boothUrl: "https://comicw.net/map/334/DA15",
+    note: "종합 리셀 부스 — 뱅드림 굿즈는 일부",
+    links: [],
   },
 ];
 
