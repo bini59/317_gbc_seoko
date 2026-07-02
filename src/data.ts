@@ -1,7 +1,7 @@
 // 코믹월드 SUMMER 2026 (334회 / "7코 일산")
 // 기간: 2026-07-18(토) ~ 2026-07-19(일) / 장소: 일산 킨텍스 제1전시장
 // 출처: 서울코믹월드 부스배치도(comicw.net), 윗치폼, X
-// 걸즈밴드크라이(걸밴크) 참가 서클 및 통판 정리
+// 밴드물 참가 서클 정리 — 탭1: 걸즈밴드크라이(걸밴크), 탭2: 뱅드림(BanG Dream!)
 
 export type LinkItem = {
   label: string;
@@ -16,8 +16,16 @@ export type Circle = {
   booth?: string;
   day?: string;
   highlight?: boolean;
+  badge?: string;
   note?: string;
   boothUrl?: string;
+};
+
+export type Tab = {
+  id: string;
+  label: string;
+  subtitle: string;
+  items: Circle[];
 };
 
 export const event = {
@@ -28,8 +36,8 @@ export const event = {
   mapUrl: "https://comicw.net/map/",
 };
 
-// 서울코믹월드 배치도 기준: 장르에 걸즈밴드크라이가 등록된 서클 (모두 양일)
-export const circles: Circle[] = [
+// ── 탭 1: 걸즈밴드크라이 (걸밴크) — 배치도 장르 기준, 모두 양일
+export const gbcCircles: Circle[] = [
   {
     id: "cf62",
     booth: "CF62",
@@ -37,6 +45,7 @@ export const circles: Circle[] = [
     day: "양일",
     genre: "걸즈 밴드 크라이 (전문)",
     highlight: true,
+    badge: "걸밴크 전문",
     boothUrl: "https://comicw.net/map/334/CF62",
     links: [
       { label: "코믹월드 부스컷/샵", url: "https://comicw.net/g/?it_id=1026" },
@@ -97,6 +106,7 @@ export const circles: Circle[] = [
     day: "양일",
     genre: "걸즈밴드크라이 / 뱅드림 / 봇치더록 / 블루아카이브 등 밴드물 다수",
     boothUrl: "https://comicw.net/map/334/BH01",
+    note: "뱅드림 탭에도 동일 서클(밴드물 종합)",
     links: [
       { label: "X (@akgi_store)", url: "https://x.com/akgi_store" },
       { label: "Instagram (@akgi_store)", url: "https://instagram.com/akgi_store" },
@@ -109,6 +119,7 @@ export const circles: Circle[] = [
     day: "양일",
     genre: "걸즈밴드크라이 / 뱅드림 / 보컬로이드 / 봇치더록",
     boothUrl: "https://comicw.net/map/334/BH60",
+    note: "뱅드림 탭에도 동일 서클",
     links: [
       { label: "X (@recma5)", url: "https://x.com/recma5" },
       { label: "Instagram (@cma.day)", url: "https://instagram.com/cma.day" },
@@ -116,22 +127,120 @@ export const circles: Circle[] = [
   },
 ];
 
-// 윗치폼에서 추가로 확인된 걸밴크 관련 통판 (배치도 서클 외)
-export const witchformExtra: Circle[] = [
+// ── 탭 2: 뱅드림 (BanG Dream! / MyGO!!!!! / Ave Mujica 등) — 배치도 장르 기준, 모두 양일
+export const bandoriCircles: Circle[] = [
   {
-    id: "wf-saekji",
-    name: "감성적인초롱꽃361 · 라온색지",
-    genre: "걸밴크 포함 다수 팬덤 색지 10장 주문폼 (서코)",
+    id: "bd-buuuu",
+    booth: "CA17·CA18",
+    name: "buuuu",
+    day: "양일",
+    genre: "뱅드림 (전문)",
+    highlight: true,
+    badge: "뱅드림 전문",
+    boothUrl: "https://comicw.net/map/334/CA17",
+    note: "배치도상 트위터 미등록 — 부스 위치로 확인",
+    links: [],
+  },
+  {
+    id: "bd-firefly",
+    booth: "CA19",
+    name: "반딧불이 정원",
+    day: "양일",
+    genre: "뱅드림 (전문)",
+    highlight: true,
+    badge: "뱅드림 전문",
+    boothUrl: "https://comicw.net/map/334/CA19",
+    note: "X 계정명 'GoAnchor⚓️CA_19'로 이번 서코 부스 확인됨",
     links: [
-      { label: "윗치폼 주문폼", url: "https://witchform.com/payform/?uuid=YEQCXSDCLP" },
+      { label: "X (@GoAnchor)", url: "https://x.com/GoAnchor" },
+      { label: "코믹월드 샵", url: "https://comicw.net/g/?it_id=1480" },
     ],
   },
   {
-    id: "wf-cd",
-    name: "정상작동센터_CD (참고)",
-    genre: "걸밴크(토게나시토게아리) 공식 CD 상시 통판 · 서코 특정 아님",
+    id: "bd-sakanadrop",
+    booth: "CF10",
+    name: "sakanadrop",
+    day: "양일",
+    genre: "뱅드림 / 원신 / 프로젝트세카이 / 하츠네미쿠 / 카게프로",
+    boothUrl: "https://comicw.net/map/334/CF10",
     links: [
-      { label: "윗치폼 통판폼", url: "https://witchform.com/deposit_form.php?idx=1019818" },
+      { label: "X (@kanachiaki)", url: "https://x.com/kanachiaki" },
     ],
+  },
+  {
+    id: "bd-pastelgirls",
+    booth: "CL64",
+    name: "파스텔 걸즈",
+    day: "양일",
+    genre: "뱅드림 / 블루아카이브 / 원신",
+    boothUrl: "https://comicw.net/map/334/CL64",
+    note: "X 계정명 '花ゆい🌸HanaYui 7월서코 CL_64'로 이번 서코 부스 확인됨",
+    links: [
+      { label: "X (@hanayui132)", url: "https://x.com/hanayui132" },
+      { label: "Instagram (@hanayui132)", url: "https://instagram.com/hanayui132" },
+    ],
+  },
+  {
+    id: "bd-akgi",
+    booth: "BH01·BH02",
+    name: "악기상점",
+    day: "양일",
+    genre: "뱅드림 / 마이고 / 아베무지카 / 걸즈밴드크라이 등 밴드물 다수",
+    boothUrl: "https://comicw.net/map/334/BH01",
+    note: "걸밴크 탭에도 동일 서클(밴드물 종합)",
+    links: [
+      { label: "X (@akgi_store)", url: "https://x.com/akgi_store" },
+      { label: "Instagram (@akgi_store)", url: "https://instagram.com/akgi_store" },
+    ],
+  },
+  {
+    id: "bd-boom",
+    booth: "BH60",
+    name: "걸즈밴드붐은온다",
+    day: "양일",
+    genre: "뱅드림 / 걸즈밴드크라이 / 보컬로이드 / 봇치더록",
+    boothUrl: "https://comicw.net/map/334/BH60",
+    note: "걸밴크 탭에도 동일 서클",
+    links: [
+      { label: "X (@recma5)", url: "https://x.com/recma5" },
+      { label: "Instagram (@cma.day)", url: "https://instagram.com/cma.day" },
+    ],
+  },
+  {
+    id: "bd-ttudduns",
+    booth: "BA35·BA36",
+    name: "뚜뚠",
+    day: "양일",
+    genre: "다장르 종합 리셀(33개 장르) · 뱅드림 포함",
+    boothUrl: "https://comicw.net/map/334/BA35",
+    note: "종합/부재고 리셀 부스 — 뱅드림 굿즈는 일부",
+    links: [
+      { label: "코믹월드 샵", url: "https://comicw.net/g/?it_id=1721" },
+    ],
+  },
+  {
+    id: "bd-adamspra",
+    booth: "DA15·DA16",
+    name: "아담스프라",
+    day: "양일",
+    genre: "고전 프라/피규어/문구 종합 · 뱅드림 포함",
+    boothUrl: "https://comicw.net/map/334/DA15",
+    note: "종합 리셀 부스 — 뱅드림 굿즈는 일부",
+    links: [],
+  },
+];
+
+export const tabs: Tab[] = [
+  {
+    id: "gbc",
+    label: "걸밴크",
+    subtitle: "걸즈밴드크라이 · 서울코믹월드 배치도 기준 (모두 양일)",
+    items: gbcCircles,
+  },
+  {
+    id: "bandori",
+    label: "뱅드림",
+    subtitle: "BanG Dream! 계열 · 서울코믹월드 배치도 기준 (모두 양일)",
+    items: bandoriCircles,
   },
 ];
