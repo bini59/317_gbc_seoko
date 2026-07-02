@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #0f1020;
+  --color-card: #1b1d33;
+  --color-card-hl: #2a1d3a;
+  --color-line: #2e3150;
+  --color-text: #eceeffe6;
+  --color-muted: #9aa0c7;
+  --color-accent: #ff5c8a;
+  --color-accent2: #6c8bff;
+  --color-done: #1f3a2a;
+  --font-sans: "Pretendard", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+    "Malgun Gothic", system-ui, sans-serif;
+}
+
+/* radial-gradient 배경은 유틸리티로 표현 불가 → 커스텀 CSS 유지 */
+body {
+  background: radial-gradient(1200px 600px at 20% -10%, #26123a, transparent),
+    radial-gradient(900px 500px at 100% 0%, #10243f, transparent), var(--color-bg);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+}

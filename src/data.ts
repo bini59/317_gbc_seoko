@@ -3,6 +3,23 @@
 // 출처: 서울코믹월드 부스배치도(comicw.net), 윗치폼, X
 // 걸즈밴드크라이(걸밴크) 참가 서클 및 통판 정리
 
+export type LinkItem = {
+  label: string;
+  url: string;
+};
+
+export type Circle = {
+  id: string;
+  name: string;
+  genre: string;
+  links: LinkItem[];
+  booth?: string;
+  day?: string;
+  highlight?: boolean;
+  note?: string;
+  boothUrl?: string;
+};
+
 export const event = {
   title: "코믹월드 SUMMER 2026",
   alias: "334회 · 7코 일산",
@@ -12,7 +29,7 @@ export const event = {
 };
 
 // 서울코믹월드 배치도 기준: 장르에 걸즈밴드크라이가 등록된 서클 (모두 양일)
-export const circles = [
+export const circles: Circle[] = [
   {
     id: "cf62",
     booth: "CF62",
@@ -100,7 +117,7 @@ export const circles = [
 ];
 
 // 윗치폼에서 추가로 확인된 걸밴크 관련 통판 (배치도 서클 외)
-export const witchformExtra = [
+export const witchformExtra: Circle[] = [
   {
     id: "wf-saekji",
     name: "감성적인초롱꽃361 · 라온색지",
