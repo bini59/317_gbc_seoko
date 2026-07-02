@@ -83,7 +83,7 @@ const STATUS: { k: Status; label: string }[] = [
   { k: "done", label: "체크함" },
   { k: "undone", label: "안 본 것" },
 ];
-const GENRES = ["걸즈밴드크라이", "뱅드림", "케이온"];
+const GENRES = ["걸즈밴드크라이", "뱅드림", "케이온", "봇치더록"];
 
 /* ---------- 링크 칩 ---------- */
 function LinkChips({ chips }: { chips: Chip[] }) {
