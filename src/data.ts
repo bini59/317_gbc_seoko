@@ -393,7 +393,10 @@ export const circles: Circle[] = [
     genre: "봇치더록 / 보컬로이드",
     genres: ["봇치더록", "보컬로이드"],
     boothUrl: "https://comicw.net/map/334/BL56",
-    links: [{ label: "X (@whisket3_)", url: "https://x.com/whisket3_" }],
+    links: [
+      { label: "X (@whisket3_)", url: "https://x.com/whisket3_" },
+      { label: "윗치폼 통판폼", url: "https://witchform.com/payform/?uuid=CRRISXKJCY" },
+    ],
   },
   {
     id: "br-koraileditor",
