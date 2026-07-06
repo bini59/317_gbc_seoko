@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { circles, witchformExtra, event } from "./data";
 import type { Circle, TweetInfo } from "./data";
+import { fetchActiveEvent, fetchCircles } from "./api";
 
 const STORAGE_KEY = "gbc-seoko-2026-07-checks";
 
@@ -14,7 +14,7 @@ const BADGE = [
   "#6366f1",
   "#22a559",
 ];
-const badgeColor = (id: string) => {
+const badgeColor = (id: string, circles: Circle[]) => {
   const i = circles.findIndex((c) => c.id === id);
   return BADGE[(i < 0 ? 2 : i) % BADGE.length];
 };
@@ -155,11 +155,13 @@ function Card({
   checked,
   onToggle,
   onOpen,
+  color,
 }: {
   item: Circle;
   checked: boolean;
   onToggle: () => void;
   onOpen: () => void;
+  color: string;
 }) {
   const short = boothShort(item);
   const cardCls = [
@@ -176,7 +178,7 @@ function Card({
         <div
           className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center text-white font-extrabold flex-none -tracking-[0.02em]"
           style={{
-            background: badgeColor(item.id),
+            background: color,
             fontSize: short.length > 2 ? 11 : 15,
           }}
         >
@@ -269,11 +271,13 @@ function Detail({
   checked,
   onToggle,
   onBack,
+  color,
 }: {
   item: Circle;
   checked: boolean;
   onToggle: () => void;
   onBack: () => void;
+  color: string;
 }) {
   const short = boothShort(item);
   const links: { label: string; url: string; primary: boolean }[] = [];
@@ -316,7 +320,7 @@ function Detail({
           <div
             className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-extrabold flex-none -tracking-[0.02em]"
             style={{
-              background: badgeColor(item.id),
+              background: color,
               fontSize: short.length > 2 ? 17 : 24,
             }}
           >
@@ -448,6 +452,36 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [detailId, setDetailId] = useState<string | null>(null);
 
+  const [circles, setCircles] = useState<Circle[]>([]);
+  const [witchformExtra, setWitchformExtra] = useState<Circle[]>([]);
+  const [mapUrl, setMapUrl] = useState("https://comicw.net/map/");
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoading(true);
+        setLoadError(null);
+        const ev = await fetchActiveEvent();
+        if (!ev) throw new Error("등록된 행사가 없어요");
+        const { circles: cs, witchformExtra: wf } = await fetchCircles(ev.slug);
+        if (cancelled) return;
+        setCircles(cs);
+        setWitchformExtra(wf);
+        setMapUrl(ev.map_url || "https://comicw.net/map/");
+      } catch (e) {
+        if (!cancelled) setLoadError(e instanceof Error ? e.message : "불러오기 실패");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const doneCount = circles.filter((c) => checks[c.id]).length;
 
   const list = useMemo(() => {
@@ -478,7 +512,7 @@ export default function App() {
           numeric: true,
         });
       });
-  }, [checks, status, genres, query]);
+  }, [circles, checks, status, genres, query]);
 
   const detail = detailId
     ? circles.find((c) => c.id === detailId) ||
@@ -504,6 +538,7 @@ export default function App() {
           checked={!!checks[detail.id]}
           onToggle={() => toggle(detail.id)}
           onBack={() => setDetailId(null)}
+          color={badgeColor(detail.id, circles)}
         />
       ) : (
         <div className="pb-7">
@@ -558,7 +593,7 @@ export default function App() {
                 </button>
               ) : (
                 <a
-                  href={event.mapUrl}
+                  href={mapUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   title="전체 부스배치도"
@@ -631,16 +666,28 @@ export default function App() {
 
           {/* 카드 목록 */}
           <div className="flex flex-col gap-3 px-5">
-            {list.map((c) => (
-              <Card
-                key={c.id}
-                item={c}
-                checked={!!checks[c.id]}
-                onToggle={() => toggle(c.id)}
-                onOpen={() => setDetailId(c.id)}
-              />
-            ))}
-            {list.length === 0 && (
+            {loadError && (
+              <div className="text-center py-14 text-[#e0455c] text-sm font-semibold">
+                {loadError} · 새로고침해서 다시 시도해주세요
+              </div>
+            )}
+            {!loadError && loading && circles.length === 0 && (
+              <div className="text-center py-14 text-[#b0b4bc] text-sm font-semibold">
+                불러오는 중...
+              </div>
+            )}
+            {!loadError &&
+              list.map((c) => (
+                <Card
+                  key={c.id}
+                  item={c}
+                  checked={!!checks[c.id]}
+                  onToggle={() => toggle(c.id)}
+                  onOpen={() => setDetailId(c.id)}
+                  color={badgeColor(c.id, circles)}
+                />
+              ))}
+            {!loadError && !loading && list.length === 0 && (
               <div className="text-center py-14 text-[#b0b4bc] text-sm font-semibold">
                 조건에 맞는 서클이 없어요
               </div>

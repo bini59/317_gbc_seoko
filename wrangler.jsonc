@@ -1,0 +1,24 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "gbcseoko",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-07-06",
+  "observability": {
+    "enabled": true
+  },
+  "assets": {
+    "directory": "dist/client",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  },
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "gbc-seoko-db",
+      "database_id": "b45883c7-c39b-4f96-9640-c41b41792511"
+    }
+  ]
+}
