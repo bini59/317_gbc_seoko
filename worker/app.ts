@@ -188,6 +188,71 @@ app.get("/circles/:slug", async (c) => {
   return c.json({ circle: serializeCircle(row, links, tweet ?? undefined) });
 });
 
+// 데일리 루틴이 사용하는 증분 업데이트용: 기존 링크/genre 등을 건드리지 않고 링크만 추가 (url 중복 시 스킵)
+app.post("/circles/:slug/links", async (c) => {
+  const slug = c.req.param("slug");
+  const body = await c.req.json();
+  const { event_slug, kind, label, url } = body;
+  if (!event_slug || !label || !url) {
+    return c.json({ error: "event_slug, label, url가 필요해요" }, 400);
+  }
+
+  const row = await c.env.DB.prepare(
+    `SELECT p.id as participation_id FROM participations p
+     JOIN circles c ON c.id = p.circle_id
+     JOIN events e ON e.id = p.event_id
+     WHERE c.slug = ? AND e.slug = ?`
+  )
+    .bind(slug, event_slug)
+    .first<{ participation_id: number }>();
+  if (!row) return c.json({ error: "circle/event를 찾을 수 없어요" }, 404);
+
+  const dup = await c.env.DB.prepare("SELECT id FROM links WHERE participation_id = ? AND url = ?")
+    .bind(row.participation_id, url)
+    .first<{ id: number }>();
+  if (dup) return c.json({ ok: true, skipped: "duplicate_url" });
+
+  const maxOrder = await c.env.DB.prepare("SELECT COALESCE(MAX(sort_order), -1) as m FROM links WHERE participation_id = ?")
+    .bind(row.participation_id)
+    .first<{ m: number }>();
+
+  await c.env.DB.prepare("INSERT INTO links (participation_id, kind, label, url, sort_order) VALUES (?, ?, ?, ?, ?)")
+    .bind(row.participation_id, kind ?? "other", label, url, (maxOrder?.m ?? -1) + 1)
+    .run();
+
+  return c.json({ ok: true }, 201);
+});
+
+// 데일리 루틴이 사용하는 tweetInfo upsert (링크/genre 등 다른 필드는 건드리지 않음)
+app.post("/circles/:slug/tweet-info", async (c) => {
+  const slug = c.req.param("slug");
+  const body = await c.req.json();
+  const { event_slug, url, ogTitle, ogDescription, ogImage, ogSiteName } = body;
+  if (!event_slug || !url) {
+    return c.json({ error: "event_slug, url이 필요해요" }, 400);
+  }
+
+  const row = await c.env.DB.prepare(
+    `SELECT p.id as participation_id FROM participations p
+     JOIN circles c ON c.id = p.circle_id
+     JOIN events e ON e.id = p.event_id
+     WHERE c.slug = ? AND e.slug = ?`
+  )
+    .bind(slug, event_slug)
+    .first<{ participation_id: number }>();
+  if (!row) return c.json({ error: "circle/event를 찾을 수 없어요" }, 404);
+
+  await c.env.DB.prepare(
+    `INSERT INTO tweet_infos (participation_id, url, og_title, og_description, og_image, og_site_name)
+     VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT(participation_id) DO UPDATE SET url=excluded.url, og_title=excluded.og_title, og_description=excluded.og_description, og_image=excluded.og_image, og_site_name=excluded.og_site_name`
+  )
+    .bind(row.participation_id, url, ogTitle ?? null, ogDescription ?? null, ogImage ?? null, ogSiteName ?? null)
+    .run();
+
+  return c.json({ ok: true }, 201);
+});
+
 // ---- circles (write, admin) ----
 app.post("/circles", async (c) => {
   const body = await c.req.json();
