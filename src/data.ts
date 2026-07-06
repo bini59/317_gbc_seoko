@@ -141,7 +141,15 @@ export const circles: Circle[] = [
     badge: "뱅드림 전문",
     boothUrl: "https://comicw.net/map/334/CA17",
     note: "배치도상 트위터 미등록 — 부스 위치로 확인",
-    links: [],
+    links: [{ label: "X (@bueongba)", url: "https://x.com/bueongba" }],
+    tweetInfo: {
+      url: "https://x.com/bueongba/status/2072965697450471506",
+      ogTitle: "サムダ (@bueongba) on X",
+      ogDescription:
+        "이번에 7月 한국에서 진행하는 `서울 코믹월드`에 참여하게 되었습니다! CA17-18 부스에서 24p의 mygo!!!!!와 Ave Mujica의 일러스트를 담았으니 많은 관심 부탁드릴게요!",
+      ogImage: "https://pbs.twimg.com/media/HMSnUENbsAA7R2j.jpg:large",
+      ogSiteName: "X (formerly Twitter)",
+    },
   },
   {
     id: "bd-firefly",
@@ -181,6 +189,7 @@ export const circles: Circle[] = [
     links: [
       { label: "X (@hanayui132)", url: "https://x.com/hanayui132" },
       { label: "Instagram (@hanayui132)", url: "https://instagram.com/hanayui132" },
+      { label: "윗치폼 통판폼", url: "https://witchform.com/payform/?uuid=OSDSEMSCQZ" },
     ],
   },
   {
@@ -227,7 +236,10 @@ export const circles: Circle[] = [
     genres: ["케이온"],
     boothUrl: "https://comicw.net/map/334/CH08",
     note: "X 계정명 'Allsm(7서코양일CH_08)'로 이번 서코 부스 확인됨",
-    links: [{ label: "X (@foryou712358)", url: "https://x.com/foryou712358" }],
+    links: [
+      { label: "X (@foryou712358)", url: "https://x.com/foryou712358" },
+      { label: "코믹인포", url: "https://comicw.net/g/1988" },
+    ],
     tweetInfo: {
       url: "https://x.com/foryou712358/status/2061354843575619751",
       ogTitle: "Allsm(7서코양일CH_08) (@foryou712358) on X",
