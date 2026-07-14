@@ -49,6 +49,18 @@ export const chipsFor = (c: Circle): Chip[] => {
 
 export const norm = (s: string) => s.replace(/\s/g, "");
 
+/** 서클 데이터에 실제로 존재하는 장르 목록(중복 제거·정렬). 필터 칩 생성용. */
+export function deriveGenres(circles: Circle[]): string[] {
+  const set = new Set<string>();
+  for (const c of circles) {
+    for (const g of c.genres || []) {
+      const t = g.trim();
+      if (t) set.add(t);
+    }
+  }
+  return [...set].sort((a, b) => a.localeCompare(b, "ko"));
+}
+
 export type Status = "all" | "done" | "undone";
 export const STATUS: { k: Status; label: string }[] = [
   { k: "all", label: "전체" },
