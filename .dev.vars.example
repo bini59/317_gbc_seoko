@@ -1,1 +1,3 @@
 ADMIN_TOKEN=replace-with-a-long-random-token
+# 선택: 쓰기 API 허용 origin(쉼표 구분). 미설정 시 모든 origin 허용(*).
+# ALLOWED_ORIGINS=https://gbc-seoko.pages.dev,https://example.com

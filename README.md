@@ -42,6 +42,22 @@ npx wrangler pages deploy dist --project-name gbc-seoko
 > (`bun install --production && bun build src/main.jsx --outdir dist/assets --minify`)
 > Cloudflare Pages의 Git 빌드는 아래 Vite 방식을 그대로 사용하면 됩니다.
 
+## API 오류 응답
+모든 오류는 일관된 형식으로 반환된다:
+```json
+{ "error": "사람이 읽는 메시지", "code": "invalid_request" }
+```
+| code | HTTP | 의미 |
+| --- | --- | --- |
+| `unauthorized` | 401 | Bearer 토큰 누락/불일치 (쓰기 요청) |
+| `invalid_request` | 400 | 잘못된 입력·JSON·content-type (DB 변경 없이 거절) |
+| `not_found` | 404 | 대상 event/circle/participation 없음 |
+| `internal` | 500 | 처리되지 않은 서버 오류 |
+
+- 모든 쓰기 요청은 런타임 스키마 검증(`worker/validate.ts`)을 통과해야 한다(slug/URL/enum/배열/숫자 ID).
+- 서클 upsert는 다중 테이블을 D1 `batch()`(단일 트랜잭션)로 원자 처리 — 전부 성공 또는 전부 롤백.
+- 쓰기 허용 origin은 `ALLOWED_ORIGINS`(쉼표 구분) 환경변수로 제한한다. 미설정 시 `*`.
+
 ## Cloudflare Pages 배포
 ### 방법 A — 대시보드(Git 연동)
 - Framework preset: **Vite**

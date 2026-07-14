@@ -1,9 +1,25 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import type { Context } from "hono";
+import {
+  ValidationError,
+  str,
+  optStr,
+  slug as vSlug,
+  url as vUrl,
+  optUrl,
+  optEnum,
+  arrOfStr,
+  intId,
+  optBool,
+  safeJsonArray,
+} from "./validate";
 
 export type Bindings = {
   DB: D1Database;
   ADMIN_TOKEN: string;
+  /** 쉼표로 구분된 허용 origin. 없으면 모든 origin 허용(*). */
+  ALLOWED_ORIGINS?: string;
 };
 
 type CircleRow = {
@@ -33,6 +49,8 @@ type TweetRow = {
   og_site_name: string | null;
 };
 
+const PARTICIPATION_STATUSES = ["confirmed", "unlisted", "cancelled", "pending"] as const;
+
 function serializeCircle(row: CircleRow, links: LinkRow[], tweet?: TweetRow) {
   return {
     id: row.circle_id,
@@ -40,7 +58,7 @@ function serializeCircle(row: CircleRow, links: LinkRow[], tweet?: TweetRow) {
     slug: row.slug,
     name: row.name,
     genre: row.genre_label,
-    genres: row.genre_tags ? JSON.parse(row.genre_tags) : [],
+    genres: safeJsonArray(row.genre_tags),
     ips: row.ips ? row.ips.split(",") : [],
     booth: row.booth,
     day: row.day,
@@ -65,9 +83,45 @@ function serializeCircle(row: CircleRow, links: LinkRow[], tweet?: TweetRow) {
   };
 }
 
+/** content-type 확인 + JSON 파싱. 실패 시 ValidationError → 일관된 400. */
+async function readJson(c: Context): Promise<Record<string, unknown>> {
+  const ct = c.req.header("content-type") || "";
+  if (!ct.includes("application/json")) {
+    throw new ValidationError("content-type은 application/json이어야 해요");
+  }
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    throw new ValidationError("본문이 올바른 JSON이 아니에요");
+  }
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    throw new ValidationError("본문은 JSON 객체여야 해요");
+  }
+  return body as Record<string, unknown>;
+}
+
 export const app = new Hono<{ Bindings: Bindings }>().basePath("/api");
 
-app.use("*", cors());
+// 일관된 오류 응답 형식: { error: <사람이 읽는 메시지>, code: <머신용 코드> }
+app.onError((err, c) => {
+  if (err instanceof ValidationError) {
+    return c.json({ error: err.message, code: "invalid_request" }, 400);
+  }
+  console.error("unhandled error:", err);
+  return c.json({ error: "서버 오류가 발생했어요", code: "internal" }, 500);
+});
+
+app.use("*", cors({
+  origin: (origin, c) => {
+    const allowed = (c.env.ALLOWED_ORIGINS || "")
+      .split(",")
+      .map((s: string) => s.trim())
+      .filter(Boolean);
+    if (allowed.length === 0) return "*";
+    return allowed.includes(origin) ? origin : null;
+  },
+}));
 
 // require bearer token for mutating routes only
 app.use("*", async (c, next) => {
@@ -75,7 +129,7 @@ app.use("*", async (c, next) => {
     const auth = c.req.header("authorization") || "";
     const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
     if (!c.env.ADMIN_TOKEN || token !== c.env.ADMIN_TOKEN) {
-      return c.json({ error: "unauthorized" }, 401);
+      return c.json({ error: "unauthorized", code: "unauthorized" }, 401);
     }
   }
   await next();
@@ -90,14 +144,25 @@ app.get("/events", async (c) => {
 });
 
 app.post("/events", async (c) => {
-  const body = await c.req.json();
-  const { slug, title, alias, fare_id, date_label, start_date, end_date, venue, map_url, status } = body;
-  if (!slug || !title) return c.json({ error: "slug and title are required" }, 400);
+  const body = await readJson(c);
+  const slug = vSlug(body.slug, "slug");
+  const title = str(body.title, "title", 200);
   await c.env.DB.prepare(
     `INSERT INTO events (slug, title, alias, fare_id, date_label, start_date, end_date, venue, map_url, status)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, 'active'))`
   )
-    .bind(slug, title, alias ?? null, fare_id ?? null, date_label ?? null, start_date ?? null, end_date ?? null, venue ?? null, map_url ?? null, status ?? null)
+    .bind(
+      slug,
+      title,
+      optStr(body.alias, "alias"),
+      body.fare_id === undefined || body.fare_id === null ? null : intId(body.fare_id, "fare_id"),
+      optStr(body.date_label, "date_label"),
+      optStr(body.start_date, "start_date"),
+      optStr(body.end_date, "end_date"),
+      optStr(body.venue, "venue"),
+      optUrl(body.map_url, "map_url"),
+      optEnum(body.status, "status", ["active", "past", "upcoming"])
+    )
     .run();
   return c.json({ ok: true }, 201);
 });
@@ -111,7 +176,7 @@ app.get("/circles", async (c) => {
   let eventId: number | null = null;
   if (eventSlug) {
     const row = await c.env.DB.prepare("SELECT id FROM events WHERE slug = ?").bind(eventSlug).first<{ id: number }>();
-    if (!row) return c.json({ error: "event not found" }, 404);
+    if (!row) return c.json({ error: "event not found", code: "not_found" }, 404);
     eventId = row.id;
   } else {
     const row = await c.env.DB.prepare("SELECT id FROM events WHERE status = 'active' ORDER BY start_date DESC LIMIT 1").first<{ id: number }>();
@@ -167,7 +232,7 @@ app.get("/circles/:slug", async (c) => {
     const row = await c.env.DB.prepare("SELECT id FROM events WHERE status = 'active' ORDER BY start_date DESC LIMIT 1").first<{ id: number }>();
     eventId = row?.id ?? null;
   }
-  if (eventId === null) return c.json({ error: "event not found" }, 404);
+  if (eventId === null) return c.json({ error: "event not found", code: "not_found" }, 404);
 
   const row = await c.env.DB.prepare(
     `SELECT c.id as circle_id, c.slug, c.name, p.id as participation_id, p.genre_label, p.genre_tags,
@@ -180,7 +245,7 @@ app.get("/circles/:slug", async (c) => {
     .bind(slug, eventId)
     .first<CircleRow>();
 
-  if (!row) return c.json({ error: "circle not found" }, 404);
+  if (!row) return c.json({ error: "circle not found", code: "not_found" }, 404);
 
   const links = (await c.env.DB.prepare("SELECT * FROM links WHERE participation_id = ?").bind(row.participation_id).all<LinkRow>()).results;
   const tweet = await c.env.DB.prepare("SELECT * FROM tweet_infos WHERE participation_id = ?").bind(row.participation_id).first<TweetRow>();
@@ -188,14 +253,18 @@ app.get("/circles/:slug", async (c) => {
   return c.json({ circle: serializeCircle(row, links, tweet ?? undefined) });
 });
 
+// participation_id 서브쿼리 — batch 안에서 slug/event로 참여 행을 참조한다.
+const PID_SUBQ =
+  "(SELECT p.id FROM participations p WHERE p.circle_id=(SELECT id FROM circles WHERE slug=?) AND p.event_id=?)";
+
 // 데일리 루틴이 사용하는 증분 업데이트용: 기존 링크/genre 등을 건드리지 않고 링크만 추가 (url 중복 시 스킵)
 app.post("/circles/:slug/links", async (c) => {
-  const slug = c.req.param("slug");
-  const body = await c.req.json();
-  const { event_slug, kind, label, url } = body;
-  if (!event_slug || !label || !url) {
-    return c.json({ error: "event_slug, label, url가 필요해요" }, 400);
-  }
+  const slug = vSlug(c.req.param("slug"), "slug");
+  const body = await readJson(c);
+  const eventSlug = vSlug(body.event_slug, "event_slug");
+  const label = str(body.label, "label", 200);
+  const url = vUrl(body.url, "url");
+  const kind = optStr(body.kind, "kind", 32) ?? "other";
 
   const row = await c.env.DB.prepare(
     `SELECT p.id as participation_id FROM participations p
@@ -203,9 +272,9 @@ app.post("/circles/:slug/links", async (c) => {
      JOIN events e ON e.id = p.event_id
      WHERE c.slug = ? AND e.slug = ?`
   )
-    .bind(slug, event_slug)
+    .bind(slug, eventSlug)
     .first<{ participation_id: number }>();
-  if (!row) return c.json({ error: "circle/event를 찾을 수 없어요" }, 404);
+  if (!row) return c.json({ error: "circle/event를 찾을 수 없어요", code: "not_found" }, 404);
 
   const dup = await c.env.DB.prepare("SELECT id FROM links WHERE participation_id = ? AND url = ?")
     .bind(row.participation_id, url)
@@ -217,7 +286,7 @@ app.post("/circles/:slug/links", async (c) => {
     .first<{ m: number }>();
 
   await c.env.DB.prepare("INSERT INTO links (participation_id, kind, label, url, sort_order) VALUES (?, ?, ?, ?, ?)")
-    .bind(row.participation_id, kind ?? "other", label, url, (maxOrder?.m ?? -1) + 1)
+    .bind(row.participation_id, kind, label, url, (maxOrder?.m ?? -1) + 1)
     .run();
 
   return c.json({ ok: true }, 201);
@@ -225,12 +294,10 @@ app.post("/circles/:slug/links", async (c) => {
 
 // 데일리 루틴이 사용하는 tweetInfo upsert (링크/genre 등 다른 필드는 건드리지 않음)
 app.post("/circles/:slug/tweet-info", async (c) => {
-  const slug = c.req.param("slug");
-  const body = await c.req.json();
-  const { event_slug, url, ogTitle, ogDescription, ogImage, ogSiteName } = body;
-  if (!event_slug || !url) {
-    return c.json({ error: "event_slug, url이 필요해요" }, 400);
-  }
+  const slug = vSlug(c.req.param("slug"), "slug");
+  const body = await readJson(c);
+  const eventSlug = vSlug(body.event_slug, "event_slug");
+  const url = vUrl(body.url, "url");
 
   const row = await c.env.DB.prepare(
     `SELECT p.id as participation_id FROM participations p
@@ -238,173 +305,195 @@ app.post("/circles/:slug/tweet-info", async (c) => {
      JOIN events e ON e.id = p.event_id
      WHERE c.slug = ? AND e.slug = ?`
   )
-    .bind(slug, event_slug)
+    .bind(slug, eventSlug)
     .first<{ participation_id: number }>();
-  if (!row) return c.json({ error: "circle/event를 찾을 수 없어요" }, 404);
+  if (!row) return c.json({ error: "circle/event를 찾을 수 없어요", code: "not_found" }, 404);
 
   await c.env.DB.prepare(
     `INSERT INTO tweet_infos (participation_id, url, og_title, og_description, og_image, og_site_name)
      VALUES (?, ?, ?, ?, ?, ?)
      ON CONFLICT(participation_id) DO UPDATE SET url=excluded.url, og_title=excluded.og_title, og_description=excluded.og_description, og_image=excluded.og_image, og_site_name=excluded.og_site_name`
   )
-    .bind(row.participation_id, url, ogTitle ?? null, ogDescription ?? null, ogImage ?? null, ogSiteName ?? null)
+    .bind(
+      row.participation_id,
+      url,
+      optStr(body.ogTitle, "ogTitle"),
+      optStr(body.ogDescription, "ogDescription"),
+      optUrl(body.ogImage, "ogImage"),
+      optStr(body.ogSiteName, "ogSiteName")
+    )
     .run();
 
   return c.json({ ok: true }, 201);
 });
 
-// ---- circles (write, admin) ----
+// ---- circles (write, admin) — 다중 테이블 upsert를 D1 batch로 원자화 ----
 app.post("/circles", async (c) => {
-  const body = await c.req.json();
-  const {
-    slug,
-    name,
-    event_slug,
-    genre_label,
-    genre_tags,
-    booth,
-    day,
-    booth_url,
-    highlight,
-    badge,
-    note,
-    status,
-    ips,
-    links,
-    tweetInfo,
-  } = body;
-
-  if (!slug || !name || !event_slug) {
-    return c.json({ error: "slug, name, event_slug are required" }, 400);
+  const body = await readJson(c);
+  const slug = vSlug(body.slug, "slug");
+  const name = str(body.name, "name", 200);
+  const eventSlug = vSlug(body.event_slug, "event_slug");
+  const genreLabel = optStr(body.genre_label, "genre_label");
+  const genreTags = arrOfStr(body.genre_tags, "genre_tags");
+  const booth = optStr(body.booth, "booth", 64);
+  const day = optStr(body.day, "day", 32);
+  const boothUrl = optUrl(body.booth_url, "booth_url");
+  const highlight = optBool(body.highlight);
+  const badge = optStr(body.badge, "badge", 64);
+  const note = optStr(body.note, "note");
+  const status = optEnum(body.status, "status", PARTICIPATION_STATUSES);
+  const ips = body.ips === undefined ? null : arrOfStr(body.ips, "ips", 128);
+  const links =
+    body.links === undefined
+      ? null
+      : (Array.isArray(body.links) ? body.links : [])
+          .map((l: any, i: number) => ({
+            kind: optStr(l?.kind, `links[${i}].kind`, 32) ?? "other",
+            label: str(l?.label, `links[${i}].label`, 200),
+            url: vUrl(l?.url, `links[${i}].url`),
+          }));
+  if (body.links !== undefined && !Array.isArray(body.links)) {
+    throw new ValidationError("links: 배열이어야 해요");
   }
+  const tweetInfo = body.tweetInfo
+    ? {
+        url: vUrl((body.tweetInfo as any).url, "tweetInfo.url"),
+        ogTitle: optStr((body.tweetInfo as any).ogTitle, "tweetInfo.ogTitle"),
+        ogDescription: optStr((body.tweetInfo as any).ogDescription, "tweetInfo.ogDescription"),
+        ogImage: optUrl((body.tweetInfo as any).ogImage, "tweetInfo.ogImage"),
+        ogSiteName: optStr((body.tweetInfo as any).ogSiteName, "tweetInfo.ogSiteName"),
+      }
+    : null;
 
-  const event = await c.env.DB.prepare("SELECT id FROM events WHERE slug = ?").bind(event_slug).first<{ id: number }>();
-  if (!event) return c.json({ error: "event not found" }, 404);
+  const event = await c.env.DB.prepare("SELECT id FROM events WHERE slug = ?").bind(eventSlug).first<{ id: number }>();
+  if (!event) return c.json({ error: "event not found", code: "not_found" }, 404);
+  const eventId = event.id;
 
-  await c.env.DB.prepare("INSERT INTO circles (slug, name) VALUES (?, ?) ON CONFLICT(slug) DO UPDATE SET name = excluded.name, updated_at = datetime('now')")
-    .bind(slug, name)
-    .run();
-  const circle = await c.env.DB.prepare("SELECT id FROM circles WHERE slug = ?").bind(slug).first<{ id: number }>();
-  if (!circle) return c.json({ error: "failed to upsert circle" }, 500);
+  const db = c.env.DB;
+  const stmts: D1PreparedStatement[] = [];
 
-  const existing = await c.env.DB.prepare("SELECT id FROM participations WHERE circle_id = ? AND event_id = ?")
-    .bind(circle.id, event.id)
-    .first<{ id: number }>();
+  // 1) circle upsert
+  stmts.push(
+    db
+      .prepare("INSERT INTO circles (slug, name) VALUES (?, ?) ON CONFLICT(slug) DO UPDATE SET name = excluded.name, updated_at = datetime('now')")
+      .bind(slug, name)
+  );
 
-  let participationId: number;
-  if (existing) {
-    await c.env.DB.prepare(
-      `UPDATE participations SET genre_label=?, genre_tags=?, booth=?, day=?, booth_url=?, highlight=?, badge=?, note=?, status=COALESCE(?, status), updated_at=datetime('now') WHERE id=?`
-    )
-      .bind(
-        genre_label ?? null,
-        JSON.stringify(genre_tags ?? []),
-        booth ?? null,
-        day ?? null,
-        booth_url ?? null,
-        highlight ? 1 : 0,
-        badge ?? null,
-        note ?? null,
-        status ?? null,
-        existing.id
+  // 2) participation upsert (UNIQUE(circle_id, event_id) 기반)
+  stmts.push(
+    db
+      .prepare(
+        `INSERT INTO participations (circle_id, event_id, genre_label, genre_tags, booth, day, booth_url, highlight, badge, note, status)
+         VALUES ((SELECT id FROM circles WHERE slug=?), ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, 'confirmed'))
+         ON CONFLICT(circle_id, event_id) DO UPDATE SET
+           genre_label=excluded.genre_label, genre_tags=excluded.genre_tags, booth=excluded.booth,
+           day=excluded.day, booth_url=excluded.booth_url, highlight=excluded.highlight,
+           badge=excluded.badge, note=excluded.note, status=COALESCE(?, participations.status),
+           updated_at=datetime('now')`
       )
-      .run();
-    participationId = existing.id;
-  } else {
-    const inserted = await c.env.DB.prepare(
-      `INSERT INTO participations (circle_id, event_id, genre_label, genre_tags, booth, day, booth_url, highlight, badge, note, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, 'confirmed')) RETURNING id`
-    )
-      .bind(
-        circle.id,
-        event.id,
-        genre_label ?? null,
-        JSON.stringify(genre_tags ?? []),
-        booth ?? null,
-        day ?? null,
-        booth_url ?? null,
-        highlight ? 1 : 0,
-        badge ?? null,
-        note ?? null,
-        status ?? null
-      )
-      .first<{ id: number }>();
-    participationId = inserted!.id;
-  }
+      .bind(slug, eventId, genreLabel, JSON.stringify(genreTags), booth, day, boothUrl, highlight ? 1 : 0, badge, note, status, status)
+  );
 
-  if (Array.isArray(ips)) {
-    await c.env.DB.prepare("DELETE FROM circle_ips WHERE circle_id = ?").bind(circle.id).run();
+  // 3) ips (제공된 경우만 전량 교체)
+  if (ips !== null) {
+    stmts.push(db.prepare("DELETE FROM circle_ips WHERE circle_id=(SELECT id FROM circles WHERE slug=?)").bind(slug));
     for (const ipName of ips) {
-      await c.env.DB.prepare("INSERT OR IGNORE INTO ips (name) VALUES (?)").bind(ipName).run();
-      await c.env.DB.prepare(
-        "INSERT OR IGNORE INTO circle_ips (circle_id, ip_id) VALUES (?, (SELECT id FROM ips WHERE name = ?))"
-      )
-        .bind(circle.id, ipName)
-        .run();
+      stmts.push(db.prepare("INSERT OR IGNORE INTO ips (name) VALUES (?)").bind(ipName));
+      stmts.push(
+        db
+          .prepare("INSERT OR IGNORE INTO circle_ips (circle_id, ip_id) VALUES ((SELECT id FROM circles WHERE slug=?), (SELECT id FROM ips WHERE name=?))")
+          .bind(slug, ipName)
+      );
     }
   }
 
-  if (Array.isArray(links)) {
-    await c.env.DB.prepare("DELETE FROM links WHERE participation_id = ?").bind(participationId).run();
+  // 4) links (제공된 경우만 전량 교체)
+  if (links !== null) {
+    stmts.push(db.prepare(`DELETE FROM links WHERE participation_id=${PID_SUBQ}`).bind(slug, eventId));
     for (let i = 0; i < links.length; i++) {
       const l = links[i];
-      await c.env.DB.prepare("INSERT INTO links (participation_id, kind, label, url, sort_order) VALUES (?, ?, ?, ?, ?)")
-        .bind(participationId, l.kind ?? "other", l.label, l.url, i)
-        .run();
+      stmts.push(
+        db
+          .prepare(`INSERT INTO links (participation_id, kind, label, url, sort_order) VALUES (${PID_SUBQ}, ?, ?, ?, ?)`)
+          .bind(slug, eventId, l.kind, l.label, l.url, i)
+      );
     }
   }
 
+  // 5) tweetInfo
   if (tweetInfo) {
-    await c.env.DB.prepare(
-      `INSERT INTO tweet_infos (participation_id, url, og_title, og_description, og_image, og_site_name)
-       VALUES (?, ?, ?, ?, ?, ?)
-       ON CONFLICT(participation_id) DO UPDATE SET url=excluded.url, og_title=excluded.og_title, og_description=excluded.og_description, og_image=excluded.og_image, og_site_name=excluded.og_site_name`
-    )
-      .bind(participationId, tweetInfo.url, tweetInfo.ogTitle ?? null, tweetInfo.ogDescription ?? null, tweetInfo.ogImage ?? null, tweetInfo.ogSiteName ?? null)
-      .run();
+    stmts.push(
+      db
+        .prepare(
+          `INSERT INTO tweet_infos (participation_id, url, og_title, og_description, og_image, og_site_name)
+           VALUES (${PID_SUBQ}, ?, ?, ?, ?, ?)
+           ON CONFLICT(participation_id) DO UPDATE SET url=excluded.url, og_title=excluded.og_title, og_description=excluded.og_description, og_image=excluded.og_image, og_site_name=excluded.og_site_name`
+        )
+        .bind(slug, eventId, tweetInfo.url, tweetInfo.ogTitle, tweetInfo.ogDescription, tweetInfo.ogImage, tweetInfo.ogSiteName)
+    );
   }
 
-  return c.json({ ok: true, circleId: circle.id, participationId }, 201);
+  await db.batch(stmts); // 전부 성공 또는 전부 롤백
+
+  const ids = await db
+    .prepare(
+      "SELECT c.id as circle_id, p.id as participation_id FROM circles c JOIN participations p ON p.circle_id=c.id WHERE c.slug=? AND p.event_id=?"
+    )
+    .bind(slug, eventId)
+    .first<{ circle_id: number; participation_id: number }>();
+  return c.json({ ok: true, circleId: ids?.circle_id, participationId: ids?.participation_id }, 201);
 });
 
 app.patch("/participations/:id", async (c) => {
-  const id = Number(c.req.param("id"));
-  const body = await c.req.json();
+  const id = intId(c.req.param("id"), "id");
+  const body = await readJson(c);
   const fields: string[] = [];
   const values: unknown[] = [];
-  for (const key of ["genre_label", "genre_tags", "booth", "day", "booth_url", "highlight", "badge", "note", "status"]) {
-    if (key in body) {
-      fields.push(`${key} = ?`);
-      values.push(key === "genre_tags" ? JSON.stringify(body[key]) : key === "highlight" ? (body[key] ? 1 : 0) : body[key]);
-    }
-  }
-  if (fields.length === 0) return c.json({ error: "no fields to update" }, 400);
+  const add = (col: string, val: unknown) => {
+    fields.push(`${col} = ?`);
+    values.push(val);
+  };
+  if ("genre_label" in body) add("genre_label", optStr(body.genre_label, "genre_label"));
+  if ("genre_tags" in body) add("genre_tags", JSON.stringify(arrOfStr(body.genre_tags, "genre_tags")));
+  if ("booth" in body) add("booth", optStr(body.booth, "booth", 64));
+  if ("day" in body) add("day", optStr(body.day, "day", 32));
+  if ("booth_url" in body) add("booth_url", optUrl(body.booth_url, "booth_url"));
+  if ("highlight" in body) add("highlight", optBool(body.highlight) ? 1 : 0);
+  if ("badge" in body) add("badge", optStr(body.badge, "badge", 64));
+  if ("note" in body) add("note", optStr(body.note, "note"));
+  if ("status" in body) add("status", optEnum(body.status, "status", PARTICIPATION_STATUSES));
+  if (fields.length === 0) throw new ValidationError("수정할 필드가 없어요");
+
   fields.push("updated_at = datetime('now')");
   values.push(id);
-  await c.env.DB.prepare(`UPDATE participations SET ${fields.join(", ")} WHERE id = ?`).bind(...values).run();
+  const res = await c.env.DB.prepare(`UPDATE participations SET ${fields.join(", ")} WHERE id = ?`).bind(...values).run();
+  if (!res.meta.changes) return c.json({ error: "participation not found", code: "not_found" }, 404);
   return c.json({ ok: true });
 });
 
 app.delete("/participations/:id", async (c) => {
-  const id = Number(c.req.param("id"));
-  await c.env.DB.prepare("DELETE FROM participations WHERE id = ?").bind(id).run();
+  const id = intId(c.req.param("id"), "id");
+  const res = await c.env.DB.prepare("DELETE FROM participations WHERE id = ?").bind(id).run();
+  if (!res.meta.changes) return c.json({ error: "participation not found", code: "not_found" }, 404);
   return c.json({ ok: true });
 });
 
 // ---- verification log (used by daily routine) ----
 app.post("/verifications", async (c) => {
-  const body = await c.req.json();
-  const { circle_slug, event_slug, source, result, detail } = body;
-  if (!circle_slug || !source || !result) {
-    return c.json({ error: "circle_slug, source, result are required" }, 400);
-  }
-  const circle = await c.env.DB.prepare("SELECT id FROM circles WHERE slug = ?").bind(circle_slug).first<{ id: number }>();
-  if (!circle) return c.json({ error: "circle not found" }, 404);
+  const body = await readJson(c);
+  const circleSlug = vSlug(body.circle_slug, "circle_slug");
+  const source = str(body.source, "source", 64);
+  const result = str(body.result, "result", 64);
+  const detail = optStr(body.detail, "detail");
+  const eventSlug = body.event_slug === undefined || body.event_slug === null ? null : vSlug(body.event_slug, "event_slug");
+
+  const circle = await c.env.DB.prepare("SELECT id FROM circles WHERE slug = ?").bind(circleSlug).first<{ id: number }>();
+  if (!circle) return c.json({ error: "circle not found", code: "not_found" }, 404);
 
   let eventId: number | null = null;
   let participationId: number | null = null;
-  if (event_slug) {
-    const event = await c.env.DB.prepare("SELECT id FROM events WHERE slug = ?").bind(event_slug).first<{ id: number }>();
+  if (eventSlug) {
+    const event = await c.env.DB.prepare("SELECT id FROM events WHERE slug = ?").bind(eventSlug).first<{ id: number }>();
     eventId = event?.id ?? null;
     if (eventId) {
       const p = await c.env.DB.prepare("SELECT id FROM participations WHERE circle_id = ? AND event_id = ?").bind(circle.id, eventId).first<{ id: number }>();
@@ -415,7 +504,7 @@ app.post("/verifications", async (c) => {
   await c.env.DB.prepare(
     "INSERT INTO verification_log (circle_id, participation_id, event_id, source, result, detail) VALUES (?, ?, ?, ?, ?, ?)"
   )
-    .bind(circle.id, participationId, eventId, source, result, detail ?? null)
+    .bind(circle.id, participationId, eventId, source, result, detail)
     .run();
 
   return c.json({ ok: true }, 201);
