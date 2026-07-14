@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { filterCircles, chipLabel, boothShort, chipsFor } from "../../src/lib/circle";
+import { filterCircles, chipLabel, boothShort, chipsFor, deriveGenres } from "../../src/lib/circle";
 import type { Circle } from "../../src/types";
 
 const mk = (o: Partial<Circle> & { id: string }): Circle => ({
@@ -62,6 +62,15 @@ describe("helpers", () => {
   it("boothShort takes leading booth or name initial", () => {
     expect(boothShort(mk({ id: "x", booth: "BE01·BE02" }))).toBe("BE01");
     expect(boothShort(mk({ id: "x", name: "통판", booth: undefined }))).toBe("통");
+  });
+
+  it("deriveGenres collects unique sorted genres present in the data", () => {
+    const circles = [
+      mk({ id: "a", genres: ["뱅드림", "걸밴크"] }),
+      mk({ id: "b", genres: ["걸밴크", "  "] }),
+      mk({ id: "c" }),
+    ];
+    expect(deriveGenres(circles)).toEqual(["걸밴크", "뱅드림"]);
   });
 
   it("chipsFor puts boothUrl first as primary", () => {

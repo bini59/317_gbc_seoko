@@ -1,16 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Circle } from "./types";
-import { fetchActiveEvent, fetchCircles } from "./api";
-import { badgeColor, filterCircles, STATUS, type Status } from "./lib/circle";
+import { fetchActiveEvent, fetchCircles, type ApiEvent } from "./api";
+import { badgeColor, deriveGenres, filterCircles, STATUS, type Status } from "./lib/circle";
 import { useChecks } from "./hooks/useChecks";
 import { Card } from "./components/Card";
 import { Detail } from "./components/Detail";
 
-const GENRES = ["걸즈밴드크라이", "뱅드림", "케이온", "봇치더록"];
+const DEFAULT_MAP_URL = "https://comicw.net/map/";
+
+/** 행사 부제: 별칭·장소·기간 중 존재하는 것만 · 로 잇는다. */
+function eventSubtitle(event: ApiEvent | null): string {
+  if (!event) return "행사 정보를 불러오는 중…";
+  const parts = [event.alias || event.title, event.venue, event.date_label].filter(Boolean);
+  return parts.length ? parts.join(" · ") : event.title;
+}
 
 /* ---------- 앱 ---------- */
 export default function App() {
-  const [checks, toggle] = useChecks();
+  const [event, setEvent] = useState<ApiEvent | null>(null);
+  const [checks, toggle] = useChecks(event?.slug ?? null);
   const [status, setStatus] = useState<Status>("all");
   const [genres, setGenres] = useState<string[]>([]);
   const [query, setQuery] = useState("");
@@ -18,9 +26,14 @@ export default function App() {
 
   const [circles, setCircles] = useState<Circle[]>([]);
   const [witchformExtra, setWitchformExtra] = useState<Circle[]>([]);
-  const [mapUrl, setMapUrl] = useState("https://comicw.net/map/");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  const mapUrl = event?.map_url || DEFAULT_MAP_URL;
+  const availableGenres = useMemo(
+    () => deriveGenres([...circles, ...witchformExtra]),
+    [circles, witchformExtra],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -32,9 +45,9 @@ export default function App() {
         if (!ev) throw new Error("등록된 행사가 없어요");
         const { circles: cs, witchformExtra: wf } = await fetchCircles(ev.slug);
         if (cancelled) return;
+        setEvent(ev);
         setCircles(cs);
         setWitchformExtra(wf);
-        setMapUrl(ev.map_url || "https://comicw.net/map/");
       } catch (e) {
         if (!cancelled) setLoadError(e instanceof Error ? e.message : "불러오기 실패");
       } finally {
@@ -83,7 +96,7 @@ export default function App() {
                 걸밴크 서코
               </div>
               <div className="text-xs font-semibold text-faint mt-[5px]">
-                334회 · 7코 일산 킨텍스 · 7/18–19
+                {eventSubtitle(event)}
               </div>
             </div>
 
@@ -168,7 +181,7 @@ export default function App() {
             <button onClick={() => setGenres([])} className={genreChip(genres.length === 0)}>
               전체 장르
             </button>
-            {GENRES.map((g) => (
+            {availableGenres.map((g) => (
               <button
                 key={g}
                 onClick={() =>

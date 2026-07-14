@@ -1,25 +1,28 @@
 import { useEffect, useState } from "react";
+import { type Checks, loadChecks, saveChecks } from "../lib/checks";
 
-const STORAGE_KEY = "gbc-seoko-2026-07-checks";
+/**
+ * 행사별 방문 체크 상태(localStorage). eventSlug가 바뀌면 해당 행사의 저장분을
+ * 다시 불러오고, 변경은 즉시 그 행사의 키에만 기록해 행사 간 상태가 섞이지 않는다.
+ */
+export function useChecks(eventSlug: string | null): [Checks, (id: string) => void, () => void] {
+  const [checks, setChecks] = useState<Checks>({});
 
-export type Checks = Record<string, boolean>;
-
-/* ---------- 방문 체크 상태: localStorage ---------- */
-export function useChecks(): [Checks, (id: string) => void, () => void] {
-  const [checks, setChecks] = useState<Checks>(() => {
-    try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}") || {};
-    } catch {
-      return {};
-    }
-  });
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(checks));
-    } catch {
-      /* private mode / quota */
-    }
-  }, [checks]);
-  const toggle = (id: string) => setChecks((c) => ({ ...c, [id]: !c[id] }));
-  return [checks, toggle, () => setChecks({})];
+    setChecks(eventSlug ? loadChecks(localStorage, eventSlug) : {});
+  }, [eventSlug]);
+
+  const toggle = (id: string) =>
+    setChecks((prev) => {
+      const next = { ...prev, [id]: !prev[id] };
+      if (eventSlug) saveChecks(localStorage, eventSlug, next);
+      return next;
+    });
+
+  const reset = () => {
+    if (eventSlug) saveChecks(localStorage, eventSlug, {});
+    setChecks({});
+  };
+
+  return [checks, toggle, reset];
 }
