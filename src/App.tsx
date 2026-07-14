@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Circle } from "./types";
 import { fetchActiveEvent, fetchCircles, type ApiEvent } from "./api";
 import { badgeColor, deriveGenres, filterCircles, STATUS, type Status } from "./lib/circle";
 import { useChecks } from "./hooks/useChecks";
+import { useDetailRoute } from "./hooks/useDetailRoute";
 import { Card } from "./components/Card";
 import { Detail } from "./components/Detail";
 
@@ -22,7 +23,8 @@ export default function App() {
   const [status, setStatus] = useState<Status>("all");
   const [genres, setGenres] = useState<string[]>([]);
   const [query, setQuery] = useState("");
-  const [detailId, setDetailId] = useState<string | null>(null);
+  const [detailId, openDetail, closeDetail] = useDetailRoute();
+  const [announce, setAnnounce] = useState("");
 
   const [circles, setCircles] = useState<Circle[]>([]);
   const [witchformExtra, setWitchformExtra] = useState<Circle[]>([]);
@@ -34,29 +36,31 @@ export default function App() {
   const all = useMemo(() => [...circles, ...witchformExtra], [circles, witchformExtra]);
   const availableGenres = useMemo(() => deriveGenres(all), [all]);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        setLoading(true);
-        setLoadError(null);
-        const ev = await fetchActiveEvent();
-        if (!ev) throw new Error("등록된 행사가 없어요");
-        const { circles: cs, witchformExtra: wf } = await fetchCircles(ev.slug);
-        if (cancelled) return;
-        setEvent(ev);
-        setCircles(cs);
-        setWitchformExtra(wf);
-      } catch (e) {
-        if (!cancelled) setLoadError(e instanceof Error ? e.message : "불러오기 실패");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+  const load = useCallback(async () => {
+    try {
+      setLoading(true);
+      setLoadError(null);
+      const ev = await fetchActiveEvent();
+      if (!ev) throw new Error("등록된 행사가 없어요");
+      const { circles: cs, witchformExtra: wf } = await fetchCircles(ev.slug);
+      setEvent(ev);
+      setCircles(cs);
+      setWitchformExtra(wf);
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : "불러오기 실패");
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const handleToggle = (id: string) => {
+    setAnnounce(checks[id] ? "방문 체크를 해제했어요" : "방문 체크했어요");
+    toggle(id);
+  };
 
   // 진행률은 통판 포함(모두 방문 대상) — 제품 규칙
   const doneCount = all.filter((c) => checks[c.id]).length;
@@ -79,12 +83,15 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-bg max-w-[520px] mx-auto">
+      <div role="status" aria-live="polite" className="sr-only">
+        {announce}
+      </div>
       {detail ? (
         <Detail
           item={detail}
           checked={!!checks[detail.id]}
-          onToggle={() => toggle(detail.id)}
-          onBack={() => setDetailId(null)}
+          onToggle={() => handleToggle(detail.id)}
+          onBack={closeDetail}
           color={badgeColor(detail.id, all)}
         />
       ) : (
@@ -114,9 +121,11 @@ export default function App() {
                 <path d="M21 21l-4-4" />
               </svg>
               <input
+                type="search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="서클 · 부스 · 장르 검색"
+                aria-label="서클·부스·장르 검색"
                 className="flex-1 min-w-0 border-0 outline-none bg-transparent text-[16px] text-ink placeholder:text-faint"
               />
               {query ? (
@@ -168,6 +177,7 @@ export default function App() {
                 <button
                   key={s.k}
                   onClick={() => setStatus(s.k)}
+                  aria-pressed={status === s.k}
                   className={statusChip(status === s.k)}
                 >
                   {s.label}
@@ -178,7 +188,11 @@ export default function App() {
 
           {/* 장르 칩 (가로 스크롤) */}
           <div className="flex gap-2 overflow-x-auto no-scrollbar px-5 pt-1 pb-0.5">
-            <button onClick={() => setGenres([])} className={genreChip(genres.length === 0)}>
+            <button
+              onClick={() => setGenres([])}
+              aria-pressed={genres.length === 0}
+              className={genreChip(genres.length === 0)}
+            >
               전체 장르
             </button>
             {availableGenres.map((g) => (
@@ -189,6 +203,7 @@ export default function App() {
                     prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g],
                   )
                 }
+                aria-pressed={genres.includes(g)}
                 className={genreChip(genres.includes(g))}
               >
                 {g}
@@ -207,8 +222,15 @@ export default function App() {
           {/* 카드 목록 */}
           <div className="flex flex-col gap-3 px-5">
             {loadError && (
-              <div className="text-center py-14 text-[#e0455c] text-sm font-semibold">
-                {loadError} · 새로고침해서 다시 시도해주세요
+              <div className="text-center py-14" role="alert">
+                <div className="text-[#e0455c] text-sm font-semibold">{loadError}</div>
+                <button
+                  onClick={() => void load()}
+                  disabled={loading}
+                  className="mt-3 inline-flex items-center h-9 px-4 rounded-full bg-ink text-white text-[13px] font-bold cursor-pointer border-0 disabled:opacity-60"
+                >
+                  {loading ? "다시 시도 중…" : "다시 시도"}
+                </button>
               </div>
             )}
             {!loadError && loading && circles.length === 0 && (
@@ -222,8 +244,8 @@ export default function App() {
                   key={c.id}
                   item={c}
                   checked={!!checks[c.id]}
-                  onToggle={() => toggle(c.id)}
-                  onOpen={() => setDetailId(c.id)}
+                  onToggle={() => handleToggle(c.id)}
+                  onOpen={() => openDetail(c.id)}
                   color={badgeColor(c.id, all)}
                 />
               ))}
@@ -243,8 +265,8 @@ export default function App() {
                     key={c.id}
                     item={c}
                     checked={!!checks[c.id]}
-                    onToggle={() => toggle(c.id)}
-                    onOpen={() => setDetailId(c.id)}
+                    onToggle={() => handleToggle(c.id)}
+                    onOpen={() => openDetail(c.id)}
                     color={badgeColor(c.id, all)}
                   />
                 ))}
