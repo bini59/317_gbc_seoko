@@ -50,12 +50,16 @@ function toCircle(c: ApiCircle): Circle {
   };
 }
 
+/** Pick the active event, falling back to the first (most recent) or null. */
+export function pickActiveEvent(events: ApiEvent[]): ApiEvent | null {
+  return events.find((e) => e.status === "active") ?? events[0] ?? null;
+}
+
 export async function fetchActiveEvent(): Promise<ApiEvent | null> {
   const res = await fetch("/api/events");
   if (!res.ok) throw new Error("이벤트 정보를 불러오지 못했어요");
   const data = await res.json();
-  const events: ApiEvent[] = data.events || [];
-  return events.find((e) => e.status === "active") ?? events[0] ?? null;
+  return pickActiveEvent(data.events || []);
 }
 
 export async function fetchCircles(
