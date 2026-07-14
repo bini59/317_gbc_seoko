@@ -1,4 +1,4 @@
-import type { Circle, TweetInfo } from "./data";
+import type { Circle, TweetInfo } from "./types";
 
 export type ApiCircle = {
   id: number;
