@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import type { Circle } from "../types";
 import { boothShort } from "../lib/circle";
 import { TweetCard } from "./TweetCard";
@@ -16,6 +17,12 @@ export function Detail({
   onBack: () => void;
   color: string;
 }) {
+  const backRef = useRef<HTMLButtonElement>(null);
+  // 상세 진입 시 포커스를 상세 컨텍스트(뒤로 버튼)로 이동 — 키보드/스크린리더 대응
+  useEffect(() => {
+    backRef.current?.focus();
+  }, [item.id]);
+
   const short = boothShort(item);
   const links: { label: string; url: string; primary: boolean }[] = [];
   if (item.boothUrl)
@@ -30,8 +37,9 @@ export function Detail({
     <div>
       <div className="sticky top-0 z-10 bg-bg flex items-center gap-1.5 px-4 pt-5 pb-3.5">
         <button
+          ref={backRef}
           onClick={onBack}
-          aria-label="뒤로"
+          aria-label="목록으로 뒤로"
           className="w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer bg-transparent border-0"
         >
           <svg

@@ -47,6 +47,7 @@ const CIRCLES = [
 describe("<App/> confirmed + unlisted", () => {
   beforeEach(() => {
     localStorage.clear();
+    window.location.hash = ""; // 라우팅 상태 격리 (테스트 간 hash 누수 방지)
     mockApi(CIRCLES);
   });
   afterEach(() => {
