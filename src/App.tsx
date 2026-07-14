@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Circle } from "./types";
 import { fetchActiveEvent, fetchCircles, type ApiEvent } from "./api";
-import { badgeColor, deriveGenres, filterCircles, STATUS, type Status } from "./lib/circle";
+import { badgeColor, filterCircles, STATUS, type Status } from "./lib/circle";
 import { useChecks } from "./hooks/useChecks";
 import { useDetailRoute } from "./hooks/useDetailRoute";
 import { Card } from "./components/Card";
 import { Detail } from "./components/Detail";
 
 const DEFAULT_MAP_URL = "https://comicw.net/map/";
+
+// 필터 칩은 큐레이션된 걸밴크 관련 장르만 노출한다(데이터의 모든 태그를 풀지 않음).
+const GENRES = ["걸즈밴드크라이", "뱅드림", "케이온", "봇치더록"];
 
 /** 행사 부제: 별칭·장소·기간 중 존재하는 것만 · 로 잇는다. */
 function eventSubtitle(event: ApiEvent | null): string {
@@ -34,7 +37,6 @@ export default function App() {
   const mapUrl = event?.map_url || DEFAULT_MAP_URL;
   // 행사장 서클 + 통판(unlisted)을 한 데이터셋으로 다뤄 검색·필터·체크를 일관 적용
   const all = useMemo(() => [...circles, ...witchformExtra], [circles, witchformExtra]);
-  const availableGenres = useMemo(() => deriveGenres(all), [all]);
 
   const load = useCallback(async () => {
     try {
@@ -195,7 +197,7 @@ export default function App() {
             >
               전체 장르
             </button>
-            {availableGenres.map((g) => (
+            {GENRES.map((g) => (
               <button
                 key={g}
                 onClick={() =>
