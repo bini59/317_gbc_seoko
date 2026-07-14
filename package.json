@@ -7,7 +7,11 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "npm run build && wrangler dev",
-    "deploy": "npm run build && wrangler deploy"
+    "deploy": "npm run build && wrangler deploy",
+    "typecheck": "tsc -p tsconfig.json && tsc -p worker/tsconfig.json",
+    "test": "NODE_OPTIONS=--experimental-sqlite vitest run",
+    "db:migrate:local": "wrangler d1 migrations apply gbc-seoko-db --local",
+    "db:seed:local": "wrangler d1 execute gbc-seoko-db --local --file=seeds/dev.sql"
   },
   "dependencies": {
     "hono": "^4.12.27",
@@ -23,6 +27,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "typescript": "^6.0.3",
     "vite": "^6.0.0",
+    "vitest": "^4.1.10",
     "wrangler": "^4.107.0"
   }
 }

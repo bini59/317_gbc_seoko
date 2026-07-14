@@ -12,6 +12,21 @@ npm install
 npm run dev
 ```
 
+## 로컬 DB (D1)
+빈 로컬 D1를 마이그레이션만으로 구성하고 개발용 seed를 넣는다:
+```bash
+npm run db:migrate:local   # migrations/ 적용 → 스키마 재현
+npm run db:seed:local      # migrations/seed-dev.sql (최소 개발 데이터)
+```
+
+## 검증
+```bash
+npm run typecheck   # 클라이언트 + Worker 타입 체크
+npm test            # vitest (Worker API 통합 + 클라이언트 단위)
+npm run build
+```
+> 테스트는 Node 내장 `node:sqlite`(Node ≥ 22.5)로 마이그레이션을 인메모리 D1에 적용해 실행한다. PR마다 GitHub Actions(`.github/workflows/ci.yml`)가 install → typecheck → test → build를 수행한다.
+
 ## 빌드
 ```bash
 npm run build   # → dist/ 생성
