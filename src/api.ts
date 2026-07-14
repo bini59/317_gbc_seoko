@@ -47,6 +47,7 @@ function toCircle(c: ApiCircle): Circle {
     genres: c.genres,
     badge: c.badge ?? undefined,
     tweetInfo: c.tweetInfo,
+    unlisted: c.status === "unlisted",
   };
 }
 

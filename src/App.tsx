@@ -30,10 +30,9 @@ export default function App() {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const mapUrl = event?.map_url || DEFAULT_MAP_URL;
-  const availableGenres = useMemo(
-    () => deriveGenres([...circles, ...witchformExtra]),
-    [circles, witchformExtra],
-  );
+  // 행사장 서클 + 통판(unlisted)을 한 데이터셋으로 다뤄 검색·필터·체크를 일관 적용
+  const all = useMemo(() => [...circles, ...witchformExtra], [circles, witchformExtra]);
+  const availableGenres = useMemo(() => deriveGenres(all), [all]);
 
   useEffect(() => {
     let cancelled = false;
@@ -59,16 +58,17 @@ export default function App() {
     };
   }, []);
 
-  const doneCount = circles.filter((c) => checks[c.id]).length;
+  // 진행률은 통판 포함(모두 방문 대상) — 제품 규칙
+  const doneCount = all.filter((c) => checks[c.id]).length;
 
-  const list = useMemo(
-    () => filterCircles(circles, { checks, status, genres, query }),
-    [circles, checks, status, genres, query],
+  const filtered = useMemo(
+    () => filterCircles(all, { checks, status, genres, query }),
+    [all, checks, status, genres, query],
   );
+  const boothList = filtered.filter((c) => !c.unlisted);
+  const tsuhanList = filtered.filter((c) => c.unlisted);
 
-  const detail = detailId
-    ? circles.find((c) => c.id === detailId) || witchformExtra.find((c) => c.id === detailId)
-    : null;
+  const detail = detailId ? all.find((c) => c.id === detailId) ?? null : null;
 
   const statusChip = (active: boolean) =>
     "inline-flex items-center h-[34px] px-4 rounded-full text-[13.5px] font-bold cursor-pointer whitespace-nowrap border " +
@@ -85,7 +85,7 @@ export default function App() {
           checked={!!checks[detail.id]}
           onToggle={() => toggle(detail.id)}
           onBack={() => setDetailId(null)}
-          color={badgeColor(detail.id, circles)}
+          color={badgeColor(detail.id, all)}
         />
       ) : (
         <div className="pb-7">
@@ -198,9 +198,9 @@ export default function App() {
 
           {/* 진행 표시 */}
           <div className="flex items-center justify-between px-[22px] pt-3.5 pb-2">
-            <div className="text-[12.5px] font-bold text-faint">참가 서클 {list.length}곳</div>
+            <div className="text-[12.5px] font-bold text-faint">참가 서클 {filtered.length}곳</div>
             <div className="text-[12.5px] font-bold text-accent">
-              방문 {doneCount}/{circles.length}
+              방문 {doneCount}/{all.length}
             </div>
           </div>
 
@@ -217,17 +217,41 @@ export default function App() {
               </div>
             )}
             {!loadError &&
-              list.map((c) => (
+              boothList.map((c) => (
                 <Card
                   key={c.id}
                   item={c}
                   checked={!!checks[c.id]}
                   onToggle={() => toggle(c.id)}
                   onOpen={() => setDetailId(c.id)}
-                  color={badgeColor(c.id, circles)}
+                  color={badgeColor(c.id, all)}
                 />
               ))}
-            {!loadError && !loading && list.length === 0 && (
+
+            {/* 통판(윗치폼) 섹션 — 행사장 부스 없이 온라인 주문 */}
+            {!loadError && tsuhanList.length > 0 && (
+              <>
+                <div className="flex items-center gap-2 mt-4 mb-0.5">
+                  <span className="text-[12.5px] font-extrabold tracking-[0.04em] text-faint">
+                    윗치폼 통판
+                  </span>
+                  <span className="text-[11px] font-bold text-accent">{tsuhanList.length}</span>
+                  <div className="flex-1 h-px bg-line" />
+                </div>
+                {tsuhanList.map((c) => (
+                  <Card
+                    key={c.id}
+                    item={c}
+                    checked={!!checks[c.id]}
+                    onToggle={() => toggle(c.id)}
+                    onOpen={() => setDetailId(c.id)}
+                    color={badgeColor(c.id, all)}
+                  />
+                ))}
+              </>
+            )}
+
+            {!loadError && !loading && filtered.length === 0 && (
               <div className="text-center py-14 text-[#b0b4bc] text-sm font-semibold">
                 조건에 맞는 서클이 없어요
               </div>

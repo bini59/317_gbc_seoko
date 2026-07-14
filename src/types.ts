@@ -29,6 +29,8 @@ export type Circle = {
   genres?: string[];
   /** highlight 배지 라벨 (기본: "걸밴크 전문") */
   badge?: string;
+  /** 통판(unlisted) 여부 — 행사장 부스 없이 온라인 주문으로만 접근 */
+  unlisted?: boolean;
   /** 이번 서코 참가를 공지한 X 트윗 (og 태그 캡처) */
   tweetInfo?: TweetInfo;
 };
