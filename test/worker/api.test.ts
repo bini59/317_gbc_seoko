@@ -96,4 +96,90 @@ describe("worker API", () => {
     expect(list.json.circles[0].name).toBe("N2");
     expect(list.json.circles[0].booth).toBe("B-02");
   });
+
+  it("keeps circles with the same slug independent across events", async () => {
+    await call(env, "POST", "/api/events", { slug: "event-a", title: "행사 A", status: "active" });
+    await call(env, "POST", "/api/events", { slug: "event-b", title: "행사 B", status: "upcoming" });
+
+    const eventA = await call(env, "POST", "/api/circles", {
+      slug: "same-circle",
+      name: "행사 A 서클",
+      event_slug: "event-a",
+      links: [{ label: "A 링크", url: "https://example.com/a" }],
+      tweetInfo: { url: "https://x.com/a/status/1", ogTitle: "A 트윗" },
+    });
+    const eventB = await call(env, "POST", "/api/circles", {
+      slug: "same-circle",
+      name: "행사 B 서클",
+      event_slug: "event-b",
+      links: [{ label: "B 링크", url: "https://example.com/b" }],
+      tweetInfo: { url: "https://x.com/b/status/2", ogTitle: "B 트윗" },
+    });
+
+    expect(eventA.status).toBe(201);
+    expect(eventB.status).toBe(201);
+    expect(eventA.json.circleId).not.toBe(eventB.json.circleId);
+
+    const detailA = await call(env, "GET", "/api/circles/same-circle?event=event-a");
+    const detailB = await call(env, "GET", "/api/circles/same-circle?event=event-b");
+    expect(detailA.json.circle).toMatchObject({
+      name: "행사 A 서클",
+      links: [{ label: "A 링크", url: "https://example.com/a" }],
+      tweetInfo: { ogTitle: "A 트윗" },
+    });
+    expect(detailB.json.circle).toMatchObject({
+      name: "행사 B 서클",
+      links: [{ label: "B 링크", url: "https://example.com/b" }],
+      tweetInfo: { ogTitle: "B 트윗" },
+    });
+
+    await call(env, "POST", "/api/circles/same-circle/links", {
+      event_slug: "event-b",
+      label: "B 추가 링크",
+      url: "https://example.com/b-extra",
+    });
+    await call(env, "POST", "/api/circles/same-circle/tweet-info", {
+      event_slug: "event-b",
+      url: "https://x.com/b/status/3",
+      ogTitle: "B 수정 트윗",
+    });
+    await call(env, "POST", "/api/verifications", {
+      circle_slug: "same-circle",
+      event_slug: "event-a",
+      source: "official",
+      result: "confirmed",
+    });
+    await call(env, "POST", "/api/verifications", {
+      circle_slug: "same-circle",
+      event_slug: "event-b",
+      source: "catalog",
+      result: "confirmed",
+    });
+
+    const updatedA = await call(env, "GET", "/api/circles/same-circle?event=event-a");
+    const updatedB = await call(env, "GET", "/api/circles/same-circle?event=event-b");
+    expect(updatedA.json.circle.links).toHaveLength(1);
+    expect(updatedA.json.circle.tweetInfo.ogTitle).toBe("A 트윗");
+    expect(updatedB.json.circle.links.map((link: any) => link.label)).toEqual(["B 링크", "B 추가 링크"]);
+    expect(updatedB.json.circle.tweetInfo.ogTitle).toBe("B 수정 트윗");
+
+    const verifications = await call(env, "GET", "/api/verifications?circle=same-circle&event=event-b");
+    expect(verifications.json.verifications).toHaveLength(1);
+    expect(verifications.json.verifications[0]).toMatchObject({ source: "catalog", circle_slug: "same-circle" });
+  });
+
+  it("returns legacy verification logs without an event when no event filter is used", async () => {
+    await call(env, "POST", "/api/events", { slug: "ev", title: "행사", status: "active" });
+    const created = await call(env, "POST", "/api/circles", { slug: "circle", name: "서클", event_slug: "ev" });
+    await env.DB.prepare(
+      "INSERT INTO verification_log (circle_id, participation_id, event_id, source, result) VALUES (?, ?, NULL, 'legacy', 'confirmed')",
+    ).bind(created.json.circleId, created.json.participationId).run();
+
+    const all = await call(env, "GET", "/api/verifications?circle=circle");
+    expect(all.json.verifications).toHaveLength(1);
+    expect(all.json.verifications[0]).toMatchObject({ source: "legacy", event_id: null });
+
+    const scoped = await call(env, "GET", "/api/verifications?circle=circle&event=ev");
+    expect(scoped.json.verifications).toHaveLength(0);
+  });
 });

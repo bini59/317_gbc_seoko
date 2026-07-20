@@ -85,7 +85,7 @@ describe("write API validation + atomicity", () => {
     const before = await count(env, "circles");
     await expect(
       env.DB.batch([
-        env.DB.prepare("INSERT INTO circles (slug, name) VALUES ('rollback-me', 'x')"),
+        env.DB.prepare("INSERT INTO circles (event_id, slug, name) VALUES (1, 'rollback-me', 'x')"),
         // FK violation: no such participation → whole batch must roll back
         env.DB.prepare("INSERT INTO links (participation_id, label, url) VALUES (999999, 'l', 'u')"),
       ]),
@@ -112,5 +112,16 @@ describe("write API validation + atomicity", () => {
     const pid = (await env.DB.prepare("SELECT id FROM participations LIMIT 1").first()).id;
     const r = await call(env, "PATCH", `/api/participations/${pid}`, { status: "bogus" });
     expect(r.status).toBe(400);
+  });
+
+  it("rejects a participation whose event differs from its circle event", async () => {
+    await call(env, "POST", "/api/events", { slug: "other", title: "다른 행사", status: "upcoming" });
+    await call(env, "POST", "/api/circles", { slug: "c", name: "n", event_slug: "ev" });
+    const circle = await env.DB.prepare("SELECT id FROM circles WHERE slug = 'c'").first();
+    const other = await env.DB.prepare("SELECT id FROM events WHERE slug = 'other'").first();
+
+    await expect(
+      env.DB.prepare("INSERT INTO participations (circle_id, event_id) VALUES (?, ?)").bind(circle.id, other.id).run(),
+    ).rejects.toThrow();
   });
 });

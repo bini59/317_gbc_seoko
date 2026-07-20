@@ -18,15 +18,19 @@ CREATE TABLE IF NOT EXISTS events (
 
 CREATE TABLE IF NOT EXISTS circles (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  slug        TEXT NOT NULL UNIQUE,
+  event_id    INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  slug        TEXT NOT NULL,
   name        TEXT NOT NULL,
   created_at  TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+  updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (event_id, slug),
+  UNIQUE (id, event_id)
 );
+CREATE INDEX IF NOT EXISTS idx_circles_event ON circles(event_id);
 
 CREATE TABLE IF NOT EXISTS participations (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  circle_id   INTEGER NOT NULL REFERENCES circles(id) ON DELETE CASCADE,
+  circle_id   INTEGER NOT NULL,
   event_id    INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
   genre_label TEXT,
   genre_tags  TEXT,                      -- JSON array of strings
@@ -39,7 +43,8 @@ CREATE TABLE IF NOT EXISTS participations (
   status      TEXT NOT NULL DEFAULT 'confirmed',
   created_at  TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
-  UNIQUE (circle_id, event_id)
+  UNIQUE (circle_id, event_id),
+  FOREIGN KEY (circle_id, event_id) REFERENCES circles(id, event_id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_participations_event ON participations(event_id);
 CREATE INDEX IF NOT EXISTS idx_participations_circle ON participations(circle_id);

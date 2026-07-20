@@ -190,7 +190,7 @@ app.get("/circles", async (c) => {
             (SELECT GROUP_CONCAT(i.name) FROM circle_ips ci JOIN ips i ON i.id = ci.ip_id WHERE ci.circle_id = c.id) as ips
      FROM participations p
      JOIN circles c ON c.id = p.circle_id
-     WHERE p.event_id = ? AND (? = 'all' OR p.status = ?)
+     WHERE p.event_id = ? AND c.event_id = p.event_id AND (? = 'all' OR p.status = ?)
      ORDER BY c.name`
   )
     .bind(eventId, statusFilter, statusFilter)
@@ -240,9 +240,9 @@ app.get("/circles/:slug", async (c) => {
             (SELECT GROUP_CONCAT(i.name) FROM circle_ips ci JOIN ips i ON i.id = ci.ip_id WHERE ci.circle_id = c.id) as ips
      FROM participations p
      JOIN circles c ON c.id = p.circle_id
-     WHERE c.slug = ? AND p.event_id = ?`
+     WHERE c.slug = ? AND c.event_id = ? AND p.event_id = ?`
   )
-    .bind(slug, eventId)
+    .bind(slug, eventId, eventId)
     .first<CircleRow>();
 
   if (!row) return c.json({ error: "circle not found", code: "not_found" }, 404);
@@ -254,8 +254,9 @@ app.get("/circles/:slug", async (c) => {
 });
 
 // participation_id 서브쿼리 — batch 안에서 slug/event로 참여 행을 참조한다.
+const CIRCLE_ID_SUBQ = "(SELECT id FROM circles WHERE event_id=? AND slug=?)";
 const PID_SUBQ =
-  "(SELECT p.id FROM participations p WHERE p.circle_id=(SELECT id FROM circles WHERE slug=?) AND p.event_id=?)";
+  `(SELECT p.id FROM participations p WHERE p.circle_id=${CIRCLE_ID_SUBQ} AND p.event_id=?)`;
 
 // 데일리 루틴이 사용하는 증분 업데이트용: 기존 링크/genre 등을 건드리지 않고 링크만 추가 (url 중복 시 스킵)
 app.post("/circles/:slug/links", async (c) => {
@@ -270,7 +271,7 @@ app.post("/circles/:slug/links", async (c) => {
     `SELECT p.id as participation_id FROM participations p
      JOIN circles c ON c.id = p.circle_id
      JOIN events e ON e.id = p.event_id
-     WHERE c.slug = ? AND e.slug = ?`
+     WHERE c.slug = ? AND e.slug = ? AND c.event_id = e.id`
   )
     .bind(slug, eventSlug)
     .first<{ participation_id: number }>();
@@ -303,7 +304,7 @@ app.post("/circles/:slug/tweet-info", async (c) => {
     `SELECT p.id as participation_id FROM participations p
      JOIN circles c ON c.id = p.circle_id
      JOIN events e ON e.id = p.event_id
-     WHERE c.slug = ? AND e.slug = ?`
+     WHERE c.slug = ? AND e.slug = ? AND c.event_id = e.id`
   )
     .bind(slug, eventSlug)
     .first<{ participation_id: number }>();
@@ -375,8 +376,8 @@ app.post("/circles", async (c) => {
   // 1) circle upsert
   stmts.push(
     db
-      .prepare("INSERT INTO circles (slug, name) VALUES (?, ?) ON CONFLICT(slug) DO UPDATE SET name = excluded.name, updated_at = datetime('now')")
-      .bind(slug, name)
+      .prepare("INSERT INTO circles (event_id, slug, name) VALUES (?, ?, ?) ON CONFLICT(event_id, slug) DO UPDATE SET name = excluded.name, updated_at = datetime('now')")
+      .bind(eventId, slug, name)
   );
 
   // 2) participation upsert (UNIQUE(circle_id, event_id) 기반)
@@ -384,38 +385,38 @@ app.post("/circles", async (c) => {
     db
       .prepare(
         `INSERT INTO participations (circle_id, event_id, genre_label, genre_tags, booth, day, booth_url, highlight, badge, note, status)
-         VALUES ((SELECT id FROM circles WHERE slug=?), ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, 'confirmed'))
+         VALUES (${CIRCLE_ID_SUBQ}, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, 'confirmed'))
          ON CONFLICT(circle_id, event_id) DO UPDATE SET
            genre_label=excluded.genre_label, genre_tags=excluded.genre_tags, booth=excluded.booth,
            day=excluded.day, booth_url=excluded.booth_url, highlight=excluded.highlight,
            badge=excluded.badge, note=excluded.note, status=COALESCE(?, participations.status),
            updated_at=datetime('now')`
       )
-      .bind(slug, eventId, genreLabel, JSON.stringify(genreTags), booth, day, boothUrl, highlight ? 1 : 0, badge, note, status, status)
+      .bind(eventId, slug, eventId, genreLabel, JSON.stringify(genreTags), booth, day, boothUrl, highlight ? 1 : 0, badge, note, status, status)
   );
 
   // 3) ips (제공된 경우만 전량 교체)
   if (ips !== null) {
-    stmts.push(db.prepare("DELETE FROM circle_ips WHERE circle_id=(SELECT id FROM circles WHERE slug=?)").bind(slug));
+    stmts.push(db.prepare(`DELETE FROM circle_ips WHERE circle_id=${CIRCLE_ID_SUBQ}`).bind(eventId, slug));
     for (const ipName of ips) {
       stmts.push(db.prepare("INSERT OR IGNORE INTO ips (name) VALUES (?)").bind(ipName));
       stmts.push(
         db
-          .prepare("INSERT OR IGNORE INTO circle_ips (circle_id, ip_id) VALUES ((SELECT id FROM circles WHERE slug=?), (SELECT id FROM ips WHERE name=?))")
-          .bind(slug, ipName)
+          .prepare(`INSERT OR IGNORE INTO circle_ips (circle_id, ip_id) VALUES (${CIRCLE_ID_SUBQ}, (SELECT id FROM ips WHERE name=?))`)
+          .bind(eventId, slug, ipName)
       );
     }
   }
 
   // 4) links (제공된 경우만 전량 교체)
   if (links !== null) {
-    stmts.push(db.prepare(`DELETE FROM links WHERE participation_id=${PID_SUBQ}`).bind(slug, eventId));
+    stmts.push(db.prepare(`DELETE FROM links WHERE participation_id=${PID_SUBQ}`).bind(eventId, slug, eventId));
     for (let i = 0; i < links.length; i++) {
       const l = links[i];
       stmts.push(
         db
           .prepare(`INSERT INTO links (participation_id, kind, label, url, sort_order) VALUES (${PID_SUBQ}, ?, ?, ?, ?)`)
-          .bind(slug, eventId, l.kind, l.label, l.url, i)
+          .bind(eventId, slug, eventId, l.kind, l.label, l.url, i)
       );
     }
   }
@@ -429,7 +430,7 @@ app.post("/circles", async (c) => {
            VALUES (${PID_SUBQ}, ?, ?, ?, ?, ?)
            ON CONFLICT(participation_id) DO UPDATE SET url=excluded.url, og_title=excluded.og_title, og_description=excluded.og_description, og_image=excluded.og_image, og_site_name=excluded.og_site_name`
         )
-        .bind(slug, eventId, tweetInfo.url, tweetInfo.ogTitle, tweetInfo.ogDescription, tweetInfo.ogImage, tweetInfo.ogSiteName)
+        .bind(eventId, slug, eventId, tweetInfo.url, tweetInfo.ogTitle, tweetInfo.ogDescription, tweetInfo.ogImage, tweetInfo.ogSiteName)
     );
   }
 
@@ -437,9 +438,9 @@ app.post("/circles", async (c) => {
 
   const ids = await db
     .prepare(
-      "SELECT c.id as circle_id, p.id as participation_id FROM circles c JOIN participations p ON p.circle_id=c.id WHERE c.slug=? AND p.event_id=?"
+      "SELECT c.id as circle_id, p.id as participation_id FROM circles c JOIN participations p ON p.circle_id=c.id WHERE c.event_id=? AND c.slug=? AND p.event_id=?"
     )
-    .bind(slug, eventId)
+    .bind(eventId, slug, eventId)
     .first<{ circle_id: number; participation_id: number }>();
   return c.json({ ok: true, circleId: ids?.circle_id, participationId: ids?.participation_id }, 201);
 });
@@ -485,26 +486,21 @@ app.post("/verifications", async (c) => {
   const source = str(body.source, "source", 64);
   const result = str(body.result, "result", 64);
   const detail = optStr(body.detail, "detail");
-  const eventSlug = body.event_slug === undefined || body.event_slug === null ? null : vSlug(body.event_slug, "event_slug");
+  const eventSlug = vSlug(body.event_slug, "event_slug");
 
-  const circle = await c.env.DB.prepare("SELECT id FROM circles WHERE slug = ?").bind(circleSlug).first<{ id: number }>();
-  if (!circle) return c.json({ error: "circle not found", code: "not_found" }, 404);
-
-  let eventId: number | null = null;
-  let participationId: number | null = null;
-  if (eventSlug) {
-    const event = await c.env.DB.prepare("SELECT id FROM events WHERE slug = ?").bind(eventSlug).first<{ id: number }>();
-    eventId = event?.id ?? null;
-    if (eventId) {
-      const p = await c.env.DB.prepare("SELECT id FROM participations WHERE circle_id = ? AND event_id = ?").bind(circle.id, eventId).first<{ id: number }>();
-      participationId = p?.id ?? null;
-    }
-  }
+  const target = await c.env.DB.prepare(
+    `SELECT c.id AS circle_id, p.id AS participation_id, e.id AS event_id
+     FROM circles c
+     JOIN events e ON e.id = c.event_id
+     LEFT JOIN participations p ON p.circle_id = c.id AND p.event_id = e.id
+     WHERE c.slug = ? AND e.slug = ?`
+  ).bind(circleSlug, eventSlug).first<{ circle_id: number; participation_id: number | null; event_id: number }>();
+  if (!target) return c.json({ error: "circle/event를 찾을 수 없어요", code: "not_found" }, 404);
 
   await c.env.DB.prepare(
     "INSERT INTO verification_log (circle_id, participation_id, event_id, source, result, detail) VALUES (?, ?, ?, ?, ?, ?)"
   )
-    .bind(circle.id, participationId, eventId, source, result, detail)
+    .bind(target.circle_id, target.participation_id, target.event_id, source, result, detail)
     .run();
 
   return c.json({ ok: true }, 201);
@@ -512,12 +508,22 @@ app.post("/verifications", async (c) => {
 
 app.get("/verifications", async (c) => {
   const circleSlug = c.req.query("circle");
-  let query = "SELECT v.*, c.slug as circle_slug FROM verification_log v JOIN circles c ON c.id = v.circle_id";
+  const eventSlug = c.req.query("event");
+  let query = `SELECT v.*, c.slug as circle_slug
+               FROM verification_log v
+               JOIN circles c ON c.id = v.circle_id
+               LEFT JOIN events e ON e.id = v.event_id`;
   const binds: unknown[] = [];
+  const conditions: string[] = [];
   if (circleSlug) {
-    query += " WHERE c.slug = ?";
+    conditions.push("c.slug = ?");
     binds.push(circleSlug);
   }
+  if (eventSlug) {
+    conditions.push("e.slug = ?");
+    binds.push(eventSlug);
+  }
+  if (conditions.length > 0) query += ` WHERE ${conditions.join(" AND ")}`;
   query += " ORDER BY v.checked_at DESC LIMIT 200";
   const { results } = await c.env.DB.prepare(query).bind(...binds).all();
   return c.json({ verifications: results });
