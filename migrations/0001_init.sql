@@ -65,7 +65,8 @@ CREATE TABLE IF NOT EXISTS tweet_infos (
   og_title         TEXT,
   og_description   TEXT,
   og_image         TEXT,
-  og_site_name     TEXT
+  og_site_name     TEXT,
+  captured_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS ips (

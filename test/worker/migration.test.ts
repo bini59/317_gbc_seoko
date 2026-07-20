@@ -91,6 +91,7 @@ describe("event-scoped circles migration", () => {
     expect(db.prepare("SELECT COUNT(*) AS count FROM circle_ips").get()).toMatchObject({ count: 2 });
     expect(db.prepare("SELECT url FROM links WHERE participation_id = 21").get()).toMatchObject({ url: "https://example.com/b" });
     expect(db.prepare("SELECT url FROM tweet_infos WHERE participation_id = 21").get()).toMatchObject({ url: "https://x.com/b/status/1" });
+    expect(db.prepare("SELECT captured_at FROM tweet_infos WHERE participation_id = 21").get()).toMatchObject({ captured_at: expect.any(String) });
     const eventBCircle = circles.find(({ event_id, slug }) => event_id === 2 && slug === "same-circle");
     expect(db.prepare("SELECT circle_id FROM verification_log WHERE id = 50").get()).toMatchObject({ circle_id: eventBCircle.id });
     expect(() => db.exec("INSERT INTO circles (event_id, slug, name) VALUES (1, 'same-circle', '중복')")).toThrow();

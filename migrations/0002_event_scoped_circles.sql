@@ -63,9 +63,13 @@ INSERT INTO links_new SELECT * FROM links;
 
 CREATE TABLE tweet_infos_new (
   participation_id INTEGER PRIMARY KEY REFERENCES participations_new(id) ON DELETE CASCADE,
-  url TEXT NOT NULL, og_title TEXT, og_description TEXT, og_image TEXT, og_site_name TEXT
+  url TEXT NOT NULL, og_title TEXT, og_description TEXT, og_image TEXT, og_site_name TEXT,
+  captured_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
-INSERT INTO tweet_infos_new SELECT * FROM tweet_infos;
+INSERT INTO tweet_infos_new
+  (participation_id, url, og_title, og_description, og_image, og_site_name)
+SELECT participation_id, url, og_title, og_description, og_image, og_site_name
+FROM tweet_infos;
 
 CREATE TABLE circle_ips_new (
   circle_id INTEGER NOT NULL REFERENCES circles_new(id) ON DELETE CASCADE,
