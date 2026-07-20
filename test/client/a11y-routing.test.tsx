@@ -11,7 +11,7 @@ const EVENT = {
   alias: "별칭",
   venue: "장소",
   date_label: "기간",
-  map_url: null,
+  map_url: "https://example.com/map",
   status: "active",
 };
 const CIRCLES = [
@@ -45,6 +45,8 @@ describe("<App/> accessibility + routing", () => {
     render(<App />);
     await screen.findByText("부스서클");
     expect(screen.getByRole("searchbox", { name: "서클·부스·장르 검색" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "행사 목록" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "전체 부스배치도 (새 창)" }).getAttribute("target")).toBe("_blank");
     const allBtn = screen.getByRole("button", { name: "전체" });
     expect(allBtn.getAttribute("aria-pressed")).toBe("true");
     const done = screen.getByRole("button", { name: "체크함" });

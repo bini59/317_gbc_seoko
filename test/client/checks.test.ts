@@ -22,9 +22,16 @@ describe("per-event checks", () => {
 
   it("migrates the legacy single key into the first loaded event once", () => {
     const kv = fakeKV({ "gbc-seoko-2026-07-checks": JSON.stringify({ cf62: true }) });
-    expect(loadChecks(kv, "cw-2026-07")).toEqual({ cf62: true });
+    expect(loadChecks(kv, "cw-2026-07", true)).toEqual({ cf62: true });
     // second, different event starts empty (legacy already consumed)
     expect(loadChecks(kv, "other-event")).toEqual({});
+  });
+
+  it("does not consume legacy checks when a non-active 행사 is deep-linked first", () => {
+    const kv = fakeKV({ "gbc-seoko-2026-07-checks": JSON.stringify({ cf62: true }) });
+    expect(loadChecks(kv, "past-event", false)).toEqual({});
+    expect(loadChecks(kv, "active-event", true)).toEqual({ cf62: true });
+    expect(loadChecks(kv, "future-event", false)).toEqual({});
   });
 
   it("returns empty when no data and no legacy", () => {

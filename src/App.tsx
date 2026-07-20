@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Circle } from "./types";
 import { fetchCircles, fetchEvents, pickActiveEvent, type ApiEvent } from "./api";
 import { badgeColor, filterCircles, STATUS, type Status } from "./lib/circle";
@@ -47,10 +47,10 @@ function EventList({ events }: { events: ApiEvent[] }) {
 
 /* ---------- 앱 ---------- */
 export default function App() {
-  const { route, openCircle, backToEvent } = useAppRoute();
+  const { route, openCircle, openEvents, backToEvent } = useAppRoute();
   const [events, setEvents] = useState<ApiEvent[]>([]);
   const [event, setEvent] = useState<ApiEvent | null>(null);
-  const [checks, toggle] = useChecks(event?.slug ?? null);
+  const [checks, toggle] = useChecks(event?.slug ?? null, event?.status === "active");
   const [status, setStatus] = useState<Status>("all");
   const [genres, setGenres] = useState<string[]>([]);
   const [query, setQuery] = useState("");
@@ -60,41 +60,63 @@ export default function App() {
   const [witchformExtra, setWitchformExtra] = useState<Circle[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const loadGeneration = useRef(0);
+  const loadController = useRef<AbortController | null>(null);
+  const requestedEventSlug = route.kind === "event" || route.kind === "circle" ? route.eventSlug : null;
+  const routeMode = route.kind === "events" ? "events" : route.kind === "legacy-circle" ? "legacy" : "event";
 
   // 행사장 서클 + 통판(unlisted)을 한 데이터셋으로 다뤄 검색·필터·체크를 일관 적용
   const all = useMemo(() => [...circles, ...witchformExtra], [circles, witchformExtra]);
 
   const load = useCallback(async () => {
+    const generation = ++loadGeneration.current;
+    loadController.current?.abort();
+    const controller = new AbortController();
+    loadController.current = controller;
     try {
       setLoading(true);
       setLoadError(null);
-      const available = await fetchEvents();
+      setEvent(null);
+      setCircles([]);
+      setWitchformExtra([]);
+      const available = await fetchEvents(controller.signal);
+      if (generation !== loadGeneration.current) return;
       setEvents(available);
-      if (route.kind === "events") {
+      if (routeMode === "events") {
         setEvent(null);
         setCircles([]);
         setWitchformExtra([]);
         return;
       }
-      const requestedSlug = route.kind === "legacy-circle"
+      const requestedSlug = routeMode === "legacy"
         ? pickActiveEvent(available)?.slug
-        : route.eventSlug;
+        : requestedEventSlug;
       const ev = available.find((candidate) => candidate.slug === requestedSlug);
       if (!ev) throw new Error("행사 정보를 찾지 못했어요");
-      const { circles: cs, witchformExtra: wf } = await fetchCircles(ev.slug);
+      const { circles: cs, witchformExtra: wf } = await fetchCircles(ev.slug, controller.signal);
+      if (generation !== loadGeneration.current) return;
       setEvent(ev);
       setCircles(cs);
       setWitchformExtra(wf);
     } catch (e) {
+      if (generation !== loadGeneration.current) return;
+      if (e instanceof DOMException && e.name === "AbortError") return;
       setLoadError(e instanceof Error ? e.message : "불러오기 실패");
     } finally {
-      setLoading(false);
+      if (generation === loadGeneration.current) setLoading(false);
     }
-  }, [route]);
+  }, [requestedEventSlug, routeMode]);
 
   useEffect(() => {
     void load();
+    return () => loadController.current?.abort();
   }, [load]);
+
+  useEffect(() => {
+    setStatus("all");
+    setGenres([]);
+    setQuery("");
+  }, [requestedEventSlug]);
 
   const handleToggle = (id: string) => {
     setAnnounce(checks[id] ? "방문 체크를 해제했어요" : "방문 체크했어요");
@@ -147,13 +169,16 @@ export default function App() {
         <div className="pb-7">
           {/* sticky 헤더 */}
           <div className="sticky top-0 z-10 bg-bg px-5 pt-[22px] pb-3">
-            <div className="mb-4">
-              <div className="text-[22px] font-extrabold -tracking-[0.02em] text-ink leading-none">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <div className="text-[22px] font-extrabold -tracking-[0.02em] text-ink leading-none">
                 {event?.title ?? "동인행사 체크리스트"}
+                </div>
+                <div className="text-xs font-semibold text-faint mt-[5px]">
+                  {eventSubtitle(event)}
+                </div>
               </div>
-              <div className="text-xs font-semibold text-faint mt-[5px]">
-                {eventSubtitle(event)}
-              </div>
+              <button type="button" onClick={openEvents} className="shrink-0 rounded-full border border-line bg-card px-3 py-2 text-xs font-bold text-muted">행사 목록</button>
             </div>
 
             <div className="flex items-center gap-2.5 h-12 bg-card border border-line rounded-[14px] px-3.5">
@@ -202,6 +227,7 @@ export default function App() {
                   target="_blank"
                   rel="noopener noreferrer"
                   title="전체 부스배치도"
+                  aria-label="전체 부스배치도 (새 창)"
                   className="flex items-center"
                 >
                   <svg
@@ -244,7 +270,7 @@ export default function App() {
             >
               전체 장르
             </button>
-            {Array.from(new Set(all.flatMap((circle) => circle.genres ?? []).filter(Boolean))).sort().map((g) => (
+            {Array.from(new Set(all.flatMap((circle) => [circle.genre, ...(circle.genres ?? [])]).filter(Boolean))).sort().map((g) => (
               <button
                 key={g}
                 onClick={() =>

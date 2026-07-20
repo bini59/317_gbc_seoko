@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup, waitFor, act } from "@testing-library/react";
 import App from "../../src/App";
 
 type ApiCircleLike = Record<string, unknown>;
@@ -42,7 +42,7 @@ function mockApi(circles: ApiCircleLike[]) {
 
 const CIRCLES = [
   apiCircle({ slug: "booth1", name: "부스서클", status: "confirmed", booth: "A-01" }),
-  apiCircle({ slug: "tsuhan1", name: "통판서클", status: "unlisted", genres: ["오리지널"] }),
+  apiCircle({ slug: "tsuhan1", name: "통판서클", status: "unlisted", genre: "단독장르", genres: ["오리지널"] }),
 ];
 
 describe("<App/> confirmed + unlisted", () => {
@@ -106,8 +106,24 @@ describe("<App/> confirmed + unlisted", () => {
     window.location.hash = "#/events/ev";
     render(<App />);
     expect(await screen.findByRole("button", { name: "오리지널" })).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "단독장르" }).some((button) => button.hasAttribute("aria-pressed"))).toBe(true);
     expect(screen.queryByRole("button", { name: "뱅드림" })).toBeNull();
     expect(screen.queryByTitle("전체 부스배치도")).toBeNull();
+  });
+
+  it("resets search and filters when changing 행사", async () => {
+    window.location.hash = "#/events/ev";
+    render(<App />);
+    await screen.findByText("부스서클");
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "통판" } });
+    fireEvent.click(screen.getByRole("button", { name: "체크함" }));
+    fireEvent.click(screen.getByRole("button", { name: "오리지널" }));
+    window.location.hash = "#/events/illustar";
+    fireEvent(window, new Event("hashchange"));
+    await screen.findByText("일러스타 페스");
+    expect((screen.getByRole("searchbox") as HTMLInputElement).value).toBe("");
+    expect(screen.getByRole("button", { name: "전체" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("button", { name: "전체 장르" }).getAttribute("aria-pressed")).toBe("true");
   });
 
   it("keeps visit checks isolated when switching 행사", async () => {
@@ -121,5 +137,47 @@ describe("<App/> confirmed + unlisted", () => {
     await screen.findByText("일러스타 페스");
     expect(screen.getAllByLabelText("방문 체크").length).toBeGreaterThan(0);
     expect(localStorage.getItem("gbc-seoko-checks:illustar")).toBeNull();
+  });
+
+  it("ignores an older 행사 response that resolves after a newer route", async () => {
+    let resolveOld!: (response: Response) => void;
+    const oldResponse = new Promise<Response>((resolve) => { resolveOld = resolve; });
+    const json = (obj: unknown) => new Response(JSON.stringify(obj), { status: 200 });
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (url.includes("/api/events")) return json({ events: [
+        { id: 1, slug: "ev", title: "첫 행사", status: "active" },
+        { id: 2, slug: "illustar", title: "둘째 행사", status: "upcoming" },
+      ] });
+      if (url.includes("event=ev")) return oldResponse;
+      if (url.includes("event=illustar")) return json({ circles: [apiCircle({ slug: "new", name: "새 행사 서클", status: "confirmed" })] });
+      throw new Error(`unexpected ${url}`);
+    }));
+    window.location.hash = "#/events/ev";
+    render(<App />);
+    await waitFor(() => expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+      expect.stringContaining("event=ev"),
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    ));
+    const oldSignal = (vi.mocked(fetch).mock.calls.find(([url]) => String(url).includes("event=ev"))?.[1] as RequestInit).signal as AbortSignal;
+    window.location.hash = "#/events/illustar";
+    fireEvent(window, new Event("hashchange"));
+    expect(await screen.findByText("새 행사 서클")).toBeTruthy();
+    expect(oldSignal.aborted).toBe(true);
+    await act(async () => {
+      resolveOld(json({ circles: [apiCircle({ slug: "old", name: "늦은 이전 서클", status: "confirmed" })] }));
+      await oldResponse;
+    });
+    expect(screen.queryByText("늦은 이전 서클")).toBeNull();
+  });
+
+  it("clears the previous checklist while a new route fails", async () => {
+    window.location.hash = "#/events/ev";
+    render(<App />);
+    expect(await screen.findByText("부스서클")).toBeTruthy();
+    window.location.hash = "#/events/missing";
+    fireEvent(window, new Event("hashchange"));
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expect(screen.queryByText("부스서클")).toBeNull();
+    expect(screen.queryByLabelText("방문 체크")).toBeNull();
   });
 });

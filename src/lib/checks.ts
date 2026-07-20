@@ -34,11 +34,11 @@ export function saveChecks(kv: KV, eventSlug: string, checks: Checks): void {
  * 행사별 방문 체크를 불러온다. 새 키가 없고 아직 이관 전이면 레거시 단일 키를
  * 이 행사로 1회 이관한다(호환 정책). 이후 행사는 빈 상태로 시작한다.
  */
-export function loadChecks(kv: KV, eventSlug: string): Checks {
+export function loadChecks(kv: KV, eventSlug: string, migrateLegacy = false): Checks {
   const existing = kv.getItem(checksKey(eventSlug));
   if (existing !== null) return parse(existing);
 
-  if (kv.getItem(MIGRATED_FLAG) === null) {
+  if (migrateLegacy && kv.getItem(MIGRATED_FLAG) === null) {
     const legacy = kv.getItem(LEGACY_KEY);
     kv.setItem(MIGRATED_FLAG, "1");
     if (legacy !== null) {

@@ -56,8 +56,8 @@ export function pickActiveEvent(events: ApiEvent[]): ApiEvent | null {
   return events.find((e) => e.status === "active") ?? events[0] ?? null;
 }
 
-export async function fetchEvents(): Promise<ApiEvent[]> {
-  const res = await fetch("/api/events");
+export async function fetchEvents(signal?: AbortSignal): Promise<ApiEvent[]> {
+  const res = signal ? await fetch("/api/events", { signal }) : await fetch("/api/events");
   if (!res.ok) throw new Error("이벤트 정보를 불러오지 못했어요");
   const data = await res.json();
   return data.events || [];
@@ -69,9 +69,11 @@ export async function fetchActiveEvent(): Promise<ApiEvent | null> {
 
 export async function fetchCircles(
   eventSlug: string,
+  signal?: AbortSignal,
 ): Promise<{ circles: Circle[]; witchformExtra: Circle[] }> {
   const res = await fetch(
     `/api/circles?event=${encodeURIComponent(eventSlug)}&status=all`,
+    { signal },
   );
   if (!res.ok) throw new Error("서클 목록을 불러오지 못했어요");
   const data = await res.json();
