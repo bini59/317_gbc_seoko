@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/react";
 import App from "../../src/App";
-import { parseDetailId, detailHash } from "../../src/lib/route";
+import { circleHash, parseRoute } from "../../src/lib/route";
 
 const EVENT = {
   id: 1,
@@ -21,16 +21,6 @@ const CIRCLES = [
 function json(obj: unknown) {
   return new Response(JSON.stringify(obj), { status: 200, headers: { "content-type": "application/json" } });
 }
-
-describe("route helpers", () => {
-  it("round-trips a detail id through the hash", () => {
-    expect(parseDetailId(detailHash("a b/c"))).toBe("a b/c");
-  });
-  it("returns null for non-detail hashes", () => {
-    expect(parseDetailId("")).toBeNull();
-    expect(parseDetailId("#/other")).toBeNull();
-  });
-});
 
 describe("<App/> accessibility + routing", () => {
   beforeEach(() => {
@@ -51,6 +41,7 @@ describe("<App/> accessibility + routing", () => {
   });
 
   it("search input has an accessible name and filter toggles expose aria-pressed", async () => {
+    window.location.hash = "#/events/ev";
     render(<App />);
     await screen.findByText("부스서클");
     expect(screen.getByRole("searchbox", { name: "서클·부스·장르 검색" })).toBeTruthy();
@@ -63,25 +54,35 @@ describe("<App/> accessibility + routing", () => {
   });
 
   it("opening detail updates the hash; hashchange back returns to the list", async () => {
+    window.location.hash = "#/events/ev";
     render(<App />);
     fireEvent.click(await screen.findByText("부스서클"));
     expect(screen.getByText("서클 상세")).toBeTruthy();
-    expect(parseDetailId(window.location.hash)).toBe("booth1");
+    expect(parseRoute(window.location.hash)).toEqual({ kind: "circle", eventSlug: "ev", circleSlug: "booth1" });
 
     // simulate browser back to the list
-    window.location.hash = "";
+    window.location.hash = "#/events/ev";
     fireEvent(window, new Event("hashchange"));
     await waitFor(() => expect(screen.queryByText("서클 상세")).toBeNull());
     expect(screen.getByText("부스서클")).toBeTruthy();
   });
 
   it("direct entry to a detail hash renders that circle", async () => {
-    window.location.hash = detailHash("booth1");
+    window.location.hash = circleHash("ev", "booth1");
     render(<App />);
     await waitFor(() => expect(screen.getByText("서클 상세")).toBeTruthy());
   });
 
+  it("opens a legacy detail hash in the active 행사 context", async () => {
+    window.location.hash = "#/c/booth1";
+    render(<App />);
+    await waitFor(() => expect(screen.getByText("서클 상세")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "목록으로 뒤로" }));
+    expect(window.location.hash).toBe("#/events/ev");
+  });
+
   it("shows a retry button that re-fetches without a page reload", async () => {
+    window.location.hash = "#/events/ev";
     const fetchMock = vi
       .fn()
       .mockRejectedValueOnce(new Error("네트워크 오류"))
