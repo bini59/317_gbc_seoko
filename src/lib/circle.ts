@@ -59,7 +59,7 @@ export const STATUS: { k: Status; label: string }[] = [
 export type CircleFilter = {
   checks: Record<string, boolean>;
   status: Status;
-  genres: string[];
+  ips: string[];
   query: string;
 };
 
@@ -70,9 +70,9 @@ export function filterCircles(circles: Circle[], f: CircleFilter): Circle[] {
     .filter((c) => {
       if (f.status === "done" && !f.checks[c.id]) return false;
       if (f.status === "undone" && f.checks[c.id]) return false;
-      if (f.genres.length > 0) {
-        const hay = norm(c.genre) + norm((c.genres || []).join(""));
-        if (!f.genres.some((g) => hay.includes(norm(g)))) return false;
+      if (f.ips.length > 0) {
+        const circleIps = (c.ips ?? []).map(norm);
+        if (!f.ips.some((selected) => circleIps.includes(norm(selected)))) return false;
       }
       if (q) {
         const hay = norm(

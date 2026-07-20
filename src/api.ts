@@ -45,6 +45,7 @@ function toCircle(c: ApiCircle): Circle {
     note: c.note ?? undefined,
     boothUrl: c.boothUrl ?? undefined,
     genres: c.genres,
+    ips: c.ips,
     badge: c.badge ?? undefined,
     tweetInfo: c.tweetInfo,
     unlisted: c.status === "unlisted",

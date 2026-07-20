@@ -25,8 +25,10 @@ export type Circle = {
   highlight?: boolean;
   note?: string;
   boothUrl?: string;
-  /** 함께 다루는 작품·팬덤 분류(필터/칩 표시용). */
+  /** 함께 다루는 작품·팬덤 분류(카드 표시·검색용). */
   genres?: string[];
+  /** DB의 IP 분류. 상단 필터의 단일 원본이다. */
+  ips?: string[];
   /** 전문 서클 강조 배지 라벨 */
   badge?: string;
   /** 통판(unlisted) 여부 — 행사장 부스 없이 온라인 주문으로만 접근 */
