@@ -1,10 +1,9 @@
-# 걸밴크 @ 7월 서코 2026 체크리스트
+# 동인행사 체크리스트
 
-코믹월드 SUMMER 2026 (334회 · 7코 일산, 2026-07-18~19, 일산 킨텍스 제1전시장)에
-참가하는 **걸즈밴드크라이(걸밴크)** 서클/통판 체크리스트입니다.
+여러 동인행사의 참가 서클과 통판 정보를 살펴보고 방문 여부를 관리하는 체크리스트입니다.
 
 - CSR SPA (Vite + React), 체크 상태는 브라우저 `localStorage`에 저장
-- 각 서클의 X(트위터) / 윗치폼 / 코믹월드 링크를 새 탭으로 열어 확인
+- 각 서클의 X(트위터), 통판, 행사 관련 링크를 새 탭으로 열어 확인
 
 ## 로컬 실행
 ```bash
@@ -69,4 +68,4 @@ npx wrangler pages deploy dist --project-name gbc-seoko
 npx wrangler pages deploy dist --project-name gbc-seoko
 ```
 
-라우트가 `/` 하나뿐인 SPA라 별도 리라이트 설정은 필요 없습니다. (Cloudflare Workers 정적 자산 배포에서 `_redirects`의 `/* /index.html 200` 규칙은 무한 루프로 거부되므로 사용하지 않습니다.)
+해시 라우팅을 사용하는 SPA라 별도 리라이트 설정은 필요 없습니다. (Cloudflare Workers 정적 자산 배포에서 `_redirects`의 `/* /index.html 200` 규칙은 무한 루프로 거부되므로 사용하지 않습니다.)

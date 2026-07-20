@@ -1,16 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Circle } from "./types";
-import { fetchActiveEvent, fetchCircles, type ApiEvent } from "./api";
+import { fetchCircles, fetchEvents, pickActiveEvent, type ApiEvent } from "./api";
 import { badgeColor, filterCircles, STATUS, type Status } from "./lib/circle";
 import { useChecks } from "./hooks/useChecks";
-import { useDetailRoute } from "./hooks/useDetailRoute";
+import { useAppRoute } from "./hooks/useAppRoute";
 import { Card } from "./components/Card";
 import { Detail } from "./components/Detail";
-
-const DEFAULT_MAP_URL = "https://comicw.net/map/";
-
-// 필터 칩은 큐레이션된 걸밴크 관련 장르만 노출한다(데이터의 모든 태그를 풀지 않음).
-const GENRES = ["걸즈밴드크라이", "뱅드림", "케이온", "봇치더록"];
 
 /** 행사 부제: 별칭·장소·기간 중 존재하는 것만 · 로 잇는다. */
 function eventSubtitle(event: ApiEvent | null): string {
@@ -19,14 +14,46 @@ function eventSubtitle(event: ApiEvent | null): string {
   return parts.length ? parts.join(" · ") : event.title;
 }
 
+const EVENT_SECTIONS = [
+  { status: "active", label: "진행 중" },
+  { status: "upcoming", label: "예정" },
+  { status: "past", label: "지난 행사" },
+] as const;
+
+function EventList({ events }: { events: ApiEvent[] }) {
+  return EVENT_SECTIONS.map(({ status, label }) => {
+    const matches = events
+      .filter((event) => event.status === status)
+      .sort((a, b) => {
+        const comparison = (a.start_date ?? "").localeCompare(b.start_date ?? "");
+        return status === "past" ? -comparison : comparison;
+      });
+    if (matches.length === 0) return null;
+    return (
+      <section key={status} className="mt-6">
+        <h2 className="mb-2 text-xs font-extrabold tracking-[0.04em] text-faint">{label}</h2>
+        <div className="flex flex-col gap-3">
+          {matches.map((candidate) => (
+            <a key={candidate.slug} href={`#/events/${encodeURIComponent(candidate.slug)}`} className="block rounded-[18px] border border-line bg-card p-4 no-underline">
+              <div className="text-[17px] font-extrabold text-ink">{candidate.title}</div>
+              <div className="mt-1 text-xs font-semibold text-faint">{eventSubtitle(candidate)}</div>
+            </a>
+          ))}
+        </div>
+      </section>
+    );
+  });
+}
+
 /* ---------- 앱 ---------- */
 export default function App() {
+  const { route, openCircle, backToEvent } = useAppRoute();
+  const [events, setEvents] = useState<ApiEvent[]>([]);
   const [event, setEvent] = useState<ApiEvent | null>(null);
   const [checks, toggle] = useChecks(event?.slug ?? null);
   const [status, setStatus] = useState<Status>("all");
   const [genres, setGenres] = useState<string[]>([]);
   const [query, setQuery] = useState("");
-  const [detailId, openDetail, closeDetail] = useDetailRoute();
   const [announce, setAnnounce] = useState("");
 
   const [circles, setCircles] = useState<Circle[]>([]);
@@ -34,7 +61,6 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const mapUrl = event?.map_url || DEFAULT_MAP_URL;
   // 행사장 서클 + 통판(unlisted)을 한 데이터셋으로 다뤄 검색·필터·체크를 일관 적용
   const all = useMemo(() => [...circles, ...witchformExtra], [circles, witchformExtra]);
 
@@ -42,8 +68,19 @@ export default function App() {
     try {
       setLoading(true);
       setLoadError(null);
-      const ev = await fetchActiveEvent();
-      if (!ev) throw new Error("등록된 행사가 없어요");
+      const available = await fetchEvents();
+      setEvents(available);
+      if (route.kind === "events") {
+        setEvent(null);
+        setCircles([]);
+        setWitchformExtra([]);
+        return;
+      }
+      const requestedSlug = route.kind === "legacy-circle"
+        ? pickActiveEvent(available)?.slug
+        : route.eventSlug;
+      const ev = available.find((candidate) => candidate.slug === requestedSlug);
+      if (!ev) throw new Error("행사 정보를 찾지 못했어요");
       const { circles: cs, witchformExtra: wf } = await fetchCircles(ev.slug);
       setEvent(ev);
       setCircles(cs);
@@ -53,7 +90,7 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [route]);
 
   useEffect(() => {
     void load();
@@ -74,7 +111,8 @@ export default function App() {
   const boothList = filtered.filter((c) => !c.unlisted);
   const tsuhanList = filtered.filter((c) => c.unlisted);
 
-  const detail = detailId ? all.find((c) => c.id === detailId) ?? null : null;
+  const detailSlug = route.kind === "circle" || route.kind === "legacy-circle" ? route.circleSlug : null;
+  const detail = detailSlug ? all.find((c) => c.id === detailSlug) ?? null : null;
 
   const statusChip = (active: boolean) =>
     "inline-flex items-center h-[34px] px-4 rounded-full text-[13.5px] font-bold cursor-pointer whitespace-nowrap border " +
@@ -88,12 +126,21 @@ export default function App() {
       <div role="status" aria-live="polite" className="sr-only">
         {announce}
       </div>
-      {detail ? (
+      {route.kind === "events" ? (
+        <main className="px-5 py-7">
+          <div className="text-sm font-extrabold text-accent">동인행사 체크리스트</div>
+          <h1 className="mt-1 text-[26px] font-extrabold text-ink">행사 선택</h1>
+          <p className="mt-2 text-sm text-muted">방문할 행사를 골라 관심 서클을 확인하세요.</p>
+          {loadError ? <div role="alert" className="mt-8 text-sm text-[#e0455c]">{loadError}</div> : null}
+          <EventList events={events} />
+          {!loading && !loadError && events.length === 0 ? <div className="py-14 text-center text-sm text-faint">등록된 행사가 없어요</div> : null}
+        </main>
+      ) : detail ? (
         <Detail
           item={detail}
           checked={!!checks[detail.id]}
           onToggle={() => handleToggle(detail.id)}
-          onBack={closeDetail}
+          onBack={() => event && backToEvent(event.slug)}
           color={badgeColor(detail.id, all)}
         />
       ) : (
@@ -102,7 +149,7 @@ export default function App() {
           <div className="sticky top-0 z-10 bg-bg px-5 pt-[22px] pb-3">
             <div className="mb-4">
               <div className="text-[22px] font-extrabold -tracking-[0.02em] text-ink leading-none">
-                걸밴크 서코
+                {event?.title ?? "동인행사 체크리스트"}
               </div>
               <div className="text-xs font-semibold text-faint mt-[5px]">
                 {eventSubtitle(event)}
@@ -149,9 +196,9 @@ export default function App() {
                     <path d="M6 6l12 12M18 6L6 18" />
                   </svg>
                 </button>
-              ) : (
+              ) : event?.map_url ? (
                 <a
-                  href={mapUrl}
+                  href={event.map_url}
                   target="_blank"
                   rel="noopener noreferrer"
                   title="전체 부스배치도"
@@ -171,7 +218,7 @@ export default function App() {
                     <circle cx="12" cy="10" r="3" />
                   </svg>
                 </a>
-              )}
+              ) : null}
             </div>
 
             <div className="flex gap-2 mt-3.5">
@@ -197,7 +244,7 @@ export default function App() {
             >
               전체 장르
             </button>
-            {GENRES.map((g) => (
+            {Array.from(new Set(all.flatMap((circle) => circle.genres ?? []).filter(Boolean))).sort().map((g) => (
               <button
                 key={g}
                 onClick={() =>
@@ -247,7 +294,7 @@ export default function App() {
                   item={c}
                   checked={!!checks[c.id]}
                   onToggle={() => handleToggle(c.id)}
-                  onOpen={() => openDetail(c.id)}
+                  onOpen={() => event && openCircle(event.slug, c.id)}
                   color={badgeColor(c.id, all)}
                 />
               ))}
@@ -268,7 +315,7 @@ export default function App() {
                     item={c}
                     checked={!!checks[c.id]}
                     onToggle={() => handleToggle(c.id)}
-                    onOpen={() => openDetail(c.id)}
+                    onOpen={() => event && openCircle(event.slug, c.id)}
                     color={badgeColor(c.id, all)}
                   />
                 ))}

@@ -25,12 +25,12 @@ export type Circle = {
   highlight?: boolean;
   note?: string;
   boothUrl?: string;
-  /** 함께 파는 2차 팬덤 태그 (필터/칩 표시용). 걸밴크 서클은 걸밴크 태그 제외. */
+  /** 함께 다루는 작품·팬덤 분류(필터/칩 표시용). */
   genres?: string[];
-  /** highlight 배지 라벨 (기본: "걸밴크 전문") */
+  /** 전문 서클 강조 배지 라벨 */
   badge?: string;
   /** 통판(unlisted) 여부 — 행사장 부스 없이 온라인 주문으로만 접근 */
   unlisted?: boolean;
-  /** 이번 서코 참가를 공지한 X 트윗 (og 태그 캡처) */
+  /** 이번 행사 참가를 공지한 X 트윗(og 태그 캡처) */
   tweetInfo?: TweetInfo;
 };

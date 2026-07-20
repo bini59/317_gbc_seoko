@@ -47,7 +47,7 @@ export function Card({
             </span>
             {item.highlight && (
               <span className="inline-flex items-center h-5 px-2 rounded-md bg-accent/10 text-accent text-[10.5px] font-extrabold">
-                {item.badge ?? "걸밴크 전문"}
+                {item.badge ?? "전문 서클"}
               </span>
             )}
           </div>
