@@ -6,7 +6,8 @@ PRAGMA defer_foreign_keys = ON;
 -- dedicated past event instead of dropping them or leaving NULL-scoped slugs.
 CREATE TABLE orphan_event_0002 (id INTEGER PRIMARY KEY);
 INSERT INTO orphan_event_0002 (id)
-SELECT COALESCE(MIN(id), 0) - 1 FROM events
+SELECT orphan_id
+FROM (SELECT COALESCE(MIN(id), 0) - 1 AS orphan_id FROM events)
 WHERE EXISTS (
   SELECT 1 FROM circles c
   WHERE NOT EXISTS (SELECT 1 FROM participations p WHERE p.circle_id = c.id)

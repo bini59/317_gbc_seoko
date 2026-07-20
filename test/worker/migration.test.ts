@@ -7,8 +7,23 @@ const migration = readFileSync(
   fileURLToPath(new URL("../../migrations/0002_event_scoped_circles.sql", import.meta.url)),
   "utf8",
 );
+const initMigration = readFileSync(
+  fileURLToPath(new URL("../../migrations/0001_init.sql", import.meta.url)),
+  "utf8",
+);
 
 describe("event-scoped circles migration", () => {
+  it("does not create a preservation event when there are no orphan circles", () => {
+    const db = new DatabaseSync(":memory:");
+    db.exec("PRAGMA foreign_keys = ON");
+    db.exec(initMigration);
+    db.exec("BEGIN");
+    db.exec(migration);
+    db.exec("COMMIT");
+
+    expect(db.prepare("SELECT COUNT(*) AS count FROM events WHERE slug LIKE 'migration-orphans-0002-%'").get()).toMatchObject({ count: 0 });
+  });
+
   it("preserves legacy participation data while splitting a circle shared by events", () => {
     const db = new DatabaseSync(":memory:");
     db.exec(`
