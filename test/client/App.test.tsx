@@ -41,7 +41,7 @@ function mockApi(circles: ApiCircleLike[]) {
 }
 
 const CIRCLES = [
-  apiCircle({ slug: "booth1", name: "부스서클", status: "confirmed", booth: "A-01" }),
+  apiCircle({ slug: "booth1", name: "부스서클", status: "confirmed", booth: "A-01", ips: ["걸즈밴드크라이"] }),
   apiCircle({ slug: "tsuhan1", name: "통판서클", status: "unlisted", genre: "단독장르", genres: ["오리지널"] }),
 ];
 
@@ -102,13 +102,17 @@ describe("<App/> confirmed + unlisted", () => {
     expect(Object.values(stored).some(Boolean)).toBe(true);
   });
 
-  it("builds genre filters from the selected 행사 and hides a missing map link", async () => {
+  it("builds top filters only from the selected 행사의 IPs and hides a missing map link", async () => {
     window.location.hash = "#/events/ev";
     render(<App />);
-    expect(await screen.findByRole("button", { name: "오리지널" })).toBeTruthy();
-    expect(screen.getAllByRole("button", { name: "단독장르" }).some((button) => button.hasAttribute("aria-pressed"))).toBe(true);
+    expect(await screen.findByRole("button", { name: "걸즈밴드크라이" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "오리지널" })).toBeNull();
+    expect(screen.getAllByRole("button", { name: "단독장르" }).some((button) => button.hasAttribute("aria-pressed"))).toBe(false);
     expect(screen.queryByRole("button", { name: "뱅드림" })).toBeNull();
     expect(screen.queryByTitle("전체 부스배치도")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "걸즈밴드크라이" }));
+    expect(screen.getByText("부스서클")).toBeTruthy();
+    expect(screen.queryByText("통판서클")).toBeNull();
   });
 
   it("resets search and filters when changing 행사", async () => {
@@ -117,7 +121,7 @@ describe("<App/> confirmed + unlisted", () => {
     await screen.findByText("부스서클");
     fireEvent.change(screen.getByRole("searchbox"), { target: { value: "통판" } });
     fireEvent.click(screen.getByRole("button", { name: "체크함" }));
-    fireEvent.click(screen.getByRole("button", { name: "오리지널" }));
+    fireEvent.click(screen.getByRole("button", { name: "걸즈밴드크라이" }));
     window.location.hash = "#/events/illustar";
     fireEvent(window, new Event("hashchange"));
     await screen.findByText("일러스타 페스");

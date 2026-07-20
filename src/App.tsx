@@ -52,7 +52,7 @@ export default function App() {
   const [event, setEvent] = useState<ApiEvent | null>(null);
   const [checks, toggle] = useChecks(event?.slug ?? null, event?.status === "active");
   const [status, setStatus] = useState<Status>("all");
-  const [genres, setGenres] = useState<string[]>([]);
+  const [selectedIps, setSelectedIps] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [announce, setAnnounce] = useState("");
 
@@ -114,7 +114,7 @@ export default function App() {
 
   useEffect(() => {
     setStatus("all");
-    setGenres([]);
+    setSelectedIps([]);
     setQuery("");
   }, [requestedEventSlug]);
 
@@ -127,8 +127,8 @@ export default function App() {
   const doneCount = all.filter((c) => checks[c.id]).length;
 
   const filtered = useMemo(
-    () => filterCircles(all, { checks, status, genres, query }),
-    [all, checks, status, genres, query],
+    () => filterCircles(all, { checks, status, ips: selectedIps, query }),
+    [all, checks, status, selectedIps, query],
   );
   const boothList = filtered.filter((c) => !c.unlisted);
   const tsuhanList = filtered.filter((c) => c.unlisted);
@@ -264,22 +264,22 @@ export default function App() {
           {/* 장르 칩 (가로 스크롤) */}
           <div className="flex gap-2 overflow-x-auto no-scrollbar px-5 pt-1 pb-0.5">
             <button
-              onClick={() => setGenres([])}
-              aria-pressed={genres.length === 0}
-              className={genreChip(genres.length === 0)}
+              onClick={() => setSelectedIps([])}
+              aria-pressed={selectedIps.length === 0}
+              className={genreChip(selectedIps.length === 0)}
             >
               전체 장르
             </button>
-            {Array.from(new Set(all.flatMap((circle) => [circle.genre, ...(circle.genres ?? [])]).filter(Boolean))).sort().map((g) => (
+            {Array.from(new Set(all.flatMap((circle) => circle.ips ?? []).filter(Boolean))).sort().map((g) => (
               <button
                 key={g}
                 onClick={() =>
-                  setGenres((prev) =>
+                  setSelectedIps((prev) =>
                     prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g],
                   )
                 }
-                aria-pressed={genres.includes(g)}
-                className={genreChip(genres.includes(g))}
+                aria-pressed={selectedIps.includes(g)}
+                className={genreChip(selectedIps.includes(g))}
               >
                 {g}
               </button>

@@ -11,42 +11,54 @@ const mk = (o: Partial<Circle> & { id: string }): Circle => ({
 
 describe("filterCircles", () => {
   const circles = [
-    mk({ id: "a", name: "밴드부", booth: "A-02", genre: "뱅드림", genres: ["뱅드림"] }),
-    mk({ id: "b", name: "걸밴크샵", booth: "A-01", genre: "걸밴크", genres: ["걸즈밴드크라이"] }),
+    mk({ id: "a", name: "밴드부", booth: "A-02", genre: "뱅드림", genres: ["뱅드림"], ips: ["BanG Dream!"] }),
+    mk({ id: "b", name: "걸밴크샵", booth: "A-01", genre: "걸밴크", genres: ["걸즈밴드크라이"], ips: ["걸즈 밴드 크라이"] }),
     mk({ id: "t", name: "통판서클", genre: "걸밴크" }), // no booth
   ];
 
   it("sorts by booth, pushing 통판(no booth) to the end", () => {
-    const out = filterCircles(circles, { checks: {}, status: "all", genres: [], query: "" });
+    const out = filterCircles(circles, { checks: {}, status: "all", ips: [], query: "" });
     expect(out.map((c) => c.id)).toEqual(["b", "a", "t"]);
   });
 
   it("filters by visit status", () => {
     const checks = { a: true };
     expect(
-      filterCircles(circles, { checks, status: "done", genres: [], query: "" }).map((c) => c.id),
+      filterCircles(circles, { checks, status: "done", ips: [], query: "" }).map((c) => c.id),
     ).toEqual(["a"]);
     expect(
-      filterCircles(circles, { checks, status: "undone", genres: [], query: "" }).map((c) => c.id).sort(),
+      filterCircles(circles, { checks, status: "undone", ips: [], query: "" }).map((c) => c.id).sort(),
     ).toEqual(["b", "t"]);
   });
 
-  it("matches genre filter against genre + genres, ignoring whitespace", () => {
+  it("matches a selected filter only against an exact normalized IP value", () => {
     const out = filterCircles(circles, {
       checks: {},
       status: "all",
-      genres: ["걸즈밴드크라이"],
+      ips: ["걸즈밴드크라이"],
       query: "",
     });
     expect(out.map((c) => c.id)).toEqual(["b"]);
+
+    const partial = filterCircles([
+      ...circles,
+      mk({ id: "long", ips: ["걸즈밴드크라이 온리전"] }),
+      mk({ id: "legacy", genre: "걸즈밴드크라이", genres: ["걸즈밴드크라이"], ips: [] }),
+    ], {
+      checks: {},
+      status: "all",
+      ips: ["걸즈밴드크라이"],
+      query: "",
+    });
+    expect(partial.map((c) => c.id)).toEqual(["b"]);
   });
 
   it("searches name/booth/genre normalized (whitespace-insensitive)", () => {
     expect(
-      filterCircles(circles, { checks: {}, status: "all", genres: [], query: "통 판" }).map((c) => c.id),
+      filterCircles(circles, { checks: {}, status: "all", ips: [], query: "통 판" }).map((c) => c.id),
     ).toEqual(["t"]);
     expect(
-      filterCircles(circles, { checks: {}, status: "all", genres: [], query: "a-01" }).map((c) => c.id),
+      filterCircles(circles, { checks: {}, status: "all", ips: [], query: "a-01" }).map((c) => c.id),
     ).toEqual(["b"]);
   });
 });
