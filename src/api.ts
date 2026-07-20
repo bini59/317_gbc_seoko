@@ -56,11 +56,15 @@ export function pickActiveEvent(events: ApiEvent[]): ApiEvent | null {
   return events.find((e) => e.status === "active") ?? events[0] ?? null;
 }
 
-export async function fetchActiveEvent(): Promise<ApiEvent | null> {
+export async function fetchEvents(): Promise<ApiEvent[]> {
   const res = await fetch("/api/events");
   if (!res.ok) throw new Error("이벤트 정보를 불러오지 못했어요");
   const data = await res.json();
-  return pickActiveEvent(data.events || []);
+  return data.events || [];
+}
+
+export async function fetchActiveEvent(): Promise<ApiEvent | null> {
+  return pickActiveEvent(await fetchEvents());
 }
 
 export async function fetchCircles(
