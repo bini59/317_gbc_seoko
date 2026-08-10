@@ -51,11 +51,9 @@ describe("worker API", () => {
       slug: "circ",
       name: "서클",
       event_slug: "ev",
-      genre_label: "걸밴크",
-      genre_tags: ["걸밴크", "오리지널"],
       booth: "A-01",
       highlight: true,
-      ips: ["걸즈밴드크라이"],
+      ips: ["걸밴크", "오리지널", "걸즈밴드크라이"],
       links: [{ kind: "x", label: "X", url: "https://x.com/a" }],
       tweetInfo: { url: "https://x.com/a/status/1", ogTitle: "t" },
     });
@@ -65,8 +63,9 @@ describe("worker API", () => {
     expect(list.status).toBe(200);
     const c = list.json.circles[0];
     expect(c.slug).toBe("circ");
-    expect(c.genres).toEqual(["걸밴크", "오리지널"]);
-    expect(c.ips).toEqual(["걸즈밴드크라이"]);
+    expect(c.ips).toEqual(["걸밴크", "오리지널", "걸즈밴드크라이"]);
+    expect(c).not.toHaveProperty("genre");
+    expect(c).not.toHaveProperty("genres");
     expect(c.highlight).toBe(true);
     expect(c.links).toHaveLength(1);
     expect(c.tweetInfo.ogTitle).toBe("t");

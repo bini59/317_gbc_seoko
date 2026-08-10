@@ -4,16 +4,15 @@ import type { Circle } from "../../src/types";
 
 const mk = (o: Partial<Circle> & { id: string }): Circle => ({
   name: o.id,
-  genre: "",
   links: [],
   ...o,
 });
 
 describe("filterCircles", () => {
   const circles = [
-    mk({ id: "a", name: "밴드부", booth: "A-02", genre: "뱅드림", genres: ["뱅드림"], ips: ["BanG Dream!"] }),
-    mk({ id: "b", name: "걸밴크샵", booth: "A-01", genre: "걸밴크", genres: ["걸즈밴드크라이"], ips: ["걸즈 밴드 크라이"] }),
-    mk({ id: "t", name: "통판서클", genre: "걸밴크" }), // no booth
+    mk({ id: "a", name: "밴드부", booth: "A-02", ips: ["BanG Dream!"] }),
+    mk({ id: "b", name: "걸밴크샵", booth: "A-01", ips: ["걸즈 밴드 크라이"] }),
+    mk({ id: "t", name: "통판서클" }), // no booth
   ];
 
   it("sorts by booth, pushing 통판(no booth) to the end", () => {
@@ -43,7 +42,7 @@ describe("filterCircles", () => {
     const partial = filterCircles([
       ...circles,
       mk({ id: "long", ips: ["걸즈밴드크라이 온리전"] }),
-      mk({ id: "legacy", genre: "걸즈밴드크라이", genres: ["걸즈밴드크라이"], ips: [] }),
+      mk({ id: "legacy", ips: [] }),
     ], {
       checks: {},
       status: "all",
@@ -53,12 +52,15 @@ describe("filterCircles", () => {
     expect(partial.map((c) => c.id)).toEqual(["b"]);
   });
 
-  it("searches name/booth/genre normalized (whitespace-insensitive)", () => {
+  it("searches name/booth/ip normalized (whitespace-insensitive)", () => {
     expect(
       filterCircles(circles, { checks: {}, status: "all", ips: [], query: "통 판" }).map((c) => c.id),
     ).toEqual(["t"]);
     expect(
       filterCircles(circles, { checks: {}, status: "all", ips: [], query: "a-01" }).map((c) => c.id),
+    ).toEqual(["b"]);
+    expect(
+      filterCircles(circles, { checks: {}, status: "all", ips: [], query: "걸 즈 밴 드 크 라 이" }).map((c) => c.id),
     ).toEqual(["b"]);
   });
 });

@@ -15,7 +15,7 @@ const EVENT = {
   status: "active",
 };
 const CIRCLES = [
-  { id: 1, participationId: 1, slug: "booth1", name: "부스서클", genre: "걸밴크", genres: ["걸밴크"], ips: [], booth: "A-01", day: null, boothUrl: null, highlight: false, badge: null, note: null, status: "confirmed", links: [] },
+  { id: 1, participationId: 1, slug: "booth1", name: "부스서클", ips: ["걸밴크"], booth: "A-01", day: null, boothUrl: null, highlight: false, badge: null, note: null, status: "confirmed", links: [] },
 ];
 
 function json(obj: unknown) {

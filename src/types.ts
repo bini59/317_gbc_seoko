@@ -18,16 +18,13 @@ export type TweetInfo = {
 export type Circle = {
   id: string;
   name: string;
-  genre: string;
   links: LinkItem[];
   booth?: string;
   day?: string;
   highlight?: boolean;
   note?: string;
   boothUrl?: string;
-  /** 함께 다루는 작품·팬덤 분류(카드 표시·검색용). */
-  genres?: string[];
-  /** DB의 IP 분류. 상단 필터의 단일 원본이다. */
+  /** 장르·작품·팬덤 분류의 단일 원본. */
   ips?: string[];
   /** 전문 서클 강조 배지 라벨 */
   badge?: string;

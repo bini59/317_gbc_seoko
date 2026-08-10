@@ -11,6 +11,10 @@ const initMigration = readFileSync(
   fileURLToPath(new URL("../../migrations/0001_init.sql", import.meta.url)),
   "utf8",
 );
+const ipsMigration = readFileSync(
+  fileURLToPath(new URL("../../migrations/0003_ips_only.sql", import.meta.url)),
+  "utf8",
+);
 
 describe("event-scoped circles migration", () => {
   it("does not create a preservation event when there are no orphan circles", () => {
@@ -112,5 +116,30 @@ describe("event-scoped circles migration", () => {
     expect(() => db.exec("INSERT INTO circles (event_id, slug, name) VALUES (1, 'same-circle', '중복')")).toThrow();
     expect(() => db.exec("INSERT INTO circles (event_id, slug, name) VALUES (NULL, 'null-event', '잘못된 서클')")).toThrow();
     expect(() => db.prepare("INSERT INTO participations (circle_id, event_id) VALUES (?, ?)").run(orphan.id, 1)).toThrow();
+  });
+
+  it("merges legacy genre fields into ips and removes the old columns", () => {
+    const db = new DatabaseSync(":memory:");
+    db.exec("PRAGMA foreign_keys = ON");
+    db.exec(initMigration);
+    db.exec("BEGIN");
+    db.exec(migration);
+    db.exec("COMMIT");
+    db.exec("INSERT INTO events (slug, title) VALUES ('ev', '행사')");
+    db.exec("INSERT INTO circles (event_id, slug, name) VALUES (1, 'c', '서클')");
+    db.exec(`INSERT INTO participations (circle_id, event_id, genre_label, genre_tags)
+      VALUES (1, 1, '대표 장르', '["공통 태그", "대표 장르"]')`);
+    db.exec("INSERT INTO circles (event_id, slug, name) VALUES (1, 'c2', '서클2')");
+    db.exec("INSERT INTO participations (circle_id, event_id, genre_label, genre_tags) VALUES (2, 1, NULL, '{broken')");
+    db.exec(ipsMigration);
+
+    const columns = db.prepare("PRAGMA table_info(participations)").all() as Array<{ name: string }>;
+    expect(columns.map((column) => column.name)).not.toContain("genre_label");
+    expect(columns.map((column) => column.name)).not.toContain("genre_tags");
+    expect(db.prepare("SELECT name FROM ips ORDER BY name").all()).toEqual([
+      { name: "공통 태그" },
+      { name: "대표 장르" },
+    ]);
+    expect(db.prepare("SELECT COUNT(*) AS count FROM circle_ips").get()).toMatchObject({ count: 2 });
   });
 });
