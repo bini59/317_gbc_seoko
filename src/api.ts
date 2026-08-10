@@ -5,8 +5,6 @@ export type ApiCircle = {
   participationId: number;
   slug: string;
   name: string;
-  genre: string | null;
-  genres: string[];
   ips: string[];
   booth: string | null;
   day: string | null;
@@ -37,14 +35,12 @@ function toCircle(c: ApiCircle): Circle {
   return {
     id: c.slug,
     name: c.name,
-    genre: c.genre ?? "",
     links: c.links.map((l) => ({ label: l.label, url: l.url })),
     booth: c.booth ?? undefined,
     day: c.day ?? undefined,
     highlight: c.highlight,
     note: c.note ?? undefined,
     boothUrl: c.boothUrl ?? undefined,
-    genres: c.genres,
     ips: c.ips,
     badge: c.badge ?? undefined,
     tweetInfo: c.tweetInfo,

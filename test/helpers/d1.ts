@@ -13,7 +13,17 @@ export function makeTestDB(): D1Database {
     fileURLToPath(new URL("../../migrations/0001_init.sql", import.meta.url)),
     "utf8",
   );
+  const eventScopedMigration = readFileSync(
+    fileURLToPath(new URL("../../migrations/0002_event_scoped_circles.sql", import.meta.url)),
+    "utf8",
+  );
+  const ipsMigration = readFileSync(
+    fileURLToPath(new URL("../../migrations/0003_ips_only.sql", import.meta.url)),
+    "utf8",
+  );
   db.exec(migration);
+  db.exec(eventScopedMigration);
+  db.exec(ipsMigration);
   return wrap(db);
 }
 

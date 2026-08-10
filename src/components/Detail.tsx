@@ -85,11 +85,9 @@ export function Detail({
           </div>
         )}
 
-        <div className="text-[15px] text-[#4b5563] leading-[1.6] mt-4">{item.genre}</div>
-
-        {item.genres && item.genres.length > 0 && (
+        {item.ips && item.ips.length > 0 && (
           <div className="flex flex-wrap gap-[7px] mt-3.5">
-            {item.genres.map((g) => (
+            {item.ips.map((g) => (
               <span
                 key={g}
                 className="inline-flex items-center h-7 px-[11px] rounded-lg bg-chip text-[#5b6270] text-[12.5px] font-bold"

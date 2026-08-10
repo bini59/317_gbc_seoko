@@ -8,8 +8,6 @@ type ApiCircleLike = Record<string, unknown>;
 const apiCircle = (o: Partial<ApiCircleLike> & { slug: string; name: string; status: string }): ApiCircleLike => ({
   id: 1,
   participationId: 1,
-  genre: "걸밴크",
-  genres: ["걸밴크"],
   ips: [],
   booth: null,
   day: null,
@@ -42,7 +40,7 @@ function mockApi(circles: ApiCircleLike[]) {
 
 const CIRCLES = [
   apiCircle({ slug: "booth1", name: "부스서클", status: "confirmed", booth: "A-01", ips: ["걸즈밴드크라이"] }),
-  apiCircle({ slug: "tsuhan1", name: "통판서클", status: "unlisted", genre: "단독장르", genres: ["오리지널"] }),
+  apiCircle({ slug: "tsuhan1", name: "통판서클", status: "unlisted", ips: [] }),
 ];
 
 describe("<App/> confirmed + unlisted", () => {
@@ -107,7 +105,7 @@ describe("<App/> confirmed + unlisted", () => {
     render(<App />);
     expect(await screen.findByRole("button", { name: "걸즈밴드크라이" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "오리지널" })).toBeNull();
-    expect(screen.getAllByRole("button", { name: "단독장르" }).some((button) => button.hasAttribute("aria-pressed"))).toBe(false);
+    expect(screen.queryByRole("button", { name: "단독장르" })).toBeNull();
     expect(screen.queryByRole("button", { name: "뱅드림" })).toBeNull();
     expect(screen.queryByTitle("전체 부스배치도")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "걸즈밴드크라이" }));

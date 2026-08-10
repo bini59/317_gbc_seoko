@@ -93,13 +93,13 @@ describe("write API validation + atomicity", () => {
     expect(await count(env, "circles")).toBe(before);
   });
 
-  it("a corrupted genre_tags JSON does not 500 the list", async () => {
-    await call(env, "POST", "/api/circles", { slug: "c", name: "n", event_slug: "ev" });
-    // corrupt the stored JSON directly
-    await env.DB.prepare("UPDATE participations SET genre_tags = ? WHERE 1=1").bind("{broken").run();
+  it("uses ips as the only classification field", async () => {
+    await call(env, "POST", "/api/circles", { slug: "c", name: "n", event_slug: "ev", ips: ["걸밴크"] });
     const list = await call(env, "GET", "/api/circles?event=ev&status=all");
     expect(list.status).toBe(200);
-    expect(list.json.circles[0].genres).toEqual([]);
+    expect(list.json.circles[0].ips).toEqual(["걸밴크"]);
+    expect(list.json.circles[0]).not.toHaveProperty("genre");
+    expect(list.json.circles[0]).not.toHaveProperty("genres");
   });
 
   it("patch/delete on a missing participation return 404", async () => {

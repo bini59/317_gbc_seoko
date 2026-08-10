@@ -12,7 +12,6 @@ import {
   arrOfStr,
   intId,
   optBool,
-  safeJsonArray,
 } from "./validate";
 
 export type Bindings = {
@@ -27,8 +26,6 @@ type CircleRow = {
   slug: string;
   name: string;
   participation_id: number;
-  genre_label: string | null;
-  genre_tags: string | null;
   booth: string | null;
   day: string | null;
   booth_url: string | null;
@@ -57,8 +54,6 @@ function serializeCircle(row: CircleRow, links: LinkRow[], tweet?: TweetRow) {
     participationId: row.participation_id,
     slug: row.slug,
     name: row.name,
-    genre: row.genre_label,
-    genres: safeJsonArray(row.genre_tags),
     ips: row.ips ? row.ips.split(",") : [],
     booth: row.booth,
     day: row.day,
@@ -185,7 +180,7 @@ app.get("/circles", async (c) => {
   if (eventId === null) return c.json({ circles: [] });
 
   const { results: rows } = await c.env.DB.prepare(
-    `SELECT c.id as circle_id, c.slug, c.name, p.id as participation_id, p.genre_label, p.genre_tags,
+    `SELECT c.id as circle_id, c.slug, c.name, p.id as participation_id,
             p.booth, p.day, p.booth_url, p.highlight, p.badge, p.note, p.status,
             (SELECT GROUP_CONCAT(i.name) FROM circle_ips ci JOIN ips i ON i.id = ci.ip_id WHERE ci.circle_id = c.id) as ips
      FROM participations p
@@ -235,7 +230,7 @@ app.get("/circles/:slug", async (c) => {
   if (eventId === null) return c.json({ error: "event not found", code: "not_found" }, 404);
 
   const row = await c.env.DB.prepare(
-    `SELECT c.id as circle_id, c.slug, c.name, p.id as participation_id, p.genre_label, p.genre_tags,
+    `SELECT c.id as circle_id, c.slug, c.name, p.id as participation_id,
             p.booth, p.day, p.booth_url, p.highlight, p.badge, p.note, p.status,
             (SELECT GROUP_CONCAT(i.name) FROM circle_ips ci JOIN ips i ON i.id = ci.ip_id WHERE ci.circle_id = c.id) as ips
      FROM participations p
@@ -334,8 +329,6 @@ app.post("/circles", async (c) => {
   const slug = vSlug(body.slug, "slug");
   const name = str(body.name, "name", 200);
   const eventSlug = vSlug(body.event_slug, "event_slug");
-  const genreLabel = optStr(body.genre_label, "genre_label");
-  const genreTags = arrOfStr(body.genre_tags, "genre_tags");
   const booth = optStr(body.booth, "booth", 64);
   const day = optStr(body.day, "day", 32);
   const boothUrl = optUrl(body.booth_url, "booth_url");
@@ -384,15 +377,14 @@ app.post("/circles", async (c) => {
   stmts.push(
     db
       .prepare(
-        `INSERT INTO participations (circle_id, event_id, genre_label, genre_tags, booth, day, booth_url, highlight, badge, note, status)
-         VALUES (${CIRCLE_ID_SUBQ}, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, 'confirmed'))
+        `INSERT INTO participations (circle_id, event_id, booth, day, booth_url, highlight, badge, note, status)
+         VALUES (${CIRCLE_ID_SUBQ}, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, 'confirmed'))
          ON CONFLICT(circle_id, event_id) DO UPDATE SET
-           genre_label=excluded.genre_label, genre_tags=excluded.genre_tags, booth=excluded.booth,
-           day=excluded.day, booth_url=excluded.booth_url, highlight=excluded.highlight,
+           booth=excluded.booth, day=excluded.day, booth_url=excluded.booth_url, highlight=excluded.highlight,
            badge=excluded.badge, note=excluded.note, status=COALESCE(?, participations.status),
            updated_at=datetime('now')`
       )
-      .bind(eventId, slug, eventId, genreLabel, JSON.stringify(genreTags), booth, day, boothUrl, highlight ? 1 : 0, badge, note, status, status)
+      .bind(eventId, slug, eventId, booth, day, boothUrl, highlight ? 1 : 0, badge, note, status, status)
   );
 
   // 3) ips (제공된 경우만 전량 교체)
@@ -454,8 +446,6 @@ app.patch("/participations/:id", async (c) => {
     fields.push(`${col} = ?`);
     values.push(val);
   };
-  if ("genre_label" in body) add("genre_label", optStr(body.genre_label, "genre_label"));
-  if ("genre_tags" in body) add("genre_tags", JSON.stringify(arrOfStr(body.genre_tags, "genre_tags")));
   if ("booth" in body) add("booth", optStr(body.booth, "booth", 64));
   if ("day" in body) add("day", optStr(body.day, "day", 32));
   if ("booth_url" in body) add("booth_url", optUrl(body.booth_url, "booth_url"));

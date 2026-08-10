@@ -85,22 +85,15 @@ export function Card({
         </button>
       </div>
 
-      <button
-        onClick={onOpen}
-        className="block w-full text-left bg-transparent border-0 p-0 cursor-pointer"
-      >
-        <div className="text-[13.5px] text-muted leading-[1.5] mt-[9px]">{item.genre}</div>
-      </button>
-
       {item.note && (
         <div className="text-[12.5px] text-[#8a8f98] leading-[1.55] mt-[7px] bg-[#f6f7f9] rounded-[10px] px-[11px] py-[9px]">
           {item.note}
         </div>
       )}
 
-      {item.genres && item.genres.length > 0 && (
+      {item.ips && item.ips.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mt-[11px]">
-          {item.genres.map((g) => (
+          {item.ips.map((g) => (
             <span
               key={g}
               className="inline-flex items-center h-6 px-[9px] rounded-md bg-chip text-[#5b6270] text-[11.5px] font-bold"

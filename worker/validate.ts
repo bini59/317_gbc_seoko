@@ -71,15 +71,3 @@ export function intId(v: unknown, name: string): number {
 export function optBool(v: unknown): boolean {
   return v === true || v === 1 || v === "1" || v === "true";
 }
-
-/** genre_tags 등 DB에 저장된 손상 가능한 JSON 배열을 안전하게 파싱. */
-export function safeJsonArray(raw: string | null): string[] {
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter((x) => typeof x === "string") : [];
-  } catch {
-    console.warn("corrupted genre_tags JSON, ignoring:", raw);
-    return [];
-  }
-}

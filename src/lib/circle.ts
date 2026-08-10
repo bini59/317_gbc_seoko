@@ -76,7 +76,7 @@ export function filterCircles(circles: Circle[], f: CircleFilter): Circle[] {
       }
       if (q) {
         const hay = norm(
-          (c.name + c.genre + (c.booth || "") + (c.genres || []).join("")).toLowerCase(),
+          (c.name + (c.booth || "") + (c.ips || []).join("")).toLowerCase(),
         );
         if (!hay.includes(q)) return false;
       }
