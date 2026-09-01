@@ -12,6 +12,7 @@ import {
   arrOfStr,
   intId,
   optBool,
+  dateOnly,
 } from "./validate";
 
 export type Bindings = {
@@ -45,6 +46,33 @@ type TweetRow = {
   og_image: string | null;
   og_site_name: string | null;
 };
+
+type EventStatus = "active" | "past" | "upcoming";
+type EventStatusRow = {
+  id: number;
+  start_date: string | null;
+  end_date: string | null;
+  status: string;
+};
+
+export function determineEventStatus(
+  event: Pick<EventStatusRow, "start_date" | "end_date" | "status">,
+  today = new Date().toISOString().slice(0, 10),
+): EventStatus | string {
+  if (event.start_date && event.start_date > today) return "upcoming";
+  if (event.end_date && event.end_date < today) return "past";
+  if (event.start_date || event.end_date) return "active";
+  return event.status;
+}
+
+async function refreshEventStatuses(db: D1Database, today = new Date().toISOString().slice(0, 10)) {
+  const { results } = await db.prepare("SELECT id, start_date, end_date, status FROM events").all<EventStatusRow>();
+  const updates = results
+    .map((event) => ({ event, status: determineEventStatus(event, today) }))
+    .filter(({ event, status }) => status !== event.status)
+    .map(({ event, status }) => db.prepare("UPDATE events SET status = ? WHERE id = ?").bind(status, event.id));
+  if (updates.length > 0) await db.batch(updates);
+}
 
 const PARTICIPATION_STATUSES = ["confirmed", "unlisted", "cancelled", "pending"] as const;
 
@@ -132,16 +160,27 @@ app.use("*", async (c, next) => {
 
 // ---- events ----
 app.get("/events", async (c) => {
+  c.executionCtx.waitUntil(
+    refreshEventStatuses(c.env.DB).catch((error) => {
+      console.error("event status refresh failed", error);
+    }),
+  );
   const { results } = await c.env.DB.prepare(
     "SELECT id, slug, title, alias, fare_id, date_label, start_date, end_date, venue, map_url, status FROM events ORDER BY start_date DESC"
-  ).all();
-  return c.json({ events: results });
+  ).all<EventStatusRow & Record<string, unknown>>();
+  const today = new Date().toISOString().slice(0, 10);
+  return c.json({
+    events: results.map((event) => ({ ...event, status: determineEventStatus(event, today) })),
+  });
 });
 
 app.post("/events", async (c) => {
   const body = await readJson(c);
   const slug = vSlug(body.slug, "slug");
   const title = str(body.title, "title", 200);
+  const startDate = body.start_date === undefined || body.start_date === null ? null : dateOnly(body.start_date, "start_date");
+  const endDate = body.end_date === undefined || body.end_date === null ? null : dateOnly(body.end_date, "end_date");
+  if (startDate && endDate && endDate < startDate) throw new ValidationError("end_date는 start_date보다 빠를 수 없어요");
   await c.env.DB.prepare(
     `INSERT INTO events (slug, title, alias, fare_id, date_label, start_date, end_date, venue, map_url, status)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, 'active'))`
@@ -152,8 +191,8 @@ app.post("/events", async (c) => {
       optStr(body.alias, "alias"),
       body.fare_id === undefined || body.fare_id === null ? null : intId(body.fare_id, "fare_id"),
       optStr(body.date_label, "date_label"),
-      optStr(body.start_date, "start_date"),
-      optStr(body.end_date, "end_date"),
+      startDate,
+      endDate,
       optStr(body.venue, "venue"),
       optUrl(body.map_url, "map_url"),
       optEnum(body.status, "status", ["active", "past", "upcoming"])
@@ -174,7 +213,10 @@ app.get("/circles", async (c) => {
     if (!row) return c.json({ error: "event not found", code: "not_found" }, 404);
     eventId = row.id;
   } else {
-    const row = await c.env.DB.prepare("SELECT id FROM events WHERE status = 'active' ORDER BY start_date DESC LIMIT 1").first<{ id: number }>();
+    const today = new Date().toISOString().slice(0, 10);
+    const row = await c.env.DB.prepare(
+      "SELECT id FROM events WHERE ((start_date IS NULL AND end_date IS NULL AND status = 'active') OR ((start_date IS NULL OR start_date <= ?) AND (end_date IS NULL OR end_date >= ?))) ORDER BY start_date DESC LIMIT 1",
+    ).bind(today, today).first<{ id: number }>();
     eventId = row?.id ?? null;
   }
   if (eventId === null) return c.json({ circles: [] });
@@ -224,7 +266,10 @@ app.get("/circles/:slug", async (c) => {
     const row = await c.env.DB.prepare("SELECT id FROM events WHERE slug = ?").bind(eventSlug).first<{ id: number }>();
     eventId = row?.id ?? null;
   } else {
-    const row = await c.env.DB.prepare("SELECT id FROM events WHERE status = 'active' ORDER BY start_date DESC LIMIT 1").first<{ id: number }>();
+    const today = new Date().toISOString().slice(0, 10);
+    const row = await c.env.DB.prepare(
+      "SELECT id FROM events WHERE ((start_date IS NULL AND end_date IS NULL AND status = 'active') OR ((start_date IS NULL OR start_date <= ?) AND (end_date IS NULL OR end_date >= ?))) ORDER BY start_date DESC LIMIT 1",
+    ).bind(today, today).first<{ id: number }>();
     eventId = row?.id ?? null;
   }
   if (eventId === null) return c.json({ error: "event not found", code: "not_found" }, 404);

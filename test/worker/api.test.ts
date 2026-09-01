@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { app } from "../../worker/app";
+import { app, determineEventStatus } from "../../worker/app";
 import { makeTestDB } from "../helpers/d1";
 
 const TOKEN = "test-token";
@@ -11,6 +11,7 @@ function makeEnv() {
 async function call(env: any, method: string, path: string, body?: unknown, auth = true) {
   const headers: Record<string, string> = { "content-type": "application/json" };
   if (auth) headers.authorization = `Bearer ${TOKEN}`;
+  const backgroundTasks: Promise<unknown>[] = [];
   const res = await app.fetch(
     new Request(`http://x${path}`, {
       method,
@@ -18,7 +19,9 @@ async function call(env: any, method: string, path: string, body?: unknown, auth
       body: body === undefined ? undefined : JSON.stringify(body),
     }),
     env,
+    { waitUntil: (task: Promise<unknown>) => backgroundTasks.push(task) } as ExecutionContext,
   );
+  await Promise.all(backgroundTasks);
   return { status: res.status, json: await res.json().catch(() => null) };
 }
 
@@ -43,6 +46,56 @@ describe("worker API", () => {
     const list = await call(env, "GET", "/api/events");
     expect(list.status).toBe(200);
     expect(list.json.events.map((e: any) => e.slug)).toContain("cw-2026-07");
+  });
+
+  it("determines event status with inclusive event dates", () => {
+    expect(determineEventStatus({ start_date: "2026-09-02", end_date: "2026-09-03", status: "past" }, "2026-09-01")).toBe("upcoming");
+    expect(determineEventStatus({ start_date: "2026-09-02", end_date: "2026-09-03", status: "past" }, "2026-09-02")).toBe("active");
+    expect(determineEventStatus({ start_date: "2026-09-02", end_date: "2026-09-03", status: "past" }, "2026-09-03")).toBe("active");
+    expect(determineEventStatus({ start_date: "2026-09-02", end_date: "2026-09-03", status: "upcoming" }, "2026-09-04")).toBe("past");
+    expect(determineEventStatus({ start_date: null, end_date: null, status: "upcoming" }, "2026-09-01")).toBe("upcoming");
+  });
+
+  it("rejects invalid or reversed event dates", async () => {
+    expect((await call(env, "POST", "/api/events", {
+      slug: "invalid-date",
+      title: "잘못된 날짜",
+      start_date: "2026-9-2",
+    })).status).toBe(400);
+    expect((await call(env, "POST", "/api/events", {
+      slug: "reversed-date",
+      title: "뒤집힌 날짜",
+      start_date: "2026-09-03",
+      end_date: "2026-09-02",
+    })).status).toBe(400);
+  });
+
+  it("uses date-derived activity for implicit circle lookups", async () => {
+    await call(env, "POST", "/api/events", {
+      slug: "current-event",
+      title: "현재 행사",
+      start_date: "2026-09-01",
+      end_date: "2026-09-02",
+      status: "past",
+    });
+    await call(env, "POST", "/api/circles", { slug: "circle", name: "서클", event_slug: "current-event" });
+
+    const list = await call(env, "GET", "/api/circles");
+    expect(list.json.circles).toHaveLength(1);
+    const detail = await call(env, "GET", "/api/circles/circle");
+    expect(detail.json.circle.name).toBe("서클");
+  });
+
+  it("refreshes event status from dates in the background after listing events", async () => {
+    await call(env, "POST", "/api/events", {
+      slug: "upcoming-event",
+      title: "예정 행사",
+      start_date: "2999-09-02",
+      end_date: "2999-09-03",
+      status: "past",
+    });
+    const list = await call(env, "GET", "/api/events");
+    expect(list.json.events[0]).toMatchObject({ slug: "upcoming-event", status: "upcoming" });
   });
 
   it("upserts a circle and serializes it in list + detail", async () => {
