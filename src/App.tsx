@@ -137,14 +137,14 @@ export default function App() {
   const detail = detailSlug ? all.find((c) => c.id === detailSlug) ?? null : null;
 
   const statusChip = (active: boolean) =>
-    "inline-flex items-center h-[34px] px-4 rounded-full text-[13.5px] font-bold cursor-pointer whitespace-nowrap border " +
-    (active ? "bg-ink text-white border-ink" : "bg-card text-[#7b818c] border-line");
+    "inline-flex items-center h-[32px] px-3 rounded-[8px] text-[13px] font-medium cursor-pointer whitespace-nowrap border " +
+    (active ? "bg-ink text-bg border-ink" : "bg-card text-muted border-line");
   const genreChip = (active: boolean) =>
-    "inline-flex items-center h-8 px-[13px] rounded-full text-[13px] font-bold cursor-pointer whitespace-nowrap border " +
-    (active ? "bg-accent/10 text-accent border-accent/30" : "bg-card text-[#7b818c] border-line");
+    "inline-flex items-center h-7 px-2.5 rounded-full text-[12px] font-medium cursor-pointer whitespace-nowrap border " +
+    (active ? "bg-accent/10 text-accent border-accent/30" : "bg-card text-muted border-line");
 
   return (
-    <div className="min-h-screen bg-bg max-w-[520px] mx-auto">
+    <div className="min-h-screen bg-bg max-w-[560px] mx-auto border-x border-line">
       <div role="status" aria-live="polite" className="sr-only">
         {announce}
       </div>
@@ -168,7 +168,7 @@ export default function App() {
       ) : (
         <div className="pb-7">
           {/* sticky 헤더 */}
-          <div className="sticky top-0 z-10 bg-bg px-5 pt-[22px] pb-3">
+          <div className="sticky top-0 z-10 bg-bg/95 backdrop-blur px-5 pt-[22px] pb-3 border-b border-line">
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
                 <div className="text-[22px] font-extrabold -tracking-[0.02em] text-ink leading-none">
@@ -302,7 +302,7 @@ export default function App() {
                 <button
                   onClick={() => void load()}
                   disabled={loading}
-                  className="mt-3 inline-flex items-center h-9 px-4 rounded-full bg-ink text-white text-[13px] font-bold cursor-pointer border-0 disabled:opacity-60"
+                  className="mt-3 inline-flex items-center h-9 px-4 rounded-full bg-ink text-bg text-[13px] font-bold cursor-pointer border-0 disabled:opacity-60"
                 >
                   {loading ? "다시 시도 중…" : "다시 시도"}
                 </button>

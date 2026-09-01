@@ -1,16 +1,63 @@
 @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css");
 @import "tailwindcss";
 
+:root {
+  --app-bg: #0a0a0a;
+  --app-panel: #0f0f0f;
+  --app-panel-2: #141414;
+  --app-raise: #191919;
+  --app-border: #242424;
+  --app-border-strong: #333333;
+  --app-fg: #ededed;
+  --app-fg-2: #a1a1a1;
+  --app-fg-3: #6f6f6f;
+  --app-accent: #3b82f6;
+  --app-accent-soft: rgba(59, 130, 246, .14);
+  color-scheme: dark;
+}
+
+:root[data-theme="light"], :root:not([data-theme]) {
+  --app-bg: #ffffff;
+  --app-panel: #fafafa;
+  --app-panel-2: #f4f4f4;
+  --app-raise: #ffffff;
+  --app-border: #e6e6e6;
+  --app-border-strong: #d4d4d4;
+  --app-fg: #111111;
+  --app-fg-2: #5f5f5f;
+  --app-fg-3: #8b8b8b;
+  --app-accent: #0062d6;
+  --app-accent-soft: rgba(0, 98, 214, .1);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --app-bg: #0a0a0a;
+    --app-panel: #0f0f0f;
+    --app-panel-2: #141414;
+    --app-raise: #191919;
+    --app-border: #242424;
+    --app-border-strong: #333333;
+    --app-fg: #ededed;
+    --app-fg-2: #a1a1a1;
+    --app-fg-3: #6f6f6f;
+    --app-accent: #3b82f6;
+    --app-accent-soft: rgba(59, 130, 246, .14);
+    color-scheme: dark;
+  }
+}
+
 @theme {
-  /* Blink 스타일 팔레트 (구 Newsprint 대체) */
-  --color-bg: #f4f5f7;        /* 앱 배경 */
-  --color-card: #ffffff;      /* 카드 배경 */
-  --color-ink: #17181c;       /* 기본 텍스트 */
-  --color-muted: #6b7280;     /* 본문 보조 텍스트 */
-  --color-faint: #9aa0aa;     /* 메타/라벨 */
-  --color-line: #ecedf0;      /* 보더 */
-  --color-chip: #f1f3f6;      /* 태그/링크 칩 배경 */
-  --color-accent: #3e5bff;    /* 액센트(블루) */
+  --color-bg: var(--app-bg);
+  --color-card: var(--app-panel);
+  --color-ink: var(--app-fg);
+  --color-muted: var(--app-fg-2);
+  --color-faint: var(--app-fg-3);
+  --color-line: var(--app-border);
+  --color-line-strong: var(--app-border-strong);
+  --color-chip: var(--app-panel-2);
+  --color-accent: var(--app-accent);
 
   --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
     "Apple SD Gothic Neo", sans-serif;
@@ -19,7 +66,6 @@
 html,
 body {
   margin: 0;
-  /* 모바일에서 페이지 자체가 좌우로 밀리는 것 방지 (칩 줄 내부 스크롤은 유지) */
   overflow-x: hidden;
   overflow-x: clip;
 }
@@ -31,7 +77,6 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* 가로 스크롤 칩 줄: 스크롤바 숨김 */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
