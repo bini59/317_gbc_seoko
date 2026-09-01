@@ -21,6 +21,17 @@ export function optStr(v: unknown, name: string, max = 2000): string | null {
   return v as string;
 }
 
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
+export function dateOnly(v: unknown, name: string): string {
+  const s = str(v, name, 10);
+  if (!DATE_ONLY_RE.test(s)) fail(`${name}: YYYY-MM-DD 형식이어야 해요`);
+  const date = new Date(`${s}T00:00:00Z`);
+  if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== s) {
+    fail(`${name}: 올바른 날짜가 아니에요`);
+  }
+  return s;
+}
+
 const SLUG_RE = /^[a-z0-9][a-z0-9_-]*$/i;
 export function slug(v: unknown, name: string): string {
   const s = str(v, name, 128);
