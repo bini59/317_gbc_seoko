@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { app, determineEventStatus } from "../../worker/app";
 import { makeTestDB } from "../helpers/d1";
 
@@ -34,6 +34,43 @@ describe("worker API", () => {
   it("rejects mutations without a valid bearer token", async () => {
     const r = await call(env, "POST", "/api/events", { slug: "e", title: "t" }, false);
     expect(r.status).toBe(401);
+  });
+
+  it("returns disabled auth when 321_auth is not configured", async () => {
+    const r = await call(env, "GET", "/api/auth/me");
+    expect(r.status).toBe(200);
+    expect(r.json).toEqual({ enabled: false, user: null });
+  });
+
+  it("verifies the optional 321_auth session and syncs checks per user", async () => {
+    const authFetch = vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
+      new Response(JSON.stringify({ userId: "user-1", email: "user@example.com", name: "User", avatarUrl: null, membership: null }), { status: 200 }),
+    );
+    const authEnv = { ...env, AUTH_ORIGIN: "https://auth.bini59.dev", AUTH_CLIENT_ID: "seoko-maps", AUTH_CLIENT_SECRET: "secret" };
+    const r = await app.fetch(
+      new Request("http://x/api/auth/me", { headers: { cookie: "sid=session" } }),
+      authEnv,
+      {} as ExecutionContext,
+    );
+    expect(r.status).toBe(200);
+    expect(await r.json()).toMatchObject({ enabled: true, user: { userId: "user-1" } });
+    expect(authFetch).toHaveBeenCalledWith(
+      "https://auth.bini59.dev/verify?client_id=seoko-maps",
+      { headers: { "x-app-secret": "secret", cookie: "sid=session" } },
+    );
+
+    const saved = await app.fetch(
+      new Request("http://x/api/checks?event=ev", { method: "PUT", headers: { "content-type": "application/json", cookie: "sid=session" }, body: JSON.stringify({ checks: { booth: true } }) }),
+      authEnv,
+      {} as ExecutionContext,
+    );
+    expect(saved.status).toBe(200);
+    const loaded = await app.fetch(
+      new Request("http://x/api/checks?event=ev", { headers: { cookie: "sid=session" } }),
+      authEnv,
+      {} as ExecutionContext,
+    );
+    expect(await loaded.json()).toEqual({ checks: { booth: true } });
   });
 
   it("creates an event and lists it", async () => {

@@ -20,5 +20,9 @@
       "database_name": "gbc-seoko-db",
       "database_id": "b45883c7-c39b-4f96-9640-c41b41792511"
     }
-  ]
+  ],
+  "vars": {
+    "AUTH_ORIGIN": "https://auth.bini59.dev",
+    "AUTH_CLIENT_ID": "seoko-maps"
+  }
 }

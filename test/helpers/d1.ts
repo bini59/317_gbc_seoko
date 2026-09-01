@@ -21,9 +21,14 @@ export function makeTestDB(): D1Database {
     fileURLToPath(new URL("../../migrations/0003_ips_only.sql", import.meta.url)),
     "utf8",
   );
+  const userChecksMigration = readFileSync(
+    fileURLToPath(new URL("../../migrations/0004_user_checks.sql", import.meta.url)),
+    "utf8",
+  );
   db.exec(migration);
   db.exec(eventScopedMigration);
   db.exec(ipsMigration);
+  db.exec(userChecksMigration);
   return wrap(db);
 }
 

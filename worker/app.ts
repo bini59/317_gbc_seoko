@@ -18,9 +18,43 @@ import {
 export type Bindings = {
   DB: D1Database;
   ADMIN_TOKEN: string;
-  /** 쉼표로 구분된 허용 origin. 없으면 모든 origin 허용(*). */
   ALLOWED_ORIGINS?: string;
+  AUTH_ORIGIN?: string;
+  AUTH_CLIENT_ID?: string;
+  AUTH_CLIENT_SECRET?: string;
 };
+
+type AuthenticatedUser = {
+  userId: string;
+  email: string | null;
+  name: string | null;
+  avatarUrl: string | null;
+  membership: { role: string; status: string; joinedAt: string } | null;
+};
+
+function authConfigured(env: Bindings): boolean {
+  return Boolean(env.AUTH_ORIGIN && env.AUTH_CLIENT_ID && env.AUTH_CLIENT_SECRET);
+}
+
+async function verifyAuth(c: Context<{ Bindings: Bindings }>): Promise<AuthenticatedUser | null> {
+  if (!authConfigured(c.env)) return null;
+  const cookie = c.req.header("cookie");
+  if (!cookie) return null;
+  const url = new URL("/verify", c.env.AUTH_ORIGIN);
+  url.searchParams.set("client_id", c.env.AUTH_CLIENT_ID!);
+  const response = await fetch(url.toString(), {
+    headers: { "x-app-secret": c.env.AUTH_CLIENT_SECRET!, cookie },
+  });
+  if (response.status === 401 || response.status === 403) return null;
+  if (!response.ok) throw new Error("auth verification failed");
+  return await response.json<AuthenticatedUser>();
+}
+
+async function requireAuth(c: Context<{ Bindings: Bindings }>): Promise<AuthenticatedUser | Response> {
+  if (!authConfigured(c.env)) return c.json({ error: "auth is not configured", code: "auth_unavailable" }, 503);
+  const user = await verifyAuth(c);
+  return user ?? c.json({ error: "unauthorized", code: "unauthorized" }, 401);
+}
 
 type CircleRow = {
   circle_id: number;
@@ -136,6 +170,7 @@ app.onError((err, c) => {
 });
 
 app.use("*", cors({
+  credentials: true,
   origin: (origin, c) => {
     const allowed = (c.env.ALLOWED_ORIGINS || "")
       .split(",")
@@ -148,7 +183,7 @@ app.use("*", cors({
 
 // require bearer token for mutating routes only
 app.use("*", async (c, next) => {
-  if (["POST", "PATCH", "PUT", "DELETE"].includes(c.req.method)) {
+  if (["POST", "PATCH", "PUT", "DELETE"].includes(c.req.method) && c.req.path !== "/api/checks") {
     const auth = c.req.header("authorization") || "";
     const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
     if (!c.env.ADMIN_TOKEN || token !== c.env.ADMIN_TOKEN) {
@@ -159,6 +194,42 @@ app.use("*", async (c, next) => {
 });
 
 // ---- events ----
+app.get("/auth/me", async (c) => {
+  const user = await verifyAuth(c);
+  return c.json({ enabled: authConfigured(c.env), user });
+});
+
+app.get("/checks", async (c) => {
+  const eventSlug = vSlug(c.req.query("event"), "event");
+  const user = await requireAuth(c);
+  if (user instanceof Response) return user;
+  const row = await c.env.DB.prepare("SELECT checks FROM user_checks WHERE user_id = ? AND event_slug = ?")
+    .bind(user.userId, eventSlug)
+    .first<{ checks: string }>();
+  return c.json({ checks: row ? JSON.parse(row.checks) : {} });
+});
+
+app.put("/checks", async (c) => {
+  const eventSlug = vSlug(c.req.query("event"), "event");
+  const user = await requireAuth(c);
+  if (user instanceof Response) return user;
+  const body = await readJson(c);
+  const checks = body.checks;
+  if (typeof checks !== "object" || checks === null || Array.isArray(checks)) {
+    throw new ValidationError("checks는 JSON 객체여야 해요");
+  }
+  const checkMap = checks as Record<string, unknown>;
+  const keys = Object.keys(checkMap);
+  if (keys.length > 3000 || keys.some((key) => key.length > 200)) {
+    throw new ValidationError("방문 체크 항목이 너무 많거나 길어요");
+  }
+  const normalized = Object.fromEntries(keys.map((key) => [key, checkMap[key] === true]));
+  await c.env.DB.prepare(
+    "INSERT INTO user_checks (user_id, event_slug, checks, updated_at) VALUES (?, ?, ?, datetime('now')) ON CONFLICT(user_id, event_slug) DO UPDATE SET checks = excluded.checks, updated_at = excluded.updated_at",
+  ).bind(user.userId, eventSlug, JSON.stringify(normalized)).run();
+  return c.json({ checks: normalized });
+});
+
 app.get("/events", async (c) => {
   c.executionCtx.waitUntil(
     refreshEventStatuses(c.env.DB).catch((error) => {

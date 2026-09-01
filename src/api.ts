@@ -1,4 +1,5 @@
 import type { Circle, TweetInfo } from "./types";
+import type { Checks } from "./lib/checks";
 
 export type ApiCircle = {
   id: number;
@@ -60,9 +61,46 @@ export async function fetchEvents(signal?: AbortSignal): Promise<ApiEvent[]> {
   return data.events || [];
 }
 
-export async function fetchActiveEvent(): Promise<ApiEvent | null> {
-  return pickActiveEvent(await fetchEvents());
+export type AuthUser = {
+  userId: string;
+  email: string | null;
+  name: string | null;
+  avatarUrl: string | null;
+};
+
+export async function fetchAuth(): Promise<{ enabled: boolean; user: AuthUser | null }> {
+  const res = await fetch("/api/auth/me", { credentials: "include" });
+  if (!res.ok) return { enabled: false, user: null };
+  return await res.json();
 }
+
+export function login(): void {
+  const returnTo = `${window.location.origin}${window.location.pathname}${window.location.hash}`;
+  window.location.href = `https://auth.bini59.dev/login?client_id=seoko-maps&return_to=${encodeURIComponent(returnTo)}`;
+}
+
+export function logout(): void {
+  const returnTo = `${window.location.origin}${window.location.pathname}${window.location.hash}`;
+  window.location.href = `https://auth.bini59.dev/logout?client_id=seoko-maps&return_to=${encodeURIComponent(returnTo)}`;
+}
+
+export async function fetchChecks(eventSlug: string): Promise<ChecksResponse> {
+  const res = await fetch(`/api/checks?event=${encodeURIComponent(eventSlug)}`, { credentials: "include" });
+  if (!res.ok) throw new Error("방문 체크를 불러오지 못했어요");
+  return await res.json();
+}
+
+export async function saveChecks(eventSlug: string, checks: Record<string, boolean>): Promise<void> {
+  const res = await fetch(`/api/checks?event=${encodeURIComponent(eventSlug)}`, {
+    method: "PUT",
+    credentials: "include",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ checks }),
+  });
+  if (!res.ok) throw new Error("방문 체크를 저장하지 못했어요");
+}
+
+type ChecksResponse = { checks: Record<string, boolean> };
 
 export async function fetchCircles(
   eventSlug: string,

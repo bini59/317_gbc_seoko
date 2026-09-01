@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Circle } from "./types";
-import { fetchCircles, fetchEvents, pickActiveEvent, type ApiEvent } from "./api";
+import { fetchAuth, fetchCircles, fetchEvents, login, logout, pickActiveEvent, type ApiEvent, type AuthUser } from "./api";
 import { badgeColor, filterCircles, STATUS, type Status } from "./lib/circle";
 import { useChecks } from "./hooks/useChecks";
 import { useAppRoute } from "./hooks/useAppRoute";
@@ -50,7 +50,10 @@ export default function App() {
   const { route, openCircle, openEvents, backToEvent } = useAppRoute();
   const [events, setEvents] = useState<ApiEvent[]>([]);
   const [event, setEvent] = useState<ApiEvent | null>(null);
-  const [checks, toggle] = useChecks(event?.slug ?? null, event?.status === "active");
+  const [authEnabled, setAuthEnabled] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [checks, toggle] = useChecks(event?.slug ?? null, event?.status === "active", !!user, authLoading);
   const [status, setStatus] = useState<Status>("all");
   const [selectedIps, setSelectedIps] = useState<string[]>([]);
   const [query, setQuery] = useState("");
@@ -64,6 +67,16 @@ export default function App() {
   const loadController = useRef<AbortController | null>(null);
   const requestedEventSlug = route.kind === "event" || route.kind === "circle" ? route.eventSlug : null;
   const routeMode = route.kind === "events" ? "events" : route.kind === "legacy-circle" ? "legacy" : "event";
+
+  const loadAuth = useCallback(() => {
+    void fetchAuth().then(({ enabled, user: currentUser }) => {
+      setAuthEnabled(enabled);
+      setUser(currentUser);
+    }).catch(() => {
+      setAuthEnabled(false);
+      setUser(null);
+    }).finally(() => setAuthLoading(false));
+  }, []);
 
   // 행사장 서클 + 통판(unlisted)을 한 데이터셋으로 다뤄 검색·필터·체크를 일관 적용
   const all = useMemo(() => [...circles, ...witchformExtra], [circles, witchformExtra]);
@@ -111,6 +124,10 @@ export default function App() {
     void load();
     return () => loadController.current?.abort();
   }, [load]);
+
+  useEffect(() => {
+    loadAuth();
+  }, [loadAuth]);
 
   useEffect(() => {
     setStatus("all");
@@ -178,7 +195,17 @@ export default function App() {
                   {eventSubtitle(event)}
                 </div>
               </div>
-              <button type="button" onClick={openEvents} className="shrink-0 rounded-full border border-line bg-card px-3 py-2 text-xs font-bold text-muted">행사 목록</button>
+               <div className="flex shrink-0 items-center gap-2">
+                 {authEnabled ? (
+                   user ? (
+                     <button type="button" onClick={logout} className="rounded-full border border-line bg-card px-3 py-2 text-xs font-bold text-muted">{user.name ?? "로그인됨"} · 로그아웃</button>
+                   ) : (
+                     <button type="button" onClick={login} className="rounded-full border border-line bg-card px-3 py-2 text-xs font-bold text-muted">로그인</button>
+                   )
+                 ) : null}
+                 <button type="button" onClick={openEvents} className="rounded-full border border-line bg-card px-3 py-2 text-xs font-bold text-muted">행사 목록</button>
+               </div>
+
             </div>
 
             <div className="flex items-center gap-2.5 h-12 bg-card border border-line rounded-[14px] px-3.5">
