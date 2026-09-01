@@ -32,15 +32,6 @@ npm run build   # → dist/ 생성
 npm run preview # 빌드 결과 미리보기
 ```
 
-## 이미 빌드된 결과 (dist/) — 즉시 배포 가능
-`dist/` 폴더에 빌드 산출물이 포함돼 있어 바로 올릴 수 있습니다.
-```bash
-npx wrangler pages deploy dist --project-name gbc-seoko
-```
-> 로컬 참고: 이 저장소의 `dist/`는 bun 번들러로 미리 만들어 둔 것입니다.
-> (`bun install --production && bun build src/main.jsx --outdir dist/assets --minify`)
-> Cloudflare Pages의 Git 빌드는 아래 Vite 방식을 그대로 사용하면 됩니다.
-
 ## API 오류 응답
 모든 오류는 일관된 형식으로 반환된다:
 ```json
