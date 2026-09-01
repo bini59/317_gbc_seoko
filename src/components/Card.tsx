@@ -18,11 +18,9 @@ export function Card({
 }) {
   const short = boothShort(item);
   const cardCls = [
-    "relative rounded-[18px] p-4 bg-card border transition-colors",
-    item.highlight
-      ? "border-transparent ring-[1.6px] ring-accent/40"
-      : "border-[#eeeff2] shadow-[0_1px_2px_rgba(20,22,30,0.04)]",
-    checked ? "!bg-[#f3f5f8] opacity-80" : "",
+    "relative rounded-[10px] p-4 bg-card border border-line transition-colors hover:border-line-strong",
+    item.highlight ? "ring-[1.6px] ring-accent/40" : "",
+    checked ? "bg-chip opacity-60" : "",
   ].join(" ");
 
   return (
@@ -65,7 +63,7 @@ export function Card({
           aria-label={checked ? "방문 체크 해제" : "방문 체크"}
           className={
             "w-[26px] h-[26px] rounded-full flex items-center justify-center flex-none border-2 cursor-pointer transition-colors " +
-            (checked ? "bg-accent border-accent" : "bg-white border-[#d5d7de]")
+            (checked ? "bg-accent border-accent" : "bg-transparent border-line-strong")
           }
         >
           {checked && (
@@ -86,7 +84,7 @@ export function Card({
       </div>
 
       {item.note && (
-        <div className="text-[12.5px] text-[#8a8f98] leading-[1.55] mt-[7px] bg-[#f6f7f9] rounded-[10px] px-[11px] py-[9px]">
+        <div className="text-[12.5px] text-muted leading-[1.55] mt-[7px] bg-chip rounded-[8px] px-[11px] py-[9px]">
           {item.note}
         </div>
       )}
@@ -96,7 +94,7 @@ export function Card({
           {item.ips.map((g) => (
             <span
               key={g}
-              className="inline-flex items-center h-6 px-[9px] rounded-md bg-chip text-[#5b6270] text-[11.5px] font-bold"
+              className="inline-flex items-center h-6 px-[9px] rounded-md bg-chip text-muted text-[11.5px] font-bold"
             >
               {g}
             </span>

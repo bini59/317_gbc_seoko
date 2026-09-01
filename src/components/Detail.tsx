@@ -35,19 +35,19 @@ export function Detail({
 
   return (
     <div>
-      <div className="sticky top-0 z-10 bg-bg flex items-center gap-1.5 px-4 pt-5 pb-3.5">
+      <div className="sticky top-0 z-10 bg-bg/95 backdrop-blur flex items-center gap-1.5 px-4 pt-5 pb-3.5 border-b border-line">
         <button
           ref={backRef}
           onClick={onBack}
           aria-label="목록으로 뒤로"
-          className="w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer bg-transparent border-0"
+          className="w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer bg-transparent border-0 text-ink"
         >
           <svg
             viewBox="0 0 24 24"
             width="24"
             height="24"
             fill="none"
-            stroke="#17181c"
+            stroke="currentColor"
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -55,7 +55,7 @@ export function Detail({
             <path d="M15 18l-6-6 6-6" />
           </svg>
         </button>
-        <span className="text-[15px] font-bold text-[#3a3d44]">서클 상세</span>
+        <span className="text-[15px] font-bold text-ink">서클 상세</span>
       </div>
 
       <div className="px-[22px] pt-1.5">
@@ -101,7 +101,7 @@ export function Detail({
         {item.note && (
           <div className="mt-5">
             <div className="text-xs font-extrabold tracking-[0.04em] text-faint mb-2">MEMO</div>
-            <div className="text-sm text-[#4b5563] leading-[1.65] bg-card border border-line rounded-2xl px-4 py-[15px]">
+            <div className="text-sm text-muted leading-[1.65] bg-card border border-line rounded-[10px] px-4 py-[15px]">
               {item.note}
             </div>
           </div>
@@ -155,7 +155,7 @@ export function Detail({
           onClick={onToggle}
           className={
             "flex items-center justify-center gap-2 w-full h-[54px] mt-[26px] mb-6 rounded-2xl text-[15.5px] font-extrabold cursor-pointer border-0 text-white " +
-            (checked ? "bg-accent" : "bg-ink")
+            (checked ? "bg-accent" : "bg-ink text-bg")
           }
         >
           {checked && (
