@@ -3,7 +3,7 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { ProfileMenu } from "../../src/components/ProfileMenu";
 
-vi.mock("../../src/api", () => ({ logout: vi.fn() }));
+vi.mock("../../src/api", () => ({ logout: vi.fn(), AUTH_ORIGIN: "https://auth.bini59.dev" }));
 import { logout } from "../../src/api";
 
 const USER = { userId: "u1", email: "seoko@example.com", name: "세오코", avatarUrl: null };
