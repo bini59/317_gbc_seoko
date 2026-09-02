@@ -7,6 +7,7 @@ import { useAppRoute } from "./hooks/useAppRoute";
 import { Card } from "./components/Card";
 import { Detail } from "./components/Detail";
 import { Sidebar } from "./components/Sidebar";
+import { BottomNav, type Sheet } from "./components/BottomNav";
 import { eventSubtitle } from "./lib/event";
 
 /* ---------- 앱 ---------- */
@@ -22,6 +23,9 @@ export default function App() {
   const [selectedIps, setSelectedIps] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [announce, setAnnounce] = useState("");
+  // 모바일 bottom sheet(검색/필터). md 이상에서는 같은 DOM이 topbar에 인라인으로 항상 보인다.
+  const [sheet, setSheet] = useState<Sheet>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const [circles, setCircles] = useState<Circle[]>([]);
   const [witchformExtra, setWitchformExtra] = useState<Circle[]>([]);
@@ -99,6 +103,23 @@ export default function App() {
     setQuery("");
   }, [requestedEventSlug]);
 
+  // 라우트가 바뀌면(상세 진입/행사 이동) 시트를 닫는다
+  useEffect(() => setSheet(null), [route]);
+
+  const opener = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!sheet) { opener.current?.focus(); opener.current = null; return; }
+    opener.current = document.activeElement as HTMLElement | null;
+    if (sheet === "search") searchRef.current?.focus();
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setSheet(null); };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [sheet]);
+
   const handleToggle = (id: string) => {
     setAnnounce(checks[id] ? "방문 체크를 해제했어요" : "방문 체크했어요");
     toggle(id);
@@ -125,6 +146,13 @@ export default function App() {
     (active ? "bg-accent/10 text-accent border-accent/30" : "bg-card text-muted border-line");
   // 상세 패널이 열리면 xl에서도 2열 유지(목록 폭이 줄어듦)
   const gridCls = "grid gap-3 md:grid-cols-2 " + (detail ? "" : "xl:grid-cols-3");
+  // 모바일: 시트가 열렸을 때만 하단 패널로 노출(네비 높이만큼 위). md 이상: topbar 인라인.
+  const sheetCls = (s: Exclude<Sheet, null>) =>
+    (sheet === s
+      ? "fixed left-1/2 -translate-x-1/2 w-full max-w-[560px] bottom-0 z-20 rounded-t-[20px] border-t border-line bg-bg px-5 pt-4 pb-[calc(72px+env(safe-area-inset-bottom))] max-h-[75vh] overflow-y-auto "
+      : "hidden ") + "md:static md:block md:translate-x-0 md:max-w-none md:rounded-none md:border-0 md:p-0 md:max-h-none md:overflow-visible";
+  const filterCount = (status === "all" ? 0 : 1) + selectedIps.length;
+  const showNav = route.kind !== "events" && !detailSlug;
 
   return (
     // 쉘: 모바일은 단일 컬럼(560px), md 이상은 사이드바 + 콘텐츠 2컬럼. 컴포넌트는 공유하고 레이아웃만 분기.
@@ -150,21 +178,24 @@ export default function App() {
         ) : (
           <div className="xl:flex xl:items-start">
             {/* 목록 — 상세가 열리면 xl 미만은 숨김(전체 화면 상세), xl 이상은 유지 */}
-            <div className={"min-w-0 flex-1 pb-7 " + (detail ? "hidden xl:block" : "")}>
-              {/* sticky 헤더(모바일) / topbar(데스크톱) */}
-              <div className="sticky top-0 z-10 bg-bg/95 backdrop-blur px-5 pt-[22px] pb-3 border-b border-line md:px-8 md:pt-4">
-                <div className="mb-4 flex items-start justify-between gap-3 md:mb-3 md:items-center md:gap-6">
+            <div className={"min-w-0 flex-1 pb-[calc(80px+env(safe-area-inset-bottom))] md:pb-7 " + (detail ? "hidden xl:block" : "")}>
+              {/* sticky 헤더(모바일: 제목 + 진행률만) / topbar(데스크톱: 검색·필터 인라인) — fixed 시트가 자식이라 backdrop-blur 금지 */}
+              <div className="sticky top-0 z-10 bg-bg px-5 pt-4 pb-3 border-b border-line md:px-8 md:bg-bg/95 md:backdrop-blur">
+                <div className="flex items-center justify-between gap-3 md:mb-3 md:gap-6">
                   <div className="min-w-0">
-                    <div className="text-[22px] font-extrabold -tracking-[0.02em] text-ink leading-none md:text-[19px]">
+                    <div className="text-[19px] font-extrabold -tracking-[0.02em] text-ink leading-none truncate">
                     {event?.title ?? "동인행사 체크리스트"}
                     </div>
                     <div className="text-xs font-semibold text-faint mt-[5px] truncate">
                       {eventSubtitle(event)}
                     </div>
                   </div>
-                  <button type="button" onClick={openEvents} className="shrink-0 rounded-full border border-line bg-card px-3 py-2 text-xs font-bold text-muted md:hidden">행사 목록</button>
+                  <div className="shrink-0 text-[12.5px] font-bold text-accent">방문 {doneCount}/{all.length}</div>
                 </div>
 
+                {sheet ? <button type="button" aria-label="시트 닫기" onClick={() => setSheet(null)} className="fixed inset-0 z-20 bg-black/40 md:hidden" /> : null}
+
+                <div id="sheet-search" role="group" aria-label="검색" className={sheetCls("search")}>
                 <div className="flex items-center gap-2.5 h-12 bg-card border border-line rounded-[14px] px-3.5 md:h-10 md:max-w-[520px]">
                   <svg
                     viewBox="0 0 24 24"
@@ -179,6 +210,7 @@ export default function App() {
                     <path d="M21 21l-4-4" />
                   </svg>
                   <input
+                    ref={searchRef}
                     type="search"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
@@ -230,8 +262,10 @@ export default function App() {
                     </a>
                   ) : null}
                 </div>
+                </div>
 
-                <div className="flex gap-2 mt-3.5">
+                <div id="sheet-filter" role="group" aria-label="필터" className={sheetCls("filter")}>
+                <div className="flex gap-2 md:mt-3.5">
                   {STATUS.map((s) => (
                     <button
                       key={s.k}
@@ -243,10 +277,9 @@ export default function App() {
                     </button>
                   ))}
                 </div>
-              </div>
 
-              {/* 장르 칩 (가로 스크롤) */}
-              <div className="flex gap-2 overflow-x-auto no-scrollbar px-5 pt-1 pb-0.5 md:flex-wrap md:px-8 md:pt-4">
+              {/* 장르 칩 — 모바일 시트 안에서는 줄바꿈, 데스크톱은 topbar 아래 */}
+              <div className="flex flex-wrap gap-2 pt-3 md:pt-4 md:max-h-24 md:overflow-y-auto">
                 <button
                   onClick={() => setSelectedIps([])}
                   aria-pressed={selectedIps.length === 0}
@@ -269,17 +302,13 @@ export default function App() {
                   </button>
                 ))}
               </div>
-
-              {/* 진행 표시 */}
-              <div className="flex items-center justify-between px-[22px] pt-3.5 pb-2 md:px-8">
-                <div className="text-[12.5px] font-bold text-faint">참가 서클 {filtered.length}곳</div>
-                <div className="text-[12.5px] font-bold text-accent">
-                  방문 {doneCount}/{all.length}
                 </div>
               </div>
 
+              <div className="px-[22px] pt-3.5 pb-2 text-[12.5px] font-bold text-faint md:px-8">참가 서클 {filtered.length}곳</div>
+
               {/* 카드 목록 — 데스크톱은 2~3열 그리드 */}
-              <div className="px-5 md:px-8">
+              <div className="px-5 md:px-8" {...(sheet ? { inert: "" } : {})}>
                 {loadError && (
                   <div className="text-center py-14" role="alert">
                     <div className="text-[#e0455c] text-sm font-semibold">{loadError}</div>
@@ -360,6 +389,9 @@ export default function App() {
           </div>
         )}
       </main>
+      {showNav && (
+        <BottomNav sheet={sheet} onSheet={setSheet} onEvents={openEvents} searchCount={query ? 1 : 0} filterCount={filterCount} />
+      )}
     </div>
   );
 }

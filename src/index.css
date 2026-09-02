@@ -76,10 +76,3 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
-
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  scrollbar-width: none;
-}
