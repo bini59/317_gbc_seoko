@@ -218,7 +218,7 @@ export default function App() {
       />
       <main className={"w-full max-w-[560px] mx-auto border-x border-line md:max-w-none md:mx-0 md:border-x-0 md:min-h-screen " + (route.kind === "events" ? "" : "flex-1")}>
         {route.kind === "settings" ? (
-          <div className="px-5 py-7 md:px-8 md:py-10">
+          <div className="px-5 pt-7 pb-[calc(88px+env(safe-area-inset-bottom))] md:px-8 md:py-10">
             <h1 className="text-[26px] font-extrabold text-ink">설정</h1>
             <div className="mt-7 max-w-[640px]"><Settings authEnabled={authEnabled} user={user} syncedAt={syncedAt} theme={theme} onTheme={setTheme} onLogout={handleLogout} /></div>
           </div>

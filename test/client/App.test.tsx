@@ -107,13 +107,13 @@ describe("<App/> confirmed + unlisted", () => {
     expect(screen.queryByRole("button", { name: "로그인" })).toBeNull();
   });
 
-  it("keeps name/logout in the sidebar settings only when signed in (#30)", async () => {
+  it("keeps name/logout in the sidebar settings only when signed in (#52)", async () => {
     window.location.hash = "#/events/ev";
     mockApi(CIRCLES, true, { userId: "u1", email: null, name: "세오코", avatarUrl: null });
     render(<App />);
     await screen.findByText("부스서클");
     const settings = openSidebarSettings();
-    expect(await settings.findByRole("button", { name: "연동 해제" })).toBeTruthy();
+    expect(await settings.findByRole("button", { name: "로그아웃" })).toBeTruthy();
     expect(settings.getByText("세오코")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "연동하기" })).toBeNull();
     expect(screen.queryByRole("button", { name: "로그인" })).toBeNull();
@@ -125,10 +125,10 @@ describe("<App/> confirmed + unlisted", () => {
     render(<App />);
     await screen.findByText("부스서클");
     const settings = openSidebarSettings();
-    fireEvent.click(await settings.findByRole("button", { name: "연동 해제" }));
+    fireEvent.click(await settings.findByRole("button", { name: "로그아웃" }));
     expect(await settings.findByRole("button", { name: "연동하기" })).toBeTruthy();
     expect(vi.mocked(fetch)).toHaveBeenCalledWith("/api/auth/logout", { method: "POST", credentials: "include" });
-    expect(screen.queryByRole("button", { name: "연동 해제" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "로그아웃" })).toBeNull();
   });
 
   it("announces the merged count after the first remote sync (#45)", async () => {
@@ -186,7 +186,7 @@ describe("<App/> confirmed + unlisted", () => {
     render(<App />);
     await screen.findByText("부스서클");
     const settings = openSidebarSettings();
-    fireEvent.click(await settings.findByRole("button", { name: "연동 해제" }));
+    fireEvent.click(await settings.findByRole("button", { name: "로그아웃" }));
     expect(await settings.findByRole("button", { name: "연동하기" })).toBeTruthy();
   });
 
@@ -425,6 +425,7 @@ describe("<App/> bottom navigation (mobile)", () => {
     await screen.findByText("부스서클");
     fireEvent.click(screen.getByRole("button", { name: "설정" }));
     expect(await screen.findByRole("heading", { name: "설정" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "설정" }).parentElement?.className).toContain("pb-[calc(88px+env(safe-area-inset-bottom))]");
     fireEvent.click(screen.getByRole("button", { name: "행사" }));
     expect(await screen.findByRole("heading", { name: "행사 선택" })).toBeTruthy();
     fireEvent.click(screen.getByRole("link", { name: /코믹월드/ }));

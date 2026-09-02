@@ -103,7 +103,6 @@ export function Settings({
                   <span>계정센터<span className="sr-only"> (새 창)</span></span>
                   <External />
                 </a>
-                <button type="button" onClick={onLogout} className={rowCls + "text-danger hover:bg-danger/10"}>연동 해제</button>
               </div>
             </div>
           ) : (
@@ -142,6 +141,15 @@ export function Settings({
           </a>
         </div>
       </section>
+
+      {authEnabled && user ? (
+        <section className="grid gap-2.5">
+          <h3 className={headingCls}>계정</h3>
+          <div className="rounded-[14px] border border-line bg-card p-1.5">
+            <button type="button" onClick={onLogout} className={rowCls + "text-danger hover:bg-danger/10"}>로그아웃</button>
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }
