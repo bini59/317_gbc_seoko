@@ -14,6 +14,7 @@ import {
   optBool,
   dateOnly,
 } from "./validate";
+import { md5Hex } from "./md5";
 
 export type Bindings = {
   DB: D1Database;
@@ -71,7 +72,7 @@ type CircleRow = {
   ips: string | null;
 };
 
-type LinkRow = { participation_id: number; kind: string; label: string; url: string; sort_order: number };
+type LinkRow = { id: number; participation_id: number; kind: string; label: string; url: string; sort_order: number };
 type TweetRow = {
   participation_id: number;
   url: string;
@@ -126,7 +127,7 @@ function serializeCircle(row: CircleRow, links: LinkRow[], tweet?: TweetRow) {
     status: row.status,
     links: links
       .filter((l) => l.participation_id === row.participation_id)
-      .sort((a, b) => a.sort_order - b.sort_order)
+      .sort((a, b) => a.sort_order - b.sort_order || a.id - b.id)
       .map((l) => ({ kind: l.kind, label: l.label, url: l.url })),
     tweetInfo: tweet
       ? {
@@ -275,12 +276,13 @@ app.get("/events", async (c) => {
     }),
   );
   const { results } = await c.env.DB.prepare(
-    "SELECT id, slug, title, alias, fare_id, date_label, start_date, end_date, venue, map_url, status FROM events ORDER BY start_date DESC"
+    "SELECT id, slug, title, alias, fare_id, date_label, start_date, end_date, venue, map_url, status FROM events ORDER BY start_date DESC, id DESC"
   ).all<EventStatusRow & Record<string, unknown>>();
   const today = new Date().toISOString().slice(0, 10);
-  return c.json({
-    events: results.map((event) => ({ ...event, status: determineEventStatus(event, today) })),
-  });
+  const events = results.map((event) => ({ ...event, status: determineEventStatus(event, today) }));
+  const meta = { schemaVersion: 1, hash: await md5Hex(JSON.stringify(events)) };
+  if (c.req.query("metadata") === "1") return c.json({ meta });
+  return c.json({ events, meta });
 });
 
 app.post("/events", async (c) => {
@@ -337,7 +339,7 @@ app.get("/circles", async (c) => {
      FROM participations p
      JOIN circles c ON c.id = p.circle_id
      WHERE p.event_id = ? AND c.event_id = p.event_id AND (? = 'all' OR p.status = ?)
-     ORDER BY c.name`
+     ORDER BY c.name, c.id`
   )
     .bind(eventId, statusFilter, statusFilter)
     .all<CircleRow>();
@@ -363,7 +365,9 @@ app.get("/circles", async (c) => {
   }
 
   const circles = filteredRows.map((r) => serializeCircle(r, links, tweets.find((t) => t.participation_id === r.participation_id)));
-  return c.json({ circles });
+  const meta = { schemaVersion: 1, hash: await md5Hex(JSON.stringify(circles)) };
+  if (c.req.query("metadata") === "1") return c.json({ meta });
+  return c.json({ circles, meta });
 });
 
 app.get("/circles/:slug", async (c) => {

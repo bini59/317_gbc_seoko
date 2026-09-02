@@ -156,6 +156,37 @@ describe("worker API", () => {
     expect(list.json.events.map((e: any) => e.slug)).toContain("cw-2026-07");
   });
 
+  it("provides stable MD5 metadata without returning event data", async () => {
+    await call(env, "POST", "/api/events", { slug: "ev", title: "T", status: "active" });
+    const first = await call(env, "GET", "/api/events?metadata=1");
+    expect(first.status).toBe(200);
+    expect(first.json).toMatchObject({ meta: { schemaVersion: 1, hash: expect.stringMatching(/^[a-f0-9]{32}$/) } });
+    expect(first.json).not.toHaveProperty("events");
+
+    const second = await call(env, "GET", "/api/events?metadata=1");
+    expect(second.json.meta.hash).toBe(first.json.meta.hash);
+    const full = await call(env, "GET", "/api/events");
+    expect(full.json.meta).toEqual(first.json.meta);
+  });
+
+  it("changes circle metadata when event data changes and keeps it event-scoped", async () => {
+    await call(env, "POST", "/api/events", { slug: "a", title: "A", status: "active" });
+    await call(env, "POST", "/api/events", { slug: "b", title: "B", status: "upcoming" });
+    await call(env, "POST", "/api/circles", { slug: "same", name: "A 서클", event_slug: "a" });
+    await call(env, "POST", "/api/circles", { slug: "same", name: "B 서클", event_slug: "b" });
+
+    const a = await call(env, "GET", "/api/circles?event=a&status=all&metadata=1");
+    const b = await call(env, "GET", "/api/circles?event=b&status=all&metadata=1");
+    expect(a.json).toMatchObject({ meta: { schemaVersion: 1, hash: expect.stringMatching(/^[a-f0-9]{32}$/) } });
+    expect(b.json.meta.hash).not.toBe(a.json.meta.hash);
+
+    await call(env, "POST", "/api/circles", { slug: "new", name: "새 서클", event_slug: "a" });
+    const changedA = await call(env, "GET", "/api/circles?event=a&status=all&metadata=1");
+    const unchangedB = await call(env, "GET", "/api/circles?event=b&status=all&metadata=1");
+    expect(changedA.json.meta.hash).not.toBe(a.json.meta.hash);
+    expect(unchangedB.json.meta.hash).toBe(b.json.meta.hash);
+  });
+
   it("determines event status with inclusive event dates", () => {
     expect(determineEventStatus({ start_date: "2026-09-02", end_date: "2026-09-03", status: "past" }, "2026-09-01")).toBe("upcoming");
     expect(determineEventStatus({ start_date: "2026-09-02", end_date: "2026-09-03", status: "past" }, "2026-09-02")).toBe("active");

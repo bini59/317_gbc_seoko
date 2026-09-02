@@ -3,8 +3,8 @@ import { type Checks, loadChecks, saveChecks } from "../lib/checks";
 import { fetchChecks, saveChecks as saveRemoteChecks } from "../api";
 
 /**
- * 행사별 방문 체크 상태. 비로그인은 localStorage를 사용하고, 로그인 사용자는
- * 321_auth 세션으로 확인한 계정별 원격 저장소를 사용한다.
+ * 행사별 방문 체크 상태. 모든 사용자는 localStorage를 기준으로 사용하고,
+ * 로그인 사용자는 321_auth 세션으로 확인한 계정별 원격 저장소에도 저장한다.
  * `onSync(mergedCount)`는 원격 저장이 성공할 때마다 불린다 — 첫 병합은 로컬에서 올라간 체크 개수, 이후 저장은 0.
  * 저장 실패는 `onSyncError`로 알린다(상태는 되돌리지 않는다).
  */
@@ -33,6 +33,8 @@ export function useChecks(
     void fetchChecks(eventSlug).then(({ checks: remote }) => {
       const merged = { ...local, ...remote };
       setChecks(merged);
+      // 로그인 상태에서도 다음 로드와 로그아웃 이후를 위해 로컬 기준을 최신화한다.
+      saveChecks(localStorage, eventSlug, merged);
       // 원격과 다른 항목이 있을 때만 올린다 — 단순 로드는 저장도 안내도 없다
       if (!Object.keys(merged).some((id) => merged[id] !== remote[id])) return;
       const fromLocal = Object.keys(local).filter((id) => local[id] && !remote[id]).length;
@@ -42,8 +44,8 @@ export function useChecks(
 
   const persist = (next: Checks) => {
     if (!eventSlug) return;
+    saveChecks(localStorage, eventSlug, next);
     if (authenticated) void saveRemoteChecks(eventSlug, next).then(() => cb.current.onSync?.(0), () => cb.current.onSyncError?.());
-    else saveChecks(localStorage, eventSlug, next);
   };
 
   const toggle = (id: string) =>

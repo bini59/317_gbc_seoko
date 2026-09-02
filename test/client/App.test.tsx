@@ -228,6 +228,23 @@ describe("<App/> confirmed + unlisted", () => {
     expect(Object.values(stored).some(Boolean)).toBe(true);
   });
 
+  it("persists a signed-in visit check locally before remote sync", async () => {
+    window.location.hash = "#/events/ev";
+    mockApi(CIRCLES, true, { userId: "u1", email: null, name: "세오코", avatarUrl: null });
+    render(<App />);
+    await screen.findByText("부스서클");
+    fireEvent.click(screen.getByLabelText("방문 체크"));
+
+    await waitFor(() => {
+      const stored = JSON.parse(localStorage.getItem("gbc-seoko-checks:ev") || "{}");
+      expect(stored.tsuhan1).toBe(true);
+    });
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+      expect.stringContaining("/api/checks?event=ev"),
+      expect.objectContaining({ method: "PUT" }),
+    );
+  });
+
   it("builds top filters only from the selected 행사의 IPs and hides a missing map link", async () => {
     window.location.hash = "#/events/ev";
     render(<App />);
