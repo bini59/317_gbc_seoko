@@ -172,7 +172,7 @@ export default function App() {
           <div className="px-5 pt-7 pb-2 md:px-8 md:py-10">
             <h1 className="text-[26px] font-extrabold text-ink">행사 선택</h1>
             <p className="mt-2 text-sm text-muted">방문할 행사를 골라 관심 서클을 확인하세요.</p>
-            {loadError ? <div role="alert" className="mt-8 text-sm text-[#e0455c]">{loadError}</div> : null}
+            {loadError ? <div role="alert" className="mt-8 text-sm text-danger">{loadError}</div> : null}
             {!loading && !loadError && events.length === 0 ? <div className="py-14 text-center text-sm text-faint">등록된 행사가 없어요</div> : null}
           </div>
         ) : (
@@ -311,7 +311,7 @@ export default function App() {
               <div className="px-5 md:px-8" {...(sheet ? { inert: "" } : {})}>
                 {loadError && (
                   <div className="text-center py-14" role="alert">
-                    <div className="text-[#e0455c] text-sm font-semibold">{loadError}</div>
+                    <div className="text-danger text-sm font-semibold">{loadError}</div>
                     <button
                       onClick={() => void load()}
                       disabled={loading}

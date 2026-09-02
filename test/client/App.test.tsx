@@ -95,7 +95,7 @@ describe("<App/> confirmed + unlisted", () => {
     window.location.hash = "#/events/ev";
     mockApi(CIRCLES, true, { userId: "u1", email: null, name: "세오코", avatarUrl: null });
     render(<App />);
-    const trigger = await screen.findByRole("button", { name: "프로필 메뉴" });
+    const trigger = await screen.findByRole("button", { name: /프로필 메뉴/ });
     expect(trigger.closest("aside")).not.toBeNull();
     expect(screen.getByText("세오코")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "기기 간 동기화" })).toBeNull();
@@ -231,6 +231,11 @@ describe("<App/> bottom navigation (mobile)", () => {
     const nav = screen.getByRole("navigation", { name: "하단 메뉴" });
     expect(nav.querySelectorAll("button").length).toBe(4);
     expect(screen.getByRole("button", { name: "목록" }).getAttribute("aria-current")).toBe("page");
+    const indicator = nav.querySelector<HTMLElement>('span[aria-hidden="true"]')!;
+    expect(indicator.style.transform).toBe("translateX(0%)");
+    fireEvent.click(screen.getByRole("button", { name: "검색" }));
+    expect(indicator.style.transform).toBe("translateX(100%)");
+    fireEvent.click(screen.getByRole("button", { name: "목록" }));
     fireEvent.click(screen.getByRole("button", { name: "행사 목록" }));
     await waitFor(() => expect(window.location.hash).toBe("#/"));
     expect(screen.queryByRole("navigation", { name: "하단 메뉴" })).toBeNull();

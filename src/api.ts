@@ -74,14 +74,16 @@ export async function fetchAuth(): Promise<{ enabled: boolean; user: AuthUser | 
   return await res.json();
 }
 
+export const AUTH_ORIGIN = "https://auth.bini59.dev";
+
 export function login(): void {
   const returnTo = `${window.location.origin}${window.location.pathname}${window.location.hash}`;
-  window.location.href = `https://auth.bini59.dev/login?client_id=seoko-maps&return_to=${encodeURIComponent(returnTo)}`;
+  window.location.href = `${AUTH_ORIGIN}/login?client_id=seoko-maps&return_to=${encodeURIComponent(returnTo)}`;
 }
 
 export function logout(): void {
   const returnTo = `${window.location.origin}${window.location.pathname}${window.location.hash}`;
-  window.location.href = `https://auth.bini59.dev/logout?client_id=seoko-maps&return_to=${encodeURIComponent(returnTo)}`;
+  window.location.href = `${AUTH_ORIGIN}/logout?client_id=seoko-maps&return_to=${encodeURIComponent(returnTo)}`;
 }
 
 export async function fetchChecks(eventSlug: string): Promise<ChecksResponse> {
