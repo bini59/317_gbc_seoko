@@ -27,8 +27,6 @@ function json(obj: unknown) {
 }
 
 function mockApi(circles: ApiCircleLike[], authEnabled = false, user: { userId: string; email: null; name: string; avatarUrl: null } | null = null) {
-  const json = (obj: unknown) =>
-    new Response(JSON.stringify(obj), { status: 200, headers: { "content-type": "application/json" } });
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string) => {

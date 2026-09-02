@@ -14,6 +14,8 @@ import { useInstallPrompt } from "./hooks/useInstallPrompt";
 import { eventSubtitle } from "./lib/event";
 import { clearAllChecks } from "./lib/checks";
 
+const READ_STALE_TIME = 5 * 60 * 1000;
+
 /* ---------- 앱 ---------- */
 export default function App() {
   const { route, openEvents, openEvent, openCircle, backToEvent, openSettings } = useAppRoute();
@@ -44,7 +46,7 @@ export default function App() {
   const eventsQuery = useQuery({
     queryKey: ["events"],
     queryFn: ({ signal }) => fetchEvents(signal),
-    staleTime: 5 * 60 * 1000,
+    staleTime: READ_STALE_TIME,
     retry: false,
     enabled: routeMode !== "settings",
   });
@@ -69,7 +71,7 @@ export default function App() {
   const circlesQuery = useQuery({
     queryKey: ["circles", eventSlug],
     queryFn: ({ signal }) => fetchCircles(eventSlug!, signal),
-    staleTime: 5 * 60 * 1000,
+    staleTime: READ_STALE_TIME,
     retry: false,
     enabled: isChecklistRoute && eventSlug !== null,
   });
