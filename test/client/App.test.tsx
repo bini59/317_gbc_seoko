@@ -96,8 +96,9 @@ describe("<App/> confirmed + unlisted", () => {
     window.location.hash = "#/events/ev";
     mockApi(CIRCLES, true, { userId: "u1", email: null, name: "세오코", avatarUrl: null });
     render(<App />);
-    expect(await screen.findByText("세오코 · 동기화 중")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "로그아웃" }).closest("aside")).not.toBeNull();
+    const trigger = await screen.findByRole("button", { name: /프로필 메뉴/ });
+    expect(trigger.closest("aside")).not.toBeNull();
+    expect(screen.getByText("세오코")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "기기 간 동기화" })).toBeNull();
     expect(screen.queryByRole("button", { name: "로그인" })).toBeNull();
   });
@@ -106,10 +107,11 @@ describe("<App/> confirmed + unlisted", () => {
     window.location.hash = "#/events/ev";
     mockApi(CIRCLES, true, { userId: "u1", email: null, name: "세오코", avatarUrl: null });
     render(<App />);
-    fireEvent.click(await screen.findByRole("button", { name: "로그아웃" }));
+    fireEvent.click(await screen.findByRole("button", { name: /프로필 메뉴/ }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "로그아웃" }));
     expect(await screen.findByRole("button", { name: "기기 간 동기화" })).toBeTruthy();
     expect(vi.mocked(fetch)).toHaveBeenCalledWith("/api/auth/logout", { method: "POST", credentials: "include" });
-    expect(screen.queryByText("세오코 · 동기화 중")).toBeNull();
+    expect(screen.queryByRole("button", { name: /프로필 메뉴/ })).toBeNull();
   });
 
   it("still signs out locally when the logout request fails (#34)", async () => {
@@ -121,7 +123,8 @@ describe("<App/> confirmed + unlisted", () => {
       return base(url, init);
     });
     render(<App />);
-    fireEvent.click(await screen.findByRole("button", { name: "로그아웃" }));
+    fireEvent.click(await screen.findByRole("button", { name: /프로필 메뉴/ }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "로그아웃" }));
     expect(await screen.findByRole("button", { name: "기기 간 동기화" })).toBeTruthy();
   });
 
@@ -254,6 +257,11 @@ describe("<App/> bottom navigation (mobile)", () => {
     const nav = screen.getByRole("navigation", { name: "하단 메뉴" });
     expect(nav.querySelectorAll("button").length).toBe(4);
     expect(screen.getByRole("button", { name: "목록" }).getAttribute("aria-current")).toBe("page");
+    const indicator = nav.querySelector<HTMLElement>('span[aria-hidden="true"]')!;
+    expect(indicator.style.transform).toBe("translateX(0%)");
+    fireEvent.click(screen.getByRole("button", { name: "검색" }));
+    expect(indicator.style.transform).toBe("translateX(100%)");
+    fireEvent.click(screen.getByRole("button", { name: "목록" }));
     fireEvent.click(screen.getByRole("button", { name: "행사 목록" }));
     await waitFor(() => expect(window.location.hash).toBe("#/"));
     expect(screen.queryByRole("navigation", { name: "하단 메뉴" })).toBeNull();

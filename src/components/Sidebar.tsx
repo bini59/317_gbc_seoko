@@ -1,4 +1,5 @@
 import { login, type ApiEvent, type AuthUser } from "../api";
+import { ProfileMenu } from "./ProfileMenu";
 import { eventSubtitle } from "../lib/event";
 
 const EVENT_SECTIONS = [
@@ -78,10 +79,7 @@ export function Sidebar({
       {authEnabled ? (
         <div className="border-t border-line px-5 py-4 text-xs text-faint">
           {user ? (
-            <div className="flex items-center justify-between gap-2">
-              <span className="truncate">{user.name ?? "로그인됨"} · 동기화 중</span>
-              <button type="button" onClick={onLogout} className="shrink-0 font-bold text-muted">로그아웃</button>
-            </div>
+            <ProfileMenu user={user} onLogout={onLogout} />
           ) : (
             <button type="button" onClick={login} className="text-left font-semibold text-muted">
               기기 간 동기화

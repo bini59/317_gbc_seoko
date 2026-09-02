@@ -61,7 +61,7 @@ export function BottomNav({
   const activeIndex = sheet === "search" ? 1 : sheet === "filter" ? 2 : 0;
   return (
     <nav aria-label="하단 메뉴" className="glass fixed left-1/2 -translate-x-1/2 w-[calc(100%-24px)] max-w-[536px] bottom-[calc(env(safe-area-inset-bottom)+12px)] z-30 flex rounded-full shadow-[0_8px_30px_rgba(0,0,0,.18)] overflow-hidden md:hidden">
-      {/* 활성 탭 하이라이트 — 탭 사이를 미끄러지듯 이동. 행사 탭은 라우팅이라 인디케이터 없음 */}
+      {/* 활성 탭 하이라이트 — 탭 사이를 미끄러지듯 이동. 행사 탭은 라우팅이라 인디케이터 없음. ponytail: 탭 4개 고정(w-1/4) */}
       <span
         aria-hidden="true"
         className="absolute inset-y-1.5 left-0 w-1/4 rounded-full bg-accent/12 transition-transform duration-300 ease-out motion-reduce:transition-none"
