@@ -95,8 +95,9 @@ describe("<App/> confirmed + unlisted", () => {
     window.location.hash = "#/events/ev";
     mockApi(CIRCLES, true, { userId: "u1", email: null, name: "세오코", avatarUrl: null });
     render(<App />);
-    expect(await screen.findByText("세오코 · 동기화 중")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "로그아웃" }).closest("aside")).not.toBeNull();
+    const trigger = await screen.findByRole("button", { name: "프로필 메뉴" });
+    expect(trigger.closest("aside")).not.toBeNull();
+    expect(screen.getByText("세오코")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "기기 간 동기화" })).toBeNull();
     expect(screen.queryByRole("button", { name: "로그인" })).toBeNull();
   });
