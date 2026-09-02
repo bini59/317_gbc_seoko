@@ -75,6 +75,19 @@ describe("<App/> accessibility + routing", () => {
     await waitFor(() => expect(screen.getByText("서클 상세")).toBeTruthy());
   });
 
+  it("opens settings as a real route and keeps the current data loaded", async () => {
+    window.location.hash = "#/events/ev";
+    render(<App />);
+    await screen.findByText("부스서클");
+    const callsBefore = vi.mocked(fetch).mock.calls.length;
+    fireEvent.click(screen.getByRole("button", { name: "설정" }));
+    expect(window.location.hash).toBe("#/settings");
+    expect(await screen.findByRole("heading", { name: "설정" })).toBeTruthy();
+    expect(screen.getByText("코믹월드")).toBeTruthy();
+    expect(vi.mocked(fetch).mock.calls.length).toBe(callsBefore);
+    expect(screen.getByRole("link", { name: "설정" }).getAttribute("aria-current")).toBe("page");
+  });
+
   it("opens a legacy detail hash in the active 행사 context", async () => {
     window.location.hash = "#/c/booth1";
     render(<App />);

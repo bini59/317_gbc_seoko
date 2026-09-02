@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { circleHash, eventHash, parseRoute, type AppRoute } from "../lib/route";
+import { circleHash, eventHash, parseRoute, settingsHash, type AppRoute } from "../lib/route";
 
 export function useAppRoute() {
   const [route, setRoute] = useState<AppRoute>(() => parseRoute(window.location.hash));
@@ -19,5 +19,6 @@ export function useAppRoute() {
     route,
     openCircle: (eventSlug: string, circleSlug: string) => navigate(circleHash(eventSlug, circleSlug)),
     backToEvent: (eventSlug: string) => navigate(eventHash(eventSlug)),
+    openSettings: () => navigate(settingsHash()),
   };
 }

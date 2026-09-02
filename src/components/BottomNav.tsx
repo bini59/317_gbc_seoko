@@ -1,4 +1,4 @@
-export type Sheet = "search" | "filter" | "events" | "settings" | null;
+export type Sheet = "search" | "filter" | "events" | null;
 
 const ICONS = {
   list: <><path d="M4 6h16M4 12h16M4 18h16" /></>,
@@ -49,23 +49,24 @@ function Tab({
 
 /** 모바일 전용 하단 네비 — md 이상은 사이드바/topbar가 대신한다. */
 export function BottomNav({
-  sheet, onSheet, searchCount, filterCount,
+  sheet, onSheet, searchCount, filterCount, settingsActive, onSettings,
 }: {
   sheet: Sheet;
   onSheet: (next: Sheet) => void;
   searchCount: number;
   filterCount: number;
+  settingsActive: boolean;
+  onSettings: () => void;
 }) {
   const toggle = (s: Exclude<Sheet, null>) => onSheet(sheet === s ? null : s);
-  // ponytail: 설정 시트는 탭이 아니라 헤더 톱니에서 열린다 — 렌즈·활성 상태는 "목록"(0)에 머무른다
-  const activeIndex = sheet === "search" ? 1 : sheet === "filter" ? 2 : sheet === "events" ? 3 : 0;
+  const activeIndex = settingsActive ? 4 : sheet === "search" ? 1 : sheet === "filter" ? 2 : sheet === "events" ? 3 : 0;
   const listActive = activeIndex === 0;
   return (
     <nav aria-label="하단 메뉴" className="glass glass-refract fixed left-1/2 -translate-x-1/2 w-[calc(100%-24px)] max-w-[536px] bottom-[calc(env(safe-area-inset-bottom)+12px)] z-30 flex rounded-full p-1.5 md:hidden">
       {/* 렌즈 인디케이터 — 탭 사이를 액체처럼 미끄러진다. ponytail: 탭 4개 고정(w = (100%-패딩)/4) */}
       <span
         aria-hidden="true"
-        className="glass-lens absolute inset-y-1.5 left-1.5 w-[calc(25%-3px)]"
+        className="glass-lens absolute inset-y-1.5 left-1.5 w-[calc(20%-3px)]"
         style={{ transform: `translateX(${activeIndex * 100}%)` }}
       >
         <span key={activeIndex} className="glass-lens-body block h-full w-full rounded-full" />
@@ -74,6 +75,7 @@ export function BottomNav({
       <Tab icon="search" label="검색" active={sheet === "search"} badge={searchCount} aria-expanded={sheet === "search"} aria-controls="sheet-search" onClick={() => toggle("search")} />
       <Tab icon="filter" label="필터" active={sheet === "filter"} badge={filterCount} aria-expanded={sheet === "filter"} aria-controls="sheet-filter" onClick={() => toggle("filter")} />
       <Tab icon="events" label="행사" active={sheet === "events"} aria-expanded={sheet === "events"} aria-controls="sheet-events" onClick={() => toggle("events")} />
+      <Tab icon="list" label="설정" active={settingsActive} aria-current={settingsActive ? "page" : undefined} onClick={onSettings} />
     </nav>
   );
 }
