@@ -463,6 +463,7 @@ describe("<App/> confirmed + unlisted", () => {
         }
       });
       expect(screen.getByText("새 데이터")).toBeTruthy();
+      expect(screen.getAllByText("새 행사 버전").length).toBeGreaterThan(0);
     } finally {
       vi.useRealTimers();
     }
