@@ -1,11 +1,11 @@
 ---
 name: gh-issue
-description: "Pull a GitHub issue from bini59/317_gbc_seoko, read its body and comments, clarify the scope, then hand off to planning. Use when the user wants to start from an issue, says '이슈 가져와', or provides an issue number or URL."
+description: "Pull a GitHub issue from bini59/317_gbc_seoko, read its body and comments, clarify the scope, then hand off to $dev-flow. Use when the user wants to start from an issue, says '이슈 가져와', or provides an issue number or URL."
 ---
 
 # GitHub Issue Intake
 
-Pull a GitHub issue, clarify it, and hand the resolved scope to planning. Track work entirely in GitHub issues in `bini59/317_gbc_seoko`.
+Pull a GitHub issue, clarify it, and hand the resolved scope to `$dev-flow`. Track work entirely in GitHub issues in `bini59/317_gbc_seoko`.
 
 ## 1. Pick or create the issue
 
@@ -19,7 +19,7 @@ Read the body and every comment. Summarize the requested outcome, constraints, a
 
 ## 3. Resolve the scope
 
-Run `$grill-with-docs` using the issue discussion as the starting point. Use `graphify-out/graph.json` and the codebase to answer repository questions before asking the user. Update `CONTEXT.md` or an ADR only when the domain-modeling rules call for it.
+Run `$grill-with-docs` using the issue discussion as the starting point. Use `graphify-out/graph.json` and the codebase to answer repository questions before asking the user. Update an ADR only when the domain-modeling rules call for it.
 
 Post material conclusions with `gh issue comment <number> --repo bini59/317_gbc_seoko --body "..."` only after confirming the comment with the user.
 
