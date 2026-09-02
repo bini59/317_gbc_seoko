@@ -11,8 +11,8 @@
   --app-fg: #ededed;
   --app-fg-2: #a1a1a1;
   --app-fg-3: #6f6f6f;
-  --app-accent: #3b82f6;
-  --app-accent-soft: rgba(59, 130, 246, .14);
+  --app-accent: #f472b6;
+  --app-accent-soft: rgba(244, 114, 182, .14);
   color-scheme: dark;
 }
 
@@ -26,8 +26,8 @@
   --app-fg: #111111;
   --app-fg-2: #5f5f5f;
   --app-fg-3: #8b8b8b;
-  --app-accent: #0062d6;
-  --app-accent-soft: rgba(0, 98, 214, .1);
+  --app-accent: #c8286b;
+  --app-accent-soft: rgba(200, 40, 107, .1);
   color-scheme: light;
 }
 
@@ -42,8 +42,8 @@
     --app-fg: #ededed;
     --app-fg-2: #a1a1a1;
     --app-fg-3: #6f6f6f;
-    --app-accent: #3b82f6;
-    --app-accent-soft: rgba(59, 130, 246, .14);
+    --app-accent: #f472b6;
+    --app-accent-soft: rgba(244, 114, 182, .14);
     color-scheme: dark;
   }
 }
