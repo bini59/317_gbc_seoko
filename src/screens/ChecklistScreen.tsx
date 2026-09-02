@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef } from "react";
-import { useQuery, type UseQueryResult } from "@tanstack/react-query";
-import { fetchCircles, type ApiEvent } from "../api";
+import { useQuery } from "@tanstack/react-query";
+import type { ApiEvent } from "../api";
 import { badgeColor, filterCircles, STATUS } from "../lib/circle";
 import type { Checks } from "../lib/checks";
 import { eventSubtitle } from "../lib/event";
-import { READ_STALE_TIME } from "../lib/query";
+import { circlesQuery as circlesOptions, eventsQuery as eventsOptions } from "../lib/queries";
 import { Card } from "../components/Card";
 import { Detail } from "../components/Detail";
 import { EventList } from "../components/Sidebar";
@@ -15,8 +15,6 @@ type Props = {
   /** 라우트가 가리키는 행사. events 로딩 중이거나 slug가 없으면 null. */
   event: ApiEvent | null;
   circleSlug: string | null;
-  events: ApiEvent[];
-  eventsQuery: UseQueryResult<ApiEvent[]>;
   checks: Checks;
   onToggle: (id: string) => void;
   filters: ChecklistFilters;
@@ -36,20 +34,16 @@ const genreChip = (active: boolean) =>
 
 /** 행사 하나의 체크리스트 화면. 필터/시트 상태는 하단 네비와 공유하므로 쉘이 소유하고 props로 받는다. */
 export function ChecklistScreen({
-  event, circleSlug, events, eventsQuery, checks, onToggle, filters, sheet, onSheet: setSheet,
+  event, circleSlug, checks, onToggle, filters, sheet, onSheet: setSheet,
   onOpenEvent, onOpenCircle,
 }: Props) {
   const { status, setStatus, selectedIps, setSelectedIps, query, setQuery } = filters;
   const searchRef = useRef<HTMLInputElement>(null);
   const eventSlug = event?.slug ?? null;
 
-  const circlesQuery = useQuery({
-    queryKey: ["circles", eventSlug],
-    queryFn: ({ signal }) => fetchCircles(eventSlug!, signal),
-    staleTime: READ_STALE_TIME,
-    retry: false,
-    enabled: eventSlug !== null,
-  });
+  const eventsQuery = useQuery(eventsOptions());
+  const events = eventsQuery.data ?? [];
+  const circlesQuery = useQuery(circlesOptions(eventSlug));
   const circles = circlesQuery.data?.circles ?? [];
   const witchformExtra = circlesQuery.data?.witchformExtra ?? [];
   const missingEvent = eventsQuery.isSuccess && !event;
