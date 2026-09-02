@@ -13,6 +13,8 @@
   --app-fg-3: #6f6f6f;
   --app-accent: #f472b6;
   --app-accent-soft: rgba(244, 114, 182, .14);
+  --glass-bg: rgba(20, 20, 20, .62);
+  --glass-border: rgba(255, 255, 255, .12);
   color-scheme: dark;
 }
 
@@ -28,6 +30,8 @@
   --app-fg-3: #8b8b8b;
   --app-accent: #c8286b;
   --app-accent-soft: rgba(200, 40, 107, .1);
+  --glass-bg: rgba(255, 255, 255, .72);
+  --glass-border: rgba(0, 0, 0, .08);
   color-scheme: light;
 }
 
@@ -44,6 +48,8 @@
     --app-fg-3: #6f6f6f;
     --app-accent: #f472b6;
     --app-accent-soft: rgba(244, 114, 182, .14);
+  --glass-bg: rgba(20, 20, 20, .62);
+  --glass-border: rgba(255, 255, 255, .12);
     color-scheme: dark;
   }
 }
@@ -75,4 +81,21 @@ body {
   color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+}
+
+/* 리퀴드 글래스 재질(#36) — 하단 네비/시트 공용. CSS만, SVG 굴절 필터 없음.
+   @utility로 등록해 md:border-0 같은 반응형 유틸이 덮어쓸 수 있게 한다 */
+@utility glass {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  backdrop-filter: blur(18px) saturate(180%);
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    background: var(--app-panel);
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    background: var(--app-panel);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
 }
