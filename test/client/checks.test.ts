@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { loadChecks, saveChecks, checksKey, type KV } from "../../src/lib/checks";
+import { loadChecks, loadChecksState, saveChecks, saveChecksState, checksKey, checksMetaKey, type KV } from "../../src/lib/checks";
 
 function fakeKV(seed: Record<string, string> = {}): KV & { store: Map<string, string> } {
   const store = new Map(Object.entries(seed));
@@ -46,5 +46,14 @@ describe("per-event checks", () => {
   it("ignores check entries that are not booleans", () => {
     const kv = fakeKV({ [checksKey("ev")]: JSON.stringify({ good: true, bad: "yes" }) });
     expect(loadChecks(kv, "ev")).toEqual({});
+  });
+
+  it("keeps the legacy checks key while storing a sync timestamp separately", () => {
+    const kv = fakeKV();
+    saveChecksState(kv, "ev", { checks: { booth: true }, updatedAt: "2026-09-02T06:00:00.123Z" });
+
+    expect(JSON.parse(kv.store.get(checksKey("ev"))!)).toEqual({ booth: true });
+    expect(loadChecksState(kv, "ev")).toEqual({ checks: { booth: true }, updatedAt: "2026-09-02T06:00:00.123Z" });
+    expect(kv.store.has(checksMetaKey("ev"))).toBe(true);
   });
 });

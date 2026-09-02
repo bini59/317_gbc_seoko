@@ -58,7 +58,10 @@
 
 ## 5. 상태
 
-- 방문 체크는 `localStorage["gbc-seoko-2026-07-checks"]`에 저장(기존 키 유지).
+- 방문 체크는 `localStorage["gbc-seoko-checks:<eventSlug>"]`에 행사별로 저장하고,
+  동기화 시각은 `gbc-seoko-checks-meta:<eventSlug>`에 저장한다.
+- 로그인 사용자는 서버 `updatedAt`을 기준으로 최신 상태를 선택한다. 같은 시각은
+  원격 우선이며, 서버는 조건부 UPDATE로 오래된 요청의 덮어쓰기를 막는다.
 - 필터(상태/장르)·검색은 클라이언트 상태. 카드 탭 → 상세, 뒤로가기 → 목록.
 
 ## 6. 모션

@@ -90,6 +90,44 @@ type EventStatusRow = {
   status: string;
 };
 
+type UserChecksRow = { checks: string; updated_at: string };
+
+const CHECKS_TIMESTAMP_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+const MAX_CLIENT_CLOCK_AHEAD_MS = 5 * 60 * 1000;
+
+function normalizeChecksTimestamp(value: unknown): string | null {
+  if (typeof value !== "string" || !CHECKS_TIMESTAMP_RE.test(value)) return null;
+  const time = Date.parse(value);
+  return Number.isNaN(time) ? null : new Date(time).toISOString();
+}
+
+function formatStoredChecksTimestamp(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const time = Date.parse(value);
+  return Number.isNaN(time) ? null : new Date(time).toISOString();
+}
+
+function nextServerTimestamp(current: string | null, requested: string | null): string {
+  const now = Date.now();
+  const currentTime = current ? Date.parse(current) : Number.NaN;
+  const requestedTime = requested ? Date.parse(requested) : Number.NaN;
+  return new Date(Math.max(
+    now,
+    Number.isNaN(currentTime) ? 0 : currentTime + 1,
+    Number.isNaN(requestedTime) ? 0 : requestedTime,
+  )).toISOString();
+}
+
+function parseStoredChecks(value: string): Record<string, boolean> {
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return Object.fromEntries(Object.entries(parsed).map(([key, item]) => [key, item === true]));
+  } catch {
+    return {};
+  }
+}
+
 export function determineEventStatus(
   event: Pick<EventStatusRow, "start_date" | "end_date" | "status">,
   today = new Date().toISOString().slice(0, 10),
@@ -142,21 +180,39 @@ function serializeCircle(row: CircleRow, links: LinkRow[], tweet?: TweetRow) {
 }
 
 /** content-type 확인 + JSON 파싱. 실패 시 ValidationError → 일관된 400. */
-async function readJson(c: Context): Promise<Record<string, unknown>> {
+async function readJson(c: Context, maxBytes = 256 * 1024): Promise<Record<string, unknown>> {
   const ct = c.req.header("content-type") || "";
   if (!ct.includes("application/json")) {
     throw new ValidationError("content-type은 application/json이어야 해요");
   }
+  const contentLength = Number(c.req.header("content-length"));
+  if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+    throw new ValidationError("본문이 너무 커요");
+  }
   let body: unknown;
   try {
-    body = await c.req.json();
-  } catch {
+    const raw = await c.req.text();
+    if (new TextEncoder().encode(raw).byteLength > maxBytes) throw new ValidationError("본문이 너무 커요");
+    body = JSON.parse(raw);
+  } catch (error) {
+    if (error instanceof ValidationError) throw error;
     throw new ValidationError("본문이 올바른 JSON이 아니에요");
   }
   if (typeof body !== "object" || body === null || Array.isArray(body)) {
     throw new ValidationError("본문은 JSON 객체여야 해요");
   }
   return body as Record<string, unknown>;
+}
+
+function sessionMutationAllowed(c: Context<{ Bindings: Bindings }>): boolean {
+  const site = c.req.header("sec-fetch-site");
+  const origin = c.req.header("origin");
+  if (site === "cross-site") return false;
+  if (origin && origin !== new URL(c.req.url).origin) {
+    const allowed = (c.env.ALLOWED_ORIGINS || "").split(",").map((item) => item.trim()).filter(Boolean);
+    if (!allowed.includes(origin)) return false;
+  }
+  return true;
 }
 
 export const app = new Hono<{ Bindings: Bindings }>().basePath("/api");
@@ -205,10 +261,7 @@ app.get("/auth/me", async (c) => {
 // 워커가 sid를 대신 넘겨 서버 간 POST로 세션을 revoke하고, 로컬 sid 쿠키를 지운다.
 app.post("/auth/logout", async (c) => {
   // 우리 라우트가 321_auth의 CSRF 가드를 대신 만족시키므로, 타 출처 폼 POST로 강제 로그아웃되지 않게 출처를 확인한다.
-  const site = c.req.header("sec-fetch-site");
-  const origin = c.req.header("origin");
-  const crossSite = (site && site !== "same-origin") || (origin && new URL(origin).host !== new URL(c.req.url).host);
-  if (crossSite) return c.json({ error: "forbidden", code: "forbidden" }, 403);
+  if (!sessionMutationAllowed(c)) return c.json({ error: "forbidden", code: "forbidden" }, 403);
 
   const sid = /(?:^|;\s*)sid=([A-Za-z0-9._~+/=-]+)/.exec(c.req.header("cookie") ?? "")?.[1];
   let revoked = false;
@@ -242,17 +295,18 @@ app.get("/checks", async (c) => {
   const eventSlug = vSlug(c.req.query("event"), "event");
   const user = await requireAuth(c);
   if (user instanceof Response) return user;
-  const row = await c.env.DB.prepare("SELECT checks FROM user_checks WHERE user_id = ? AND event_slug = ?")
+  const row = await c.env.DB.prepare("SELECT checks, updated_at FROM user_checks WHERE user_id = ? AND event_slug = ?")
     .bind(user.userId, eventSlug)
-    .first<{ checks: string }>();
-  return c.json({ checks: row ? JSON.parse(row.checks) : {} });
+    .first<UserChecksRow>();
+  return c.json({ checks: row ? parseStoredChecks(row.checks) : {}, updatedAt: formatStoredChecksTimestamp(row?.updated_at) });
 });
 
 app.put("/checks", async (c) => {
+  if (!sessionMutationAllowed(c)) return c.json({ error: "forbidden", code: "forbidden" }, 403);
   const eventSlug = vSlug(c.req.query("event"), "event");
   const user = await requireAuth(c);
   if (user instanceof Response) return user;
-  const body = await readJson(c);
+  const body = await readJson(c, 256 * 1024);
   const checks = body.checks;
   if (typeof checks !== "object" || checks === null || Array.isArray(checks)) {
     throw new ValidationError("checks는 JSON 객체여야 해요");
@@ -262,11 +316,69 @@ app.put("/checks", async (c) => {
   if (keys.length > 3000 || keys.some((key) => key.length > 200)) {
     throw new ValidationError("방문 체크 항목이 너무 많거나 길어요");
   }
-  const normalized = Object.fromEntries(keys.map((key) => [key, checkMap[key] === true]));
-  await c.env.DB.prepare(
-    "INSERT INTO user_checks (user_id, event_slug, checks, updated_at) VALUES (?, ?, ?, datetime('now')) ON CONFLICT(user_id, event_slug) DO UPDATE SET checks = excluded.checks, updated_at = excluded.updated_at",
-  ).bind(user.userId, eventSlug, JSON.stringify(normalized)).run();
-  return c.json({ checks: normalized });
+  if (keys.some((key) => typeof checkMap[key] !== "boolean")) {
+    throw new ValidationError("checks의 값은 boolean이어야 해요");
+  }
+  const normalized = checkMap as Record<string, boolean>;
+  const requestedAt = body.updatedAt === undefined || body.updatedAt === null
+    ? null
+    : normalizeChecksTimestamp(body.updatedAt);
+  if (body.updatedAt !== undefined && body.updatedAt !== null && requestedAt === null) {
+    throw new ValidationError("updatedAt은 UTC 밀리초 ISO 시각이어야 해요");
+  }
+
+  // A client timestamp derived from a server response is accepted, but a badly
+  // skewed client clock must not manufacture a future version over current data.
+  if (requestedAt && Date.parse(requestedAt) > Date.now() + MAX_CLIENT_CLOCK_AHEAD_MS) {
+    const current = await c.env.DB.prepare("SELECT checks, updated_at FROM user_checks WHERE user_id = ? AND event_slug = ?")
+      .bind(user.userId, eventSlug)
+      .first<UserChecksRow>();
+    return c.json({
+      checks: current ? parseStoredChecks(current.checks) : {},
+      updatedAt: formatStoredChecksTimestamp(current?.updated_at),
+      saved: false,
+      conflict: "clock_skew",
+    });
+  }
+
+  // The comparison is repeated in the conditional UPDATE, so a request that
+  // races another request cannot overwrite a newer row between SELECT and UPDATE.
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const current = await c.env.DB.prepare("SELECT checks, updated_at FROM user_checks WHERE user_id = ? AND event_slug = ?")
+      .bind(user.userId, eventSlug)
+      .first<UserChecksRow>();
+    const rawCurrentAt = current?.updated_at ?? null;
+    const currentAt = formatStoredChecksTimestamp(rawCurrentAt);
+
+    // Missing timestamps are legacy/unknown writes and are never allowed to
+    // replace an existing server snapshot. They may still create the first row.
+    if (current && currentAt && (!requestedAt || Date.parse(requestedAt) <= Date.parse(currentAt))) {
+      return c.json({ checks: parseStoredChecks(current.checks), updatedAt: currentAt, saved: false, conflict: "stale" });
+    }
+
+    const savedAt = nextServerTimestamp(currentAt, requestedAt);
+    if (!current) {
+      const inserted = await c.env.DB.prepare(
+        "INSERT INTO user_checks (user_id, event_slug, checks, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(user_id, event_slug) DO NOTHING",
+      ).bind(user.userId, eventSlug, JSON.stringify(normalized), savedAt).run();
+      if (Number((inserted.meta as { changes?: number } | undefined)?.changes ?? 0) > 0) {
+        return c.json({ checks: normalized, updatedAt: savedAt, saved: true });
+      }
+      continue;
+    }
+
+    const updated = await c.env.DB.prepare(
+      "UPDATE user_checks SET checks = ?, updated_at = ? WHERE user_id = ? AND event_slug = ? AND updated_at = ? AND updated_at < ?",
+    ).bind(JSON.stringify(normalized), savedAt, user.userId, eventSlug, rawCurrentAt, savedAt).run();
+    if (Number((updated.meta as { changes?: number } | undefined)?.changes ?? 0) > 0) {
+      return c.json({ checks: normalized, updatedAt: savedAt, saved: true });
+    }
+  }
+
+  const latest = await c.env.DB.prepare("SELECT checks, updated_at FROM user_checks WHERE user_id = ? AND event_slug = ?")
+    .bind(user.userId, eventSlug)
+    .first<UserChecksRow>();
+  return c.json({ checks: latest ? parseStoredChecks(latest.checks) : {}, updatedAt: formatStoredChecksTimestamp(latest?.updated_at), saved: false, conflict: "stale" });
 });
 
 app.get("/events", async (c) => {

@@ -178,17 +178,23 @@ export async function fetchChecks(eventSlug: string): Promise<ChecksResponse> {
   return await res.json();
 }
 
-export async function saveChecks(eventSlug: string, checks: Record<string, boolean>): Promise<void> {
+export async function saveChecks(eventSlug: string, checks: Record<string, boolean>, updatedAt?: string | null): Promise<ChecksResponse> {
   const res = await fetch(`/api/checks?event=${encodeURIComponent(eventSlug)}`, {
     method: "PUT",
     credentials: "include",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ checks }),
+    body: JSON.stringify({ checks, ...(updatedAt ? { updatedAt } : {}) }),
   });
   if (!res.ok) throw new Error("방문 체크를 저장하지 못했어요");
+  return await res.json();
 }
 
-type ChecksResponse = { checks: Record<string, boolean> };
+export type ChecksResponse = {
+  checks: Record<string, boolean>;
+  updatedAt: string | null;
+  saved?: boolean;
+  conflict?: "stale" | "clock_skew";
+};
 
 export async function fetchCircles(
   eventSlug: string,

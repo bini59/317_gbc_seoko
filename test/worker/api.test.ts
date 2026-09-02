@@ -71,7 +71,52 @@ describe("worker API", () => {
       authEnv,
       {} as ExecutionContext,
     );
-    expect(await loaded.json()).toEqual({ checks: { booth: true } });
+    expect(await loaded.json()).toMatchObject({ checks: { booth: true }, updatedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/) });
+  });
+
+  it("returns updatedAt and rejects stale, equal, and badly skewed check writes", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
+      new Response(JSON.stringify({ userId: "user-1", email: null, name: null, avatarUrl: null, membership: null }), { status: 200 }),
+    );
+    const authEnv = { ...env, AUTH_ORIGIN: "https://auth.bini59.dev", AUTH_CLIENT_ID: "seoko-maps", AUTH_CLIENT_SECRET: "secret" };
+    const request = (updatedAt: string | null, checks: Record<string, boolean>) => app.fetch(
+      new Request("http://x/api/checks?event=ev", {
+        method: "PUT",
+        headers: { "content-type": "application/json", cookie: "sid=session" },
+        body: JSON.stringify({ checks, ...(updatedAt === null ? {} : { updatedAt }) }),
+      }),
+      authEnv,
+      {} as ExecutionContext,
+    );
+
+    const first = await request(new Date(Date.now() - 2_000).toISOString(), { first: true });
+    expect(first.status).toBe(200);
+    const firstJson = await first.json() as { updatedAt: string };
+    expect(firstJson).toMatchObject({ checks: { first: true }, saved: true });
+    expect(firstJson.updatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+
+    const stale = await request(new Date(Date.parse(firstJson.updatedAt) - 1).toISOString(), { stale: true });
+    expect(await stale.json()).toEqual({ checks: { first: true }, updatedAt: firstJson.updatedAt, saved: false, conflict: "stale" });
+
+    const equal = await request(firstJson.updatedAt, { equal: true });
+    expect(await equal.json()).toEqual({ checks: { first: true }, updatedAt: firstJson.updatedAt, saved: false, conflict: "stale" });
+
+    const skewed = await request("2099-01-01T00:00:00.000Z", { future: true });
+    expect(await skewed.json()).toEqual({ checks: { first: true }, updatedAt: firstJson.updatedAt, saved: false, conflict: "clock_skew" });
+
+    const invalid = await request(null, { invalid: "true" } as unknown as Record<string, boolean>);
+    expect(invalid.status).toBe(400);
+
+    const csrf = await app.fetch(
+      new Request("http://x/api/checks?event=ev", {
+        method: "PUT",
+        headers: { "content-type": "application/json", cookie: "sid=session", origin: "https://evil.example" },
+        body: JSON.stringify({ checks: { csrf: true } }),
+      }),
+      authEnv,
+      {} as ExecutionContext,
+    );
+    expect(csrf.status).toBe(403);
   });
 
   it("logs out via server-side POST to 321_auth and clears the sid cookie (#34)", async () => {

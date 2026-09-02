@@ -41,6 +41,7 @@ npm run preview # 빌드 결과 미리보기
 | code | HTTP | 의미 |
 | --- | --- | --- |
 | `unauthorized` | 401 | Bearer 토큰 누락/불일치 (쓰기 요청) |
+| `forbidden` | 403 | 세션 쿠키를 사용하는 변경 요청의 출처가 허용되지 않음 |
 | `invalid_request` | 400 | 잘못된 입력·JSON·content-type (DB 변경 없이 거절) |
 | `not_found` | 404 | 대상 event/circle/participation 없음 |
 | `internal` | 500 | 처리되지 않은 서버 오류 |
@@ -55,6 +56,24 @@ npm run preview # 빌드 결과 미리보기
 `gbc-seoko-cache:v1:events`, 행사별 서클을
 `gbc-seoko-cache:v1:circles:<eventSlug>`에 `schemaVersion/hash/data/cachedAt` 형태로 저장한다.
 로그인 정보와 세션 쿠키는 이 저장 구조에 포함하지 않는다.
+
+## 방문 체크 동기화
+
+`GET /api/checks?event=<slug>` 응답은 `{ checks, updatedAt }`를 반환한다.
+`updatedAt`은 서버가 발급한 UTC ISO-8601 밀리초 시각이며, 브라우저는 기존
+체크 키(`gbc-seoko-checks:<eventSlug>`)와 별도 메타 키
+`gbc-seoko-checks-meta:<eventSlug>`에 함께 저장한다. 로그인 후에는 로컬 체크를
+먼저 표시한 다음 두 시각을 비교해 더 최신 상태를 사용한다. 시각이 같으면
+원격 상태를 우선한다.
+
+`PUT /api/checks`는 최신 요청만 원자적으로 반영한다. 서버는 저장 시각을 직접
+발급하고, 오래된 요청·동일 시각 요청은 `{ saved: false, conflict: "stale" }`로
+현재 원격 상태를 반환한다. 클라이언트 시각이 서버보다 과도하게 앞서면
+`conflict: "clock_skew"`로 거절해 잘못된 미래 시각이 원격 데이터를 덮어쓰지
+못하게 한다. 네트워크 오류 때는 로컬 상태를 유지하고 브라우저가 온라인으로
+돌아오면 다시 동기화한다.
+로그아웃하면 브라우저에 남은 행사별 체크와 동기화 메타데이터를 지워 다음 계정으로
+잘못 전송되지 않게 한다.
 
 ## Cloudflare 배포
 ### 방법 A — Workers (권장)
