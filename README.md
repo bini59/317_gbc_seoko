@@ -6,6 +6,12 @@
 - 각 서클의 X(트위터), 통판, 행사 관련 링크를 새 탭으로 열어 확인
 - 행사·서클 응답은 서버 MD5 메타데이터와 버전 캐시를 사용하며, 네트워크가 끊기면 유효한 로컬 캐시로 대체
 
+## 읽기 데이터 캐시 역할
+
+- TanStack Query는 런타임 메모리에서 읽기 데이터를 재사용한다. 행사 목록은 `['events']`, 행사별 서클은 `['circles', eventSlug]` 키를 사용하며 `staleTime`은 5분이다.
+- `src/lib/cache.ts`는 API의 MD5와 데이터를 `localStorage`에 저장해 새로고침·오프라인 시 fallback으로 사용한다. 런타임 Query 캐시와 브라우저 영속 캐시는 서로 다른 역할이다.
+- 화면 데이터는 단일 fetch 함수 경로를 `queryFn`으로 거쳐 Query에서 공급하며, 화면이 API나 `localStorage`를 직접 읽지 않는다.
+
 ## 로컬 실행
 ```bash
 npm install
