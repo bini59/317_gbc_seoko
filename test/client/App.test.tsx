@@ -202,3 +202,66 @@ describe("<App/> confirmed + unlisted", () => {
     expect(screen.queryByLabelText("방문 체크")).toBeNull();
   });
 });
+
+describe("<App/> bottom navigation (mobile)", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    window.location.hash = "#/events/ev";
+    mockApi(CIRCLES);
+  });
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+
+  it("renders 4 tabs with 목록 as the current page and 행사 tab navigating to the root", async () => {
+    render(<App />);
+    await screen.findByText("부스서클");
+    const nav = screen.getByRole("navigation", { name: "하단 메뉴" });
+    expect(nav.querySelectorAll("button").length).toBe(4);
+    expect(screen.getByRole("button", { name: "목록" }).getAttribute("aria-current")).toBe("page");
+    fireEvent.click(screen.getByRole("button", { name: "행사 목록" }));
+    await waitFor(() => expect(window.location.hash).toBe("#/"));
+    expect(screen.queryByRole("navigation", { name: "하단 메뉴" })).toBeNull();
+  });
+
+  it("toggles the search/filter sheets and shows the active filter count", async () => {
+    render(<App />);
+    await screen.findByText("부스서클");
+    const search = screen.getByRole("button", { name: "검색" });
+    expect(document.getElementById("sheet-search")!.className).toContain("hidden");
+    search.focus(); // 실제 브라우저에서는 탭 클릭이 포커스를 옮긴다 — 시트 닫힘 후 포커스 복원 검증용
+    fireEvent.click(search);
+    expect(search.getAttribute("aria-expanded")).toBe("true");
+    expect(document.getElementById("sheet-search")!.className).not.toContain("hidden");
+    expect(document.activeElement).toBe(screen.getByRole("searchbox"));
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "부스" } });
+    expect(screen.getByRole("button", { name: "검색 1개 적용" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "시트 닫기" }));
+    expect(document.getElementById("sheet-search")!.className).toContain("hidden");
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "검색 1개 적용" }));
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "필터" }));
+    expect(search.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.getByRole("button", { name: "필터" }).getAttribute("aria-expanded")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "체크함" }));
+    fireEvent.click(screen.getByRole("button", { name: "걸즈밴드크라이" }));
+    expect(screen.getByRole("button", { name: "필터 2개 적용" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "목록" }).getAttribute("aria-current")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "목록" }));
+    expect(screen.getByRole("button", { name: "목록" }).getAttribute("aria-current")).toBe("page");
+    fireEvent.click(screen.getByRole("button", { name: "필터 2개 적용" }));
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.getByRole("button", { name: "필터 2개 적용" }).getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByRole("button", { name: "시트 닫기" })).toBeNull();
+  });
+
+  it("hides the nav while a circle detail is open", async () => {
+    render(<App />);
+    fireEvent.click(await screen.findByText("부스서클"));
+    expect(screen.getByText("서클 상세")).toBeTruthy();
+    expect(screen.queryByRole("navigation", { name: "하단 메뉴" })).toBeNull();
+  });
+});
