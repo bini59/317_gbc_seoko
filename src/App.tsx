@@ -156,10 +156,10 @@ export default function App() {
   // 모바일: 시트가 열렸을 때만 하단 패널로 노출(네비 높이만큼 위). md 이상: topbar 인라인.
   const sheetPanel = (s: Exclude<Sheet, null>) =>
     sheet === s
-      ? "glass fixed left-1/2 -translate-x-1/2 w-full max-w-[560px] bottom-0 z-20 rounded-t-[20px] px-5 pt-4 pb-[calc(80px+env(safe-area-inset-bottom))] max-h-[75vh] overflow-y-auto "
+      ? "glass fixed left-1/2 -translate-x-1/2 w-full max-w-[560px] bottom-0 z-20 rounded-t-[28px] border-b-0 px-5 pt-5 pb-[calc(92px+env(safe-area-inset-bottom))] max-h-[75vh] overflow-y-auto "
       : "hidden ";
   const sheetCls = (s: Exclude<Sheet, null>) =>
-    sheetPanel(s) + "md:static md:block md:translate-x-0 md:max-w-none md:rounded-none md:border-0 md:bg-transparent md:backdrop-filter-none md:p-0 md:max-h-none md:overflow-visible";
+    sheetPanel(s) + "md:static md:block md:translate-x-0 md:max-w-none md:rounded-none md:border-0 md:bg-transparent md:shadow-none md:backdrop-filter-none md:after:hidden md:p-0 md:max-h-none md:overflow-visible";
   const filterCount = (status === "all" ? 0 : 1) + selectedIps.length;
   // 행사 랜딩(#/events)은 네비 없이 목록만, 서클 상세는 뒤로가기가 명확한 서브 화면
   const showNav = route.kind !== "events" && !detailSlug;
@@ -189,7 +189,7 @@ export default function App() {
         ) : (
           <div className="xl:flex xl:items-start">
             {/* 목록 — 상세가 열리면 xl 미만은 숨김(전체 화면 상세), xl 이상은 유지 */}
-            <div className={"min-w-0 flex-1 pb-[calc(80px+env(safe-area-inset-bottom))] md:pb-7 " /* 하단 바 56px + 오프셋 12px + 여백 12px */ + (detail ? "hidden xl:block" : "")}>
+            <div className={"min-w-0 flex-1 pb-[calc(88px+env(safe-area-inset-bottom))] md:pb-7 " /* 하단 바 64px + 오프셋 12px + 여백 12px */ + (detail ? "hidden xl:block" : "")}>
               {/* sticky 헤더(모바일: 제목 + 진행률만) / topbar(데스크톱: 검색·필터 인라인) — fixed 시트가 자식이라 backdrop-blur 금지 */}
               <div className="sticky top-0 z-10 bg-bg px-5 pt-4 pb-3 border-b border-line md:px-8 md:bg-bg/95 md:backdrop-blur">
                 <div className="flex items-center justify-between gap-3 md:mb-3 md:gap-6">
