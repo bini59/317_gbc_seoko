@@ -194,7 +194,7 @@ describe("<App/> confirmed + unlisted", () => {
     });
     render(<App />);
     expect(await screen.findByText("방문 체크를 저장하지 못했어요")).toBeTruthy();
-    expect(screen.getAllByLabelText("방문 체크 해제").length).toBe(2); // 원격 booth1 + 로컬 tsuhan1 모두 유지
+    await waitFor(() => expect(screen.getAllByLabelText("방문 체크 해제").length).toBe(2)); // 원격 booth1 + 로컬 tsuhan1 모두 유지
   });
 
   it("does not render the removed visit reset action", async () => {
@@ -631,6 +631,26 @@ describe("<App/> bottom navigation (mobile)", () => {
     fireEvent.click(screen.getByRole("button", { name: "검색" }));
     expect(await screen.findByRole("searchbox")).toBeTruthy();
     expect(window.location.hash).toBe("#/events/ev");
+    // 시트가 실제로 열린 상태여야 한다(hashchange 재진입으로 닫히면 안 됨)
+    await act(async () => { fireEvent(window, new Event("hashchange")); });
+    expect(document.getElementById("sheet-search")!.classList.contains("hidden")).toBe(false);
+    expect(screen.getByRole("button", { name: "검색" }).getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("keeps the bottom nav focused across screen changes", async () => {
+    window.location.hash = "#/events/ev";
+    render(<App />);
+    await screen.findByText("부스서클");
+    const settings = screen.getByRole("button", { name: "설정" });
+    settings.focus();
+    fireEvent.click(settings);
+    expect(await screen.findByRole("heading", { name: "설정" })).toBeTruthy();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "설정" }));
+    const list = screen.getByRole("button", { name: "목록" });
+    list.focus();
+    fireEvent.click(list);
+    expect(await screen.findByText("부스서클")).toBeTruthy();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "목록" }));
   });
 
   it("toggles the search/filter sheets and shows the active filter count", async () => {

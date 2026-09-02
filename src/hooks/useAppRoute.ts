@@ -5,7 +5,11 @@ export function useAppRoute() {
   const [route, setRoute] = useState<AppRoute>(() => parseRoute(window.location.hash));
 
   useEffect(() => {
-    const onChange = () => setRoute(parseRoute(window.location.hash));
+    // navigate()가 이미 반영한 라우트면 그대로 둔다 — 같은 화면에 대한 불필요한 리렌더/effect 재실행 방지
+    const onChange = () => setRoute((prev) => {
+      const next = parseRoute(window.location.hash);
+      return JSON.stringify(prev) === JSON.stringify(next) ? prev : next;
+    });
     window.addEventListener("hashchange", onChange);
     return () => window.removeEventListener("hashchange", onChange);
   }, []);

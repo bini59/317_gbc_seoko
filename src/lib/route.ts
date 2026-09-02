@@ -49,12 +49,3 @@ export const eventHash = (eventSlug: string) =>
 
 export const circleHash = (eventSlug: string, circleSlug: string) =>
   `${eventHash(eventSlug)}/c/${encodeURIComponent(circleSlug)}`;
-
-/** location.hash → 상세 서클 id (없으면 null). */
-export function parseDetailId(hash: string): string | null {
-  const m = /^#?\/c\/(.+)$/.exec(hash);
-  return m ? decodeURIComponent(m[1]) : null;
-}
-
-/** 상세 서클 id → location.hash 문자열. */
-export const detailHash = (id: string) => `#/c/${encodeURIComponent(id)}`;
