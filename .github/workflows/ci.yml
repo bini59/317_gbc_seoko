@@ -2,8 +2,12 @@ name: CI
 
 on:
   pull_request:
+    paths-ignore:
+      - '.codex/**'
   push:
     branches: [main]
+    paths-ignore:
+      - '.codex/**'
 
 jobs:
   verify:

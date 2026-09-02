@@ -1,0 +1,4 @@
+interface:
+  display_name: "GitHub Issue Intake"
+  short_description: "Start scoped work from a project GitHub issue"
+  default_prompt: "Use $gh-issue to start work from a GitHub issue."
