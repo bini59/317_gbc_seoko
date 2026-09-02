@@ -1,5 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 /**
@@ -9,26 +10,8 @@ import { fileURLToPath } from "node:url";
 export function makeTestDB(): D1Database {
   const db = new DatabaseSync(":memory:");
   db.exec("PRAGMA foreign_keys = ON");
-  const migration = readFileSync(
-    fileURLToPath(new URL("../../migrations/0001_init.sql", import.meta.url)),
-    "utf8",
-  );
-  const eventScopedMigration = readFileSync(
-    fileURLToPath(new URL("../../migrations/0002_event_scoped_circles.sql", import.meta.url)),
-    "utf8",
-  );
-  const ipsMigration = readFileSync(
-    fileURLToPath(new URL("../../migrations/0003_ips_only.sql", import.meta.url)),
-    "utf8",
-  );
-  const userChecksMigration = readFileSync(
-    fileURLToPath(new URL("../../migrations/0004_user_checks.sql", import.meta.url)),
-    "utf8",
-  );
-  db.exec(migration);
-  db.exec(eventScopedMigration);
-  db.exec(ipsMigration);
-  db.exec(userChecksMigration);
+  const dir = fileURLToPath(new URL("../../migrations/", import.meta.url));
+  for (const file of readdirSync(dir).sort()) db.exec(readFileSync(join(dir, file), "utf8"));
   return wrap(db);
 }
 

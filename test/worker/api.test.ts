@@ -37,6 +37,22 @@ describe("worker API", () => {
     expect(r.status).toBe(401);
   });
 
+  it("accepts public feedback without a token and stores it", async () => {
+    const r = await call(env, "POST", "/api/feedback", { message: "  지도가 안 열려요 ", contact: "@me" }, false);
+    expect(r.status).toBe(201);
+    const bad = await call(env, "POST", "/api/feedback", { message: "" }, false);
+    expect(bad.status).toBe(400);
+    const row = await env.DB.prepare("SELECT message, contact, user_id FROM feedback").first();
+    expect(row).toMatchObject({ message: "지도가 안 열려요", contact: "@me", user_id: null });
+  });
+
+  it("forwards feedback by email when the binding is configured", async () => {
+    const send = vi.fn(async () => ({}));
+    const r = await call({ ...env, EMAIL: { send }, FEEDBACK_TO: "contact@bini59.dev" }, "POST", "/api/feedback", { message: "안녕" }, false);
+    expect(r.status).toBe(201);
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ to: "contact@bini59.dev", subject: "[seoko-maps 피드백] 안녕" }));
+  });
+
   it("returns disabled auth when 321_auth is not configured", async () => {
     const r = await call(env, "GET", "/api/auth/me");
     expect(r.status).toBe(200);

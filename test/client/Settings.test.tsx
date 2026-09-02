@@ -7,8 +7,9 @@ import type { InstallState } from "../../src/hooks/useInstallPrompt";
 vi.mock("../../src/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../src/api")>()),
   login: vi.fn(),
+  sendFeedback: vi.fn(async () => {}),
 }));
-import { login } from "../../src/api";
+import { login, sendFeedback } from "../../src/api";
 
 const USER = { userId: "u1", email: "seoko@example.com", name: "세오코", avatarUrl: null };
 const noop = () => {};
@@ -39,7 +40,7 @@ describe("<Settings/>", () => {
     expect(screen.getByRole("group", { name: "테마" })).toBeTruthy();
     expect(screen.queryByText("데이터")).toBeNull();
     expect(screen.getByText(/앱 버전/)).toBeTruthy();
-    expect(screen.getByRole("link", { name: /문의·피드백/ }).getAttribute("href")).toBe("https://github.com/bini59/317_gbc_seoko/issues");
+    expect(screen.getByRole("link", { name: "이메일로 보내기" }).getAttribute("href")).toBe("mailto:contact@bini59.dev");
   });
 
   it("signed out: explains sync and calls login() from 연동하기 (#30: no feature-limit copy)", () => {
@@ -108,4 +109,12 @@ describe("<Settings/>", () => {
     expect(screen.queryByRole("button", { name: "홈 화면에 추가" })).toBeNull();
   });
 
+
+  it("submits feedback from the inline form", async () => {
+    render(<Themed />);
+    fireEvent.change(screen.getByPlaceholderText(/불편한 점/), { target: { value: "테스트 피드백" } });
+    fireEvent.submit(screen.getByRole("button", { name: "보내기" }).closest("form")!);
+    await screen.findByText("보냈어요. 감사합니다!");
+    expect(sendFeedback).toHaveBeenCalledWith("테스트 피드백", "");
+  });
 });

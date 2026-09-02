@@ -235,3 +235,13 @@ export async function fetchCircles(
     },
   }, signal);
 }
+
+export async function sendFeedback(message: string, contact: string): Promise<void> {
+  const res = await fetch("/api/feedback", {
+    method: "POST",
+    credentials: "include",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ message, contact: contact || null }),
+  });
+  if (!res.ok) throw new Error("피드백 전송에 실패했어요");
+}
