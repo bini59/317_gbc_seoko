@@ -60,8 +60,8 @@ const rowCls = "flex w-full items-center gap-2 rounded-[10px] px-3 py-2.5 text-l
 const primaryBtn = "inline-flex h-9 items-center rounded-full bg-ink px-4 text-[13px] font-bold text-bg";
 
 /**
- * 설정 패널(#45): 기기 간 연동 · 화면 · 정보.
- * 모바일 시트와 데스크톱 사이드바 <details>가 같은 컴포넌트를 감싼다 — DOM id를 두지 않는다(두 사본 공존).
+ * 독립 설정 페이지(#51): 기기 간 연동 · 화면 · 정보.
+ * 설정은 하단 시트나 화면 내부 진입점 없이 `#/settings`에서만 렌더링한다.
  */
 export function Settings({
   authEnabled,

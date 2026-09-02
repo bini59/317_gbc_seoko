@@ -396,9 +396,17 @@ describe("<App/> bottom navigation (mobile)", () => {
     render(<App />);
     expect(await screen.findByRole("heading", { name: "행사 선택" })).toBeTruthy();
     expect(screen.getByRole("link", { name: /코믹월드/ })).toBeTruthy();
+    expect(within(screen.getByRole("complementary")).getByRole("link", { name: "설정" }).parentElement?.classList.contains("hidden")).toBe(true);
     const nav = screen.getByRole("navigation", { name: "하단 메뉴" });
     expect(screen.getByRole("button", { name: "행사" }).getAttribute("aria-current")).toBe("page");
-    expect(nav.querySelector('button[aria-disabled="true"]')).toBeTruthy();
+    const unavailable = [screen.getByRole("button", { name: "목록" }), screen.getByRole("button", { name: "검색" }), screen.getByRole("button", { name: "필터" })];
+    for (const tab of unavailable) {
+      expect((tab as HTMLButtonElement).disabled).toBe(true);
+      expect(tab.getAttribute("aria-disabled")).toBe("true");
+      expect(tab.className).toContain("cursor-not-allowed");
+      expect(tab.className).toContain("opacity");
+    }
+    expect(nav.querySelectorAll('button[aria-disabled="true"]').length).toBe(3);
   });
 
   it("clears the selected 행사 when opening the landing from a checklist", async () => {
@@ -438,6 +446,7 @@ describe("<App/> bottom navigation (mobile)", () => {
     search.focus(); // 실제 브라우저에서는 탭 클릭이 포커스를 옮긴다 — 시트 닫힘 후 포커스 복원 검증용
     fireEvent.click(search);
     expect(search.getAttribute("aria-expanded")).toBe("true");
+    expect(search.getAttribute("aria-current")).toBe("page");
     expect(document.getElementById("sheet-search")!.classList.contains("hidden")).toBe(false);
     expect(document.activeElement).toBe(screen.getByRole("searchbox"));
     fireEvent.change(screen.getByRole("searchbox"), { target: { value: "부스" } });
@@ -449,7 +458,9 @@ describe("<App/> bottom navigation (mobile)", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "필터" }));
     expect(search.getAttribute("aria-expanded")).toBe("false");
+    expect(search.getAttribute("aria-current")).toBeNull();
     expect(screen.getByRole("button", { name: "필터" }).getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("button", { name: "필터" }).getAttribute("aria-current")).toBe("page");
     fireEvent.click(screen.getByRole("button", { name: "체크함" }));
     fireEvent.click(screen.getByRole("button", { name: "걸즈밴드크라이" }));
     expect(screen.getByRole("button", { name: "필터 2개 적용" })).toBeTruthy();
@@ -468,5 +479,17 @@ describe("<App/> bottom navigation (mobile)", () => {
     fireEvent.click(await screen.findByText("부스서클"));
     expect(screen.getByText("서클 상세")).toBeTruthy();
     expect(screen.queryByRole("navigation", { name: "하단 메뉴" })).toBeNull();
+  });
+
+  it("does not carry an open sheet into circle detail", async () => {
+    render(<App />);
+    await screen.findByText("부스서클");
+    fireEvent.click(screen.getByRole("button", { name: "검색" }));
+    expect(screen.getByRole("group", { name: "검색" }).classList.contains("hidden")).toBe(false);
+
+    fireEvent.click(screen.getByText("부스서클"));
+    expect(await screen.findByText("서클 상세")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "시트 닫기" })).toBeNull();
+    expect(screen.getByRole("group", { name: "검색" }).classList.contains("hidden")).toBe(true);
   });
 });

@@ -77,7 +77,7 @@ export function Sidebar({
       <nav aria-label="행사" className="flex-1 px-5 pb-6">
         <EventList events={events} currentSlug={currentSlug} />
       </nav>
-      <div className="border-t border-line px-5 py-4">
+      <div className={(showOnMobile ? "hidden md:block " : "") + "border-t border-line px-5 py-4"}>
         <a href="#/settings" onClick={(e) => { e.preventDefault(); onSettings(); }} aria-current={settingsActive ? "page" : undefined} className={(settingsActive ? "bg-accent/10 text-accent " : "text-muted ") + "flex items-center gap-2 rounded-[10px] px-3 py-2.5 text-xs font-semibold no-underline hover:bg-chip hover:text-ink"}>
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
