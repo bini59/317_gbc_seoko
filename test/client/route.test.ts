@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { circleHash, eventHash, eventsHash, parseRoute } from "../../src/lib/route";
+import { circleHash, eventHash, eventsHash, parseRoute, settingsHash } from "../../src/lib/route";
 
 describe("parseRoute", () => {
   it("represents the root hash as the 행사 목록", () => {
@@ -14,6 +14,11 @@ describe("parseRoute", () => {
       eventSlug: "illustar-fes-9",
     });
     expect(eventHash("illustar-fes-9")).toBe("#/events/illustar-fes-9");
+  });
+
+  it("parses the standalone settings page hash", () => {
+    expect(parseRoute("#/settings")).toEqual({ kind: "settings" });
+    expect(settingsHash()).toBe("#/settings");
   });
 
   it("keeps 행사 context in a 서클 detail hash", () => {

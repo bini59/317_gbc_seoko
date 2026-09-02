@@ -1,5 +1,4 @@
-import type { ApiEvent, AuthUser } from "../api";
-import { Settings, type Theme } from "./Settings";
+import type { ApiEvent } from "../api";
 import { eventSubtitle } from "../lib/event";
 
 const EVENT_SECTIONS = [
@@ -49,33 +48,21 @@ export function EventList({ events, currentSlug }: { events: ApiEvent[]; current
 }
 
 /**
- * 데스크톱(md+) 좌측 사이드바: 브랜드 · 행사 목록 · 하단 설정(기기 간 연동 포함, #45).
+ * 데스크톱(md+) 좌측 사이드바: 브랜드 · 행사 목록 · 설정 페이지 진입점.
  * 모바일에서는 행사 선택 화면(루트)에서만 본문 아래에 인라인으로 노출된다.
  */
 export function Sidebar({
   events,
   currentSlug,
   showOnMobile,
-  authEnabled,
-  user,
-  syncedAt,
-  eventTitle,
-  theme,
-  onTheme,
-  onLogout,
-  onReset,
+  settingsActive,
+  onSettings,
 }: {
   events: ApiEvent[];
   currentSlug: string | null;
   showOnMobile: boolean;
-  authEnabled: boolean;
-  user: AuthUser | null;
-  syncedAt: number | null;
-  eventTitle: string | null;
-  theme: Theme;
-  onTheme: (next: Theme) => void;
-  onLogout: () => void;
-  onReset: () => void;
+  settingsActive: boolean;
+  onSettings: () => void;
 }) {
   return (
     <aside
@@ -90,18 +77,14 @@ export function Sidebar({
       <nav aria-label="행사" className="flex-1 px-5 pb-6">
         <EventList events={events} currentSlug={currentSlug} />
       </nav>
-      {/* 설정 — native <details>: 팝오버 상태/포커스 코드 없이 인라인 펼침 */}
-      <details className="border-t border-line px-5 py-4">
-        <summary className="flex cursor-pointer list-none items-center gap-2 text-xs font-semibold text-muted hover:text-ink [&::-webkit-details-marker]:hidden">
+      <div className="border-t border-line px-5 py-4">
+        <a href="#/settings" onClick={(e) => { e.preventDefault(); onSettings(); }} aria-current={settingsActive ? "page" : undefined} className={(settingsActive ? "bg-accent/10 text-accent " : "text-muted ") + "flex items-center gap-2 rounded-[10px] px-3 py-2.5 text-xs font-semibold no-underline hover:bg-chip hover:text-ink"}>
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
           </svg>
           설정
-        </summary>
-        <div className="mt-3">
-          <Settings authEnabled={authEnabled} user={user} syncedAt={syncedAt} eventTitle={eventTitle} theme={theme} onTheme={onTheme} onLogout={onLogout} onReset={onReset} />
-        </div>
-      </details>
+        </a>
+      </div>
     </aside>
   );
 }

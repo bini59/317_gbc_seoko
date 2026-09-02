@@ -13,7 +13,7 @@ import { eventSubtitle } from "./lib/event";
 
 /* ---------- 앱 ---------- */
 export default function App() {
-  const { route, openCircle, backToEvent } = useAppRoute();
+  const { route, openCircle, backToEvent, openSettings } = useAppRoute();
   const [events, setEvents] = useState<ApiEvent[]>([]);
   const [event, setEvent] = useState<ApiEvent | null>(null);
   const [authEnabled, setAuthEnabled] = useState(false);
@@ -43,7 +43,7 @@ export default function App() {
   const loadGeneration = useRef(0);
   const loadController = useRef<AbortController | null>(null);
   const requestedEventSlug = route.kind === "event" || route.kind === "circle" ? route.eventSlug : null;
-  const routeMode = route.kind === "events" ? "events" : route.kind === "legacy-circle" ? "legacy" : "event";
+  const routeMode = route.kind === "events" ? "events" : route.kind === "settings" ? "settings" : route.kind === "legacy-circle" ? "legacy" : "event";
 
   const loadAuth = useCallback(() => {
     void fetchAuth().then(({ enabled, user: currentUser }) => {
@@ -69,6 +69,10 @@ export default function App() {
     const controller = new AbortController();
     loadController.current = controller;
     try {
+      if (routeMode === "settings") {
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       setLoadError(null);
       setEvent(null);
@@ -112,6 +116,7 @@ export default function App() {
   }, [loadAuth]);
 
   useEffect(() => {
+    if (requestedEventSlug === null) return;
     setStatus("all");
     setSelectedIps([]);
     setQuery("");
@@ -126,7 +131,7 @@ export default function App() {
     opener.current = document.activeElement as HTMLElement | null;
     if (sheet === "search") searchRef.current?.focus();
     // 시트가 네비보다 DOM 앞에 있어 Tab으로 못 들어간다 — 첫 항목으로 포커스 이동
-    if (sheet === "events" || sheet === "settings") document.querySelector<HTMLElement>(`#sheet-${sheet} a, #sheet-${sheet} button`)?.focus();
+    if (sheet === "events") document.querySelector<HTMLElement>(`#sheet-${sheet} a, #sheet-${sheet} button`)?.focus();
     document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setSheet(null); };
     window.addEventListener("keydown", onKey);
@@ -183,17 +188,16 @@ export default function App() {
         events={events}
         currentSlug={event?.slug ?? null}
         showOnMobile={route.kind === "events"}
-        authEnabled={authEnabled}
-        user={user}
-        syncedAt={syncedAt}
-        eventTitle={event?.title ?? null}
-        theme={theme}
-        onTheme={setTheme}
-        onLogout={handleLogout}
-        onReset={reset}
+        settingsActive={route.kind === "settings"}
+        onSettings={openSettings}
       />
       <main className={"w-full max-w-[560px] mx-auto border-x border-line md:max-w-none md:mx-0 md:border-x-0 md:min-h-screen " + (route.kind === "events" ? "" : "flex-1")}>
-        {route.kind === "events" ? (
+        {route.kind === "settings" ? (
+          <div className="px-5 py-7 md:px-8 md:py-10">
+            <h1 className="text-[26px] font-extrabold text-ink">설정</h1>
+            <div className="mt-7 max-w-[640px]"><Settings authEnabled={authEnabled} user={user} syncedAt={syncedAt} eventTitle={event?.title ?? null} theme={theme} onTheme={setTheme} onLogout={handleLogout} onReset={reset} /></div>
+          </div>
+        ) : route.kind === "events" ? (
           <div className="px-5 pt-7 pb-2 md:px-8 md:py-10">
             <h1 className="text-[26px] font-extrabold text-ink">행사 선택</h1>
             <p className="mt-2 text-sm text-muted">방문할 행사를 골라 관심 서클을 확인하세요.</p>
@@ -217,18 +221,19 @@ export default function App() {
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     <div className="text-[12.5px] font-bold text-accent">방문 {doneCount}/{all.length}</div>
+                    {false && (
                     <button
                       type="button"
                       aria-label="설정"
-                      aria-expanded={sheet === "settings"}
-                      aria-controls="sheet-settings"
-                      onClick={() => setSheet(sheet === "settings" ? null : "settings")}
-                      className="-mr-2 grid h-10 w-10 place-items-center rounded-full text-muted md:hidden"
+                      aria-expanded={false}
+                      onClick={openSettings}
+                      className="hidden"
                     >
                       <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
                       </svg>
                     </button>
+                    )}
                   </div>
                 </div>
 
@@ -355,11 +360,6 @@ export default function App() {
                 </div>
 
                 {/* 설정 시트(#45) — 열릴 때만 렌더(사이드바 사본과 중복 방지). md 이상은 사이드바 <details>가 담당 */}
-                <div id="sheet-settings" role="group" aria-label="설정" className={sheetPanel("settings") + "md:hidden"}>
-                  {sheet === "settings" ? (
-                    <Settings authEnabled={authEnabled} user={user} syncedAt={syncedAt} eventTitle={event?.title ?? null} theme={theme} onTheme={setTheme} onLogout={handleLogout} onReset={reset} />
-                  ) : null}
-                </div>
               </div>
 
               <div className="px-[22px] pt-3.5 pb-2 text-[12.5px] font-bold text-faint md:px-8">참가 서클 {filtered.length}곳</div>
@@ -447,7 +447,7 @@ export default function App() {
         )}
       </main>
       {showNav && (
-        <BottomNav sheet={sheet} onSheet={setSheet} searchCount={query ? 1 : 0} filterCount={filterCount} />
+        <BottomNav sheet={sheet} onSheet={setSheet} searchCount={query ? 1 : 0} filterCount={filterCount} settingsActive={route.kind === "settings"} onSettings={openSettings} />
       )}
     </div>
   );
