@@ -74,14 +74,17 @@ describe("<App/> confirmed + unlisted", () => {
     expect(await screen.findByText("부스서클")).toBeTruthy();
   });
 
-  it("sidebar marks the current 행사 and exposes the sync entry only when auth is enabled", async () => {
+  it("marks the current 행사 in the sidebar", async () => {
     window.location.hash = "#/events/ev";
     render(<App />);
     await screen.findByText("부스서클");
     expect(screen.getByRole("link", { name: /코믹월드/ }).getAttribute("aria-current")).toBe("page");
     expect(screen.getByRole("link", { name: /일러스타 페스/ }).getAttribute("aria-current")).toBeNull();
     expect(screen.queryByRole("button", { name: "기기 간 동기화" })).toBeNull();
-    cleanup();
+  });
+
+  it("shows the sync entry only in the sidebar when auth is enabled", async () => {
+    window.location.hash = "#/events/ev";
     mockApi(CIRCLES, true);
     render(<App />);
     expect(await screen.findByRole("button", { name: "기기 간 동기화" })).toBeTruthy();
@@ -93,6 +96,7 @@ describe("<App/> confirmed + unlisted", () => {
     render(<App />);
     fireEvent.click(await screen.findByText("통판서클"));
     expect(screen.getByText("서클 상세")).toBeTruthy();
+    expect(screen.getByText("부스서클")).toBeTruthy(); // 데스크톱 2컬럼: 목록 유지
   });
 
   it("search matches 통판 by name and hides booth circles", async () => {
