@@ -45,7 +45,7 @@ describe("<App/> accessibility + routing", () => {
     render(<App />);
     await screen.findByText("부스서클");
     expect(screen.getByRole("searchbox", { name: "서클·부스·장르 검색" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "행사 목록" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "행사" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "전체 부스배치도 (새 창)" }).getAttribute("target")).toBe("_blank");
     const allBtn = screen.getByRole("button", { name: "전체" });
     expect(allBtn.getAttribute("aria-pressed")).toBe("true");

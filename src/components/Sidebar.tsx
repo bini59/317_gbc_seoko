@@ -8,7 +8,8 @@ const EVENT_SECTIONS = [
   { status: "past", label: "지난 행사" },
 ] as const;
 
-function EventList({ events, currentSlug }: { events: ApiEvent[]; currentSlug: string | null }) {
+/** 행사 목록(진행 중/예정/지난). 데스크톱 사이드바와 모바일 행사 시트가 공유한다. */
+export function EventList({ events, currentSlug }: { events: ApiEvent[]; currentSlug: string | null }) {
   return EVENT_SECTIONS.map(({ status, label }) => {
     const matches = events
       .filter((event) => event.status === status)
@@ -33,7 +34,10 @@ function EventList({ events, currentSlug }: { events: ApiEvent[]; currentSlug: s
                   (current ? "border-accent/40 bg-accent/10" : "border-line bg-card md:bg-transparent md:hover:bg-chip")
                 }
               >
-                <div className={"text-[17px] font-extrabold md:text-sm " + (current ? "text-accent" : "text-ink")}>{candidate.title}</div>
+                <div className={"flex items-center gap-1.5 text-[17px] font-extrabold md:text-sm " + (current ? "text-accent" : "text-ink")}>
+                  {current ? <span aria-hidden="true">✓</span> : null}
+                  {candidate.title}
+                </div>
                 <div className="mt-1 text-xs font-semibold text-faint md:mt-0.5 md:text-[11px]">{eventSubtitle(candidate)}</div>
               </a>
             );
