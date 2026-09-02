@@ -6,13 +6,13 @@ import { useChecks } from "./hooks/useChecks";
 import { useAppRoute } from "./hooks/useAppRoute";
 import { Card } from "./components/Card";
 import { Detail } from "./components/Detail";
-import { Sidebar } from "./components/Sidebar";
+import { EventList, Sidebar } from "./components/Sidebar";
 import { BottomNav, type Sheet } from "./components/BottomNav";
 import { eventSubtitle } from "./lib/event";
 
 /* ---------- 앱 ---------- */
 export default function App() {
-  const { route, openCircle, openEvents, backToEvent } = useAppRoute();
+  const { route, openCircle, backToEvent } = useAppRoute();
   const [events, setEvents] = useState<ApiEvent[]>([]);
   const [event, setEvent] = useState<ApiEvent | null>(null);
   const [authEnabled, setAuthEnabled] = useState(false);
@@ -23,7 +23,7 @@ export default function App() {
   const [selectedIps, setSelectedIps] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [announce, setAnnounce] = useState("");
-  // 모바일 bottom sheet(검색/필터). md 이상에서는 같은 DOM이 topbar에 인라인으로 항상 보인다.
+  // 모바일 bottom sheet(검색/필터/행사). 검색·필터는 md 이상에서 topbar에 인라인, 행사는 사이드바가 대신한다.
   const [sheet, setSheet] = useState<Sheet>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -116,6 +116,8 @@ export default function App() {
     if (!sheet) { opener.current?.focus(); opener.current = null; return; }
     opener.current = document.activeElement as HTMLElement | null;
     if (sheet === "search") searchRef.current?.focus();
+    // 시트가 네비보다 DOM 앞에 있어 Tab으로 못 들어간다 — 첫 항목으로 포커스 이동
+    if (sheet === "events") document.querySelector<HTMLAnchorElement>("#sheet-events a")?.focus();
     document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setSheet(null); };
     window.addEventListener("keydown", onKey);
@@ -152,11 +154,14 @@ export default function App() {
   // 상세 패널이 열리면 xl에서도 2열 유지(목록 폭이 줄어듦)
   const gridCls = "grid gap-3 md:grid-cols-2 " + (detail ? "" : "xl:grid-cols-3");
   // 모바일: 시트가 열렸을 때만 하단 패널로 노출(네비 높이만큼 위). md 이상: topbar 인라인.
-  const sheetCls = (s: Exclude<Sheet, null>) =>
-    (sheet === s
+  const sheetPanel = (s: Exclude<Sheet, null>) =>
+    sheet === s
       ? "glass fixed left-1/2 -translate-x-1/2 w-full max-w-[560px] bottom-0 z-20 rounded-t-[20px] px-5 pt-4 pb-[calc(80px+env(safe-area-inset-bottom))] max-h-[75vh] overflow-y-auto "
-      : "hidden ") + "md:static md:block md:translate-x-0 md:max-w-none md:rounded-none md:border-0 md:bg-transparent md:backdrop-filter-none md:p-0 md:max-h-none md:overflow-visible";
+      : "hidden ";
+  const sheetCls = (s: Exclude<Sheet, null>) =>
+    sheetPanel(s) + "md:static md:block md:translate-x-0 md:max-w-none md:rounded-none md:border-0 md:bg-transparent md:backdrop-filter-none md:p-0 md:max-h-none md:overflow-visible";
   const filterCount = (status === "all" ? 0 : 1) + selectedIps.length;
+  // 행사 랜딩(#/events)은 네비 없이 목록만, 서클 상세는 뒤로가기가 명확한 서브 화면
   const showNav = route.kind !== "events" && !detailSlug;
 
   return (
@@ -309,6 +314,17 @@ export default function App() {
                 ))}
               </div>
                 </div>
+
+                {/* 행사 전환 시트 — 항목 탭 시 닫힘(현재 행사를 다시 눌러도 hashchange가 없어 명시적으로 닫는다). md 이상은 사이드바가 담당 */}
+                <div id="sheet-events" role="group" aria-label="행사 전환" onClick={() => setSheet(null)} className={sheetPanel("events") + "md:hidden"}>
+                  {sheet === "events" ? (
+                    <>
+                      <div className="text-xs font-extrabold tracking-[0.04em] text-faint">현재 행사</div>
+                      <div className="mt-1 text-[17px] font-extrabold text-ink truncate">{event?.title}</div>
+                      <EventList events={events} currentSlug={event?.slug ?? null} />
+                    </>
+                  ) : null}
+                </div>
               </div>
 
               <div className="px-[22px] pt-3.5 pb-2 text-[12.5px] font-bold text-faint md:px-8">참가 서클 {filtered.length}곳</div>
@@ -396,7 +412,7 @@ export default function App() {
         )}
       </main>
       {showNav && (
-        <BottomNav sheet={sheet} onSheet={setSheet} onEvents={openEvents} searchCount={query ? 1 : 0} filterCount={filterCount} />
+        <BottomNav sheet={sheet} onSheet={setSheet} searchCount={query ? 1 : 0} filterCount={filterCount} />
       )}
     </div>
   );

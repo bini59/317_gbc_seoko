@@ -1,4 +1,4 @@
-export type Sheet = "search" | "filter" | null;
+export type Sheet = "search" | "filter" | "events" | null;
 
 const ICONS = {
   list: <><path d="M4 6h16M4 12h16M4 18h16" /></>,
@@ -49,19 +49,18 @@ function Tab({
 
 /** 모바일 전용 하단 네비 — md 이상은 사이드바/topbar가 대신한다. */
 export function BottomNav({
-  sheet, onSheet, onEvents, searchCount, filterCount,
+  sheet, onSheet, searchCount, filterCount,
 }: {
   sheet: Sheet;
   onSheet: (next: Sheet) => void;
-  onEvents: () => void;
   searchCount: number;
   filterCount: number;
 }) {
   const toggle = (s: Exclude<Sheet, null>) => onSheet(sheet === s ? null : s);
-  const activeIndex = sheet === "search" ? 1 : sheet === "filter" ? 2 : 0;
+  const activeIndex = sheet === "search" ? 1 : sheet === "filter" ? 2 : sheet === "events" ? 3 : 0;
   return (
     <nav aria-label="하단 메뉴" className="glass fixed left-1/2 -translate-x-1/2 w-[calc(100%-24px)] max-w-[536px] bottom-[calc(env(safe-area-inset-bottom)+12px)] z-30 flex rounded-full shadow-[0_8px_30px_rgba(0,0,0,.18)] overflow-hidden md:hidden">
-      {/* 활성 탭 하이라이트 — 탭 사이를 미끄러지듯 이동. 행사 탭은 라우팅이라 인디케이터 없음. ponytail: 탭 4개 고정(w-1/4) */}
+      {/* 활성 탭 하이라이트 — 탭 사이를 미끄러지듯 이동. ponytail: 탭 4개 고정(w-1/4) */}
       <span
         aria-hidden="true"
         className="absolute inset-y-1.5 left-0 w-1/4 rounded-full bg-accent/12 transition-transform duration-300 ease-out motion-reduce:transition-none"
@@ -70,7 +69,7 @@ export function BottomNav({
       <Tab icon="list" label="목록" active={sheet === null} aria-current={sheet === null ? "page" : undefined} onClick={() => onSheet(null)} />
       <Tab icon="search" label="검색" active={sheet === "search"} badge={searchCount} aria-expanded={sheet === "search"} aria-controls="sheet-search" onClick={() => toggle("search")} />
       <Tab icon="filter" label="필터" active={sheet === "filter"} badge={filterCount} aria-expanded={sheet === "filter"} aria-controls="sheet-filter" onClick={() => toggle("filter")} />
-      <Tab icon="events" label="행사" aria-label="행사 목록" active={false} onClick={onEvents} />
+      <Tab icon="events" label="행사" active={sheet === "events"} aria-expanded={sheet === "events"} aria-controls="sheet-events" onClick={() => toggle("events")} />
     </nav>
   );
 }
