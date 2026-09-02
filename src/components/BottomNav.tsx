@@ -5,6 +5,7 @@ const ICONS = {
   search: <><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></>,
   filter: <><path d="M4 7h16M7 12h10M10 17h4" /></>,
   events: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></>,
+  settings: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></>,
 };
 
 function Icon({ name }: { name: keyof typeof ICONS }) {
@@ -37,7 +38,7 @@ function Tab({
       disabled={disabled}
       aria-label={badge ? `${label} ${badge}개 적용` : undefined}
       {...aria}
-      className={"relative flex flex-1 flex-col items-center justify-center gap-0.5 z-[1] min-h-[52px] min-w-[44px] rounded-full text-[11px] font-bold transition-colors " + (active ? "text-accent" : "text-muted")}
+      className={"relative flex flex-1 flex-col items-center justify-center gap-0.5 z-[1] min-h-[52px] min-w-[44px] rounded-full text-[11px] font-bold transition-colors " + (disabled ? "cursor-not-allowed text-muted opacity-50" : active ? "cursor-pointer text-accent" : "cursor-pointer text-muted")}
     >
       <Icon name={icon} />
       {label}
@@ -68,6 +69,7 @@ export function BottomNav({
   const activeIndex = settingsActive ? 4 : context === "events" ? 3 : sheet === "search" ? 1 : sheet === "filter" ? 2 : sheet === "events" ? 3 : 0;
   const listActive = activeIndex === 0;
   const sheetsDisabled = context === "events";
+  const listDisabled = context === "events";
   return (
     <nav aria-label="하단 메뉴" className="glass glass-refract fixed left-1/2 -translate-x-1/2 w-[calc(100%-24px)] max-w-[536px] bottom-[calc(env(safe-area-inset-bottom)+12px)] z-30 flex rounded-full p-1.5 md:hidden">
       {/* 렌즈 인디케이터 — 탭 사이를 액체처럼 미끄러진다. */}
@@ -78,11 +80,11 @@ export function BottomNav({
       >
         <span key={activeIndex} className="glass-lens-body block h-full w-full rounded-full" />
       </span>
-      <Tab icon="list" label="목록" active={listActive} aria-current={listActive ? "page" : undefined} onClick={onList} />
-      <Tab icon="search" label="검색" active={sheet === "search"} badge={searchCount} aria-expanded={sheetsDisabled ? undefined : sheet === "search"} aria-controls={sheetsDisabled ? undefined : "sheet-search"} aria-disabled={sheetsDisabled || undefined} disabled={sheetsDisabled} onClick={() => { if (!sheetsDisabled) toggle("search"); }} />
-      <Tab icon="filter" label="필터" active={sheet === "filter"} badge={filterCount} aria-expanded={sheetsDisabled ? undefined : sheet === "filter"} aria-controls={sheetsDisabled ? undefined : "sheet-filter"} aria-disabled={sheetsDisabled || undefined} disabled={sheetsDisabled} onClick={() => { if (!sheetsDisabled) toggle("filter"); }} />
-      <Tab icon="events" label="행사" active={sheet === "events" || context === "events"} aria-current={context === "events" ? "page" : undefined} aria-expanded={context === "settings" ? undefined : sheet === "events"} aria-controls={context === "settings" ? undefined : "sheet-events"} onClick={() => { if (context === "settings") onEvents(); else if (context !== "events") toggle("events"); }} />
-      <Tab icon="list" label="설정" active={settingsActive} aria-current={settingsActive ? "page" : undefined} onClick={onSettings} />
+      <Tab icon="list" label="목록" active={listActive} aria-current={listActive ? "page" : undefined} aria-disabled={listDisabled || undefined} disabled={listDisabled} onClick={onList} />
+      <Tab icon="search" label="검색" active={sheet === "search"} badge={searchCount} aria-current={sheet === "search" ? "page" : undefined} aria-expanded={sheetsDisabled ? undefined : sheet === "search"} aria-controls={sheetsDisabled ? undefined : "sheet-search"} aria-disabled={sheetsDisabled || undefined} disabled={sheetsDisabled} onClick={() => { if (!sheetsDisabled) toggle("search"); }} />
+      <Tab icon="filter" label="필터" active={sheet === "filter"} badge={filterCount} aria-current={sheet === "filter" ? "page" : undefined} aria-expanded={sheetsDisabled ? undefined : sheet === "filter"} aria-controls={sheetsDisabled ? undefined : "sheet-filter"} aria-disabled={sheetsDisabled || undefined} disabled={sheetsDisabled} onClick={() => { if (!sheetsDisabled) toggle("filter"); }} />
+      <Tab icon="events" label="행사" active={sheet === "events" || context === "events"} aria-current={sheet === "events" || context === "events" ? "page" : undefined} aria-expanded={context === "settings" ? undefined : sheet === "events"} aria-controls={context === "settings" ? undefined : "sheet-events"} onClick={() => { if (context === "settings") onEvents(); else if (context !== "events") toggle("events"); }} />
+      <Tab icon="settings" label="설정" active={settingsActive} aria-current={settingsActive ? "page" : undefined} onClick={onSettings} />
     </nav>
   );
 }

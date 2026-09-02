@@ -32,7 +32,7 @@ export default function App() {
   const [selectedIps, setSelectedIps] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [announce, setAnnounce] = useState("");
-  // 모바일 bottom sheet(검색/필터/행사/설정). 검색·필터는 md 이상에서 topbar에 인라인, 행사·설정은 사이드바가 대신한다.
+  // 모바일 bottom sheet(검색/필터/행사). 설정은 항상 독립 라우트로 렌더링한다.
   const [sheet, setSheet] = useState<Sheet>(null);
   const pendingSheet = useRef<Exclude<Sheet, null> | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -173,9 +173,12 @@ export default function App() {
     (active ? "bg-accent/10 text-accent border-accent/30" : "bg-card text-muted border-line");
   // 상세 패널이 열리면 xl에서도 2열 유지(목록 폭이 줄어듦)
   const gridCls = "grid gap-3 md:grid-cols-2 " + (detail ? "" : "xl:grid-cols-3");
+  // 시트는 행사 체크리스트에서만 존재한다. 라우트 전환 직후의 이전 상태가
+  // 설정/행사 목록 화면에 한 프레임이라도 남지 않도록 렌더 경계를 둔다.
+  const visibleSheet = route.kind === "event" ? sheet : null;
   // 모바일: 시트가 열렸을 때만 하단 패널로 노출(네비 높이만큼 위). md 이상: topbar 인라인.
   const sheetPanel = (s: Exclude<Sheet, null>) =>
-    sheet === s
+    visibleSheet === s
       ? "glass fixed left-1/2 -translate-x-1/2 w-full max-w-[560px] bottom-0 z-20 rounded-t-[28px] border-b-0 px-5 pt-5 pb-[calc(92px+env(safe-area-inset-bottom))] max-h-[75vh] overflow-y-auto "
       : "hidden ";
   const sheetCls = (s: Exclude<Sheet, null>) =>
@@ -259,7 +262,7 @@ export default function App() {
                   </div>
                 </div>
 
-                {sheet ? <button type="button" aria-label="시트 닫기" onClick={() => setSheet(null)} className="fixed inset-0 z-20 bg-black/40 md:hidden" /> : null}
+                {visibleSheet ? <button type="button" aria-label="시트 닫기" onClick={() => setSheet(null)} className="fixed inset-0 z-20 bg-black/40 md:hidden" /> : null}
 
                 <div id="sheet-search" role="group" aria-label="검색" className={sheetCls("search")}>
                 <div className="flex items-center gap-2.5 h-12 bg-card border border-line rounded-[14px] px-3.5 md:h-10 md:max-w-[520px]">
@@ -381,13 +384,12 @@ export default function App() {
                   ) : null}
                 </div>
 
-                {/* 설정 시트(#45) — 열릴 때만 렌더(사이드바 사본과 중복 방지). md 이상은 사이드바 <details>가 담당 */}
               </div>
 
               <div className="px-[22px] pt-3.5 pb-2 text-[12.5px] font-bold text-faint md:px-8">참가 서클 {filtered.length}곳</div>
 
               {/* 카드 목록 — 데스크톱은 2~3열 그리드 */}
-              <div className="px-5 md:px-8" {...(sheet ? { inert: "" } : {})}>
+              <div className="px-5 md:px-8" {...(visibleSheet ? { inert: "" } : {})}>
                 {loadError && (
                   <div className="text-center py-14" role="alert">
                     <div className="text-danger text-sm font-semibold">{loadError}</div>
@@ -469,7 +471,7 @@ export default function App() {
         )}
       </main>
       {showNav && (
-        <BottomNav context={navContext} sheet={sheet} onSheet={handleNavSheet} onList={openChecklistOrEvents} onEvents={openEvents} searchCount={query ? 1 : 0} filterCount={filterCount} onSettings={openSettings} />
+        <BottomNav context={navContext} sheet={visibleSheet} onSheet={handleNavSheet} onList={openChecklistOrEvents} onEvents={openEvents} searchCount={query ? 1 : 0} filterCount={filterCount} onSettings={openSettings} />
       )}
     </div>
   );
