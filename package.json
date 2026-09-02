@@ -14,6 +14,7 @@
     "db:seed:local": "wrangler d1 execute gbc-seoko-db --local --file=seeds/dev.sql"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.102.8",
     "hono": "^4.12.27",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
