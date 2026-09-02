@@ -15,7 +15,7 @@ export function useChecks(
   authLoading = false,
   onSync?: (mergedCount: number) => void,
   onSyncError?: () => void,
-): [Checks, (id: string) => void, () => void] {
+): [Checks, (id: string) => void] {
   const [checks, setChecks] = useState<Checks>({});
   const cb = useRef({ onSync, onSyncError });
   useEffect(() => { cb.current = { onSync, onSyncError }; });
@@ -53,10 +53,5 @@ export function useChecks(
       return next;
     });
 
-  const reset = () => {
-    persist({});
-    setChecks({});
-  };
-
-  return [checks, toggle, reset];
+  return [checks, toggle];
 }

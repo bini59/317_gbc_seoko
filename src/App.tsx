@@ -13,7 +13,7 @@ import { eventSubtitle } from "./lib/event";
 
 /* ---------- 앱 ---------- */
 export default function App() {
-  const { route, openCircle, backToEvent, openSettings } = useAppRoute();
+  const { route, openEvents, openEvent, openCircle, backToEvent, openSettings } = useAppRoute();
   const [events, setEvents] = useState<ApiEvent[]>([]);
   const [event, setEvent] = useState<ApiEvent | null>(null);
   const [authEnabled, setAuthEnabled] = useState(false);
@@ -26,7 +26,7 @@ export default function App() {
     if (merged > 0) setAnnounce(`${merged}개 항목을 동기화했어요`);
   }, []);
   const handleSyncError = useCallback(() => setAnnounce("방문 체크를 저장하지 못했어요"), []);
-  const [checks, toggle, reset] = useChecks(event?.slug ?? null, event?.status === "active", !!user, authLoading, handleSync, handleSyncError);
+  const [checks, toggle] = useChecks(event?.slug ?? null, event?.status === "active", !!user, authLoading, handleSync, handleSyncError);
   const [theme, setTheme] = useTheme();
   const [status, setStatus] = useState<Status>("all");
   const [selectedIps, setSelectedIps] = useState<string[]>([]);
@@ -34,6 +34,7 @@ export default function App() {
   const [announce, setAnnounce] = useState("");
   // 모바일 bottom sheet(검색/필터/행사/설정). 검색·필터는 md 이상에서 topbar에 인라인, 행사·설정은 사이드바가 대신한다.
   const [sheet, setSheet] = useState<Sheet>(null);
+  const pendingSheet = useRef<Exclude<Sheet, null> | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
   const [circles, setCircles] = useState<Circle[]>([]);
@@ -122,8 +123,13 @@ export default function App() {
     setQuery("");
   }, [requestedEventSlug]);
 
-  // 라우트가 바뀌면(상세 진입/행사 이동) 시트를 닫는다
-  useEffect(() => setSheet(null), [route]);
+  // 라우트가 바뀌면 시트를 닫는다. 설정에서 현재 행사로 이동한 경우에는
+  // 요청한 검색/필터 시트를 새 화면에서 다시 연다.
+  useEffect(() => {
+    const next = pendingSheet.current;
+    pendingSheet.current = null;
+    setSheet(next);
+  }, [route]);
 
   const opener = useRef<HTMLElement | null>(null);
   useEffect(() => {
@@ -175,8 +181,24 @@ export default function App() {
   const sheetCls = (s: Exclude<Sheet, null>) =>
     sheetPanel(s) + "md:static md:block md:translate-x-0 md:max-w-none md:rounded-none md:border-0 md:bg-transparent md:shadow-none md:backdrop-filter-none md:after:hidden md:p-0 md:max-h-none md:overflow-visible";
   const filterCount = (status === "all" ? 0 : 1) + selectedIps.length;
-  // 행사 랜딩(#/events)은 네비 없이 목록만, 서클 상세는 뒤로가기가 명확한 서브 화면
-  const showNav = route.kind !== "events" && !detailSlug;
+  const showNav = !detailSlug;
+  const openChecklistOrEvents = () => {
+    if (event?.slug) openEvent(event.slug);
+    else openEvents();
+  };
+  const handleNavSheet = (next: Sheet) => {
+    if (route.kind === "settings") {
+      if (next === "search" || next === "filter") {
+        if (!event?.slug) return openEvents();
+        pendingSheet.current = next;
+        openEvent(event.slug);
+        return;
+      }
+      if (next === "events") return openEvents();
+    }
+    if (route.kind !== "events") setSheet(next);
+  };
+  const navContext = route.kind === "settings" ? "settings" : route.kind === "events" ? "events" : "event";
 
   return (
     // 쉘: 모바일은 단일 컬럼(560px), md 이상은 사이드바 + 콘텐츠 2컬럼. 컴포넌트는 공유하고 레이아웃만 분기.
@@ -186,7 +208,7 @@ export default function App() {
       </div>
       <Sidebar
         events={events}
-        currentSlug={event?.slug ?? null}
+        currentSlug={(route.kind === "event" || route.kind === "circle") ? event?.slug ?? null : null}
         showOnMobile={route.kind === "events"}
         settingsActive={route.kind === "settings"}
         onSettings={openSettings}
@@ -195,7 +217,7 @@ export default function App() {
         {route.kind === "settings" ? (
           <div className="px-5 py-7 md:px-8 md:py-10">
             <h1 className="text-[26px] font-extrabold text-ink">설정</h1>
-            <div className="mt-7 max-w-[640px]"><Settings authEnabled={authEnabled} user={user} syncedAt={syncedAt} eventTitle={event?.title ?? null} theme={theme} onTheme={setTheme} onLogout={handleLogout} onReset={reset} /></div>
+            <div className="mt-7 max-w-[640px]"><Settings authEnabled={authEnabled} user={user} syncedAt={syncedAt} theme={theme} onTheme={setTheme} onLogout={handleLogout} /></div>
           </div>
         ) : route.kind === "events" ? (
           <div className="px-5 pt-7 pb-2 md:px-8 md:py-10">
@@ -447,7 +469,7 @@ export default function App() {
         )}
       </main>
       {showNav && (
-        <BottomNav sheet={sheet} onSheet={setSheet} searchCount={query ? 1 : 0} filterCount={filterCount} settingsActive={route.kind === "settings"} onSettings={openSettings} />
+        <BottomNav context={navContext} sheet={sheet} onSheet={handleNavSheet} onList={openChecklistOrEvents} onEvents={openEvents} searchCount={query ? 1 : 0} filterCount={filterCount} onSettings={openSettings} />
       )}
     </div>
   );

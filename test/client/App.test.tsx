@@ -167,27 +167,12 @@ describe("<App/> confirmed + unlisted", () => {
     expect(screen.getAllByLabelText("방문 체크 해제").length).toBe(2); // 원격 booth1 + 로컬 tsuhan1 모두 유지
   });
 
-  it("hides the reset action on the 행사 landing where there is nothing to reset (#45)", async () => {
+  it("does not render the removed visit reset action", async () => {
     window.location.hash = "#/events";
     render(<App />);
     await screen.findByRole("heading", { name: "행사 선택" });
     openSidebarSettings();
     expect(screen.queryByRole("button", { name: "이 행사 방문 체크 초기화" })).toBeNull();
-  });
-
-  it("clears the current 행사 checks from settings after confirm (#45)", async () => {
-    window.location.hash = "#/events/ev";
-    localStorage.setItem("gbc-seoko-checks:ev", JSON.stringify({ booth1: true }));
-    render(<App />);
-    await screen.findByText("부스서클");
-    expect(screen.getAllByLabelText("방문 체크 해제").length).toBe(1);
-    const settings = openSidebarSettings();
-    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
-    fireEvent.click(settings.getByRole("button", { name: "이 행사 방문 체크 초기화" }));
-    confirm.mockReturnValue(true);
-    fireEvent.click(settings.getByRole("button", { name: "이 행사 방문 체크 초기화" }));
-    await waitFor(() => expect(screen.queryByLabelText("방문 체크 해제")).toBeNull());
-    expect(localStorage.getItem("gbc-seoko-checks:ev")).toBe("{}");
   });
 
   it("still signs out locally when the logout request fails (#34)", async () => {
@@ -406,12 +391,43 @@ describe("<App/> bottom navigation (mobile)", () => {
     expect(document.activeElement).toBe(gear);
   });
 
-  it("shows the 행사 landing without a nav on direct #/events entry", async () => {
+  it("shows the 행사 landing with a nav and disables irrelevant actions", async () => {
     window.location.hash = "#/events";
     render(<App />);
     expect(await screen.findByRole("heading", { name: "행사 선택" })).toBeTruthy();
     expect(screen.getByRole("link", { name: /코믹월드/ })).toBeTruthy();
-    expect(screen.queryByRole("navigation", { name: "하단 메뉴" })).toBeNull();
+    const nav = screen.getByRole("navigation", { name: "하단 메뉴" });
+    expect(screen.getByRole("button", { name: "행사" }).getAttribute("aria-current")).toBe("page");
+    expect(nav.querySelector('button[aria-disabled="true"]')).toBeTruthy();
+  });
+
+  it("clears the selected 행사 when opening the landing from a checklist", async () => {
+    window.location.hash = "#/events/ev";
+    render(<App />);
+    await screen.findByText("부스서클");
+    fireEvent.click(screen.getByRole("button", { name: "설정" }));
+    fireEvent.click(screen.getByRole("button", { name: "행사" }));
+    await screen.findByRole("heading", { name: "행사 선택" });
+    expect(screen.getByRole("link", { name: /코믹월드/ }).getAttribute("aria-current")).toBeNull();
+  });
+
+  it("connects settings navigation to the current checklist", async () => {
+    window.location.hash = "#/events/ev";
+    render(<App />);
+    await screen.findByText("부스서클");
+    fireEvent.click(screen.getByRole("button", { name: "설정" }));
+    expect(await screen.findByRole("heading", { name: "설정" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "행사" }));
+    expect(await screen.findByRole("heading", { name: "행사 선택" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("link", { name: /코믹월드/ }));
+    expect(await screen.findByText("부스서클")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "설정" }));
+    fireEvent.click(screen.getByRole("button", { name: "목록" }));
+    expect(await screen.findByText("부스서클")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "설정" }));
+    fireEvent.click(screen.getByRole("button", { name: "검색" }));
+    expect(await screen.findByRole("searchbox")).toBeTruthy();
+    expect(window.location.hash).toBe("#/events/ev");
   });
 
   it("toggles the search/filter sheets and shows the active filter count", async () => {

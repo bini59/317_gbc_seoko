@@ -60,27 +60,23 @@ const rowCls = "flex w-full items-center gap-2 rounded-[10px] px-3 py-2.5 text-l
 const primaryBtn = "inline-flex h-9 items-center rounded-full bg-ink px-4 text-[13px] font-bold text-bg";
 
 /**
- * 설정 패널(#45): 기기 간 연동 · 화면 · 데이터 · 정보.
+ * 설정 패널(#45): 기기 간 연동 · 화면 · 정보.
  * 모바일 시트와 데스크톱 사이드바 <details>가 같은 컴포넌트를 감싼다 — DOM id를 두지 않는다(두 사본 공존).
  */
 export function Settings({
   authEnabled,
   user,
   syncedAt,
-  eventTitle,
   theme,
   onTheme,
   onLogout,
-  onReset,
 }: {
   authEnabled: boolean;
   user: AuthUser | null;
   syncedAt: number | null;
-  eventTitle: string | null;
   theme: Theme;
   onTheme: (next: Theme) => void;
   onLogout: () => void;
-  onReset: () => void;
 }) {
 
   const displayName = user?.name ?? user?.email ?? "사용자";
@@ -135,20 +131,6 @@ export function Settings({
           ))}
         </div>
       </section>
-
-      {/* 초기화 대상 행사가 없으면(행사 선택 화면) 섹션 자체를 숨긴다 — confirm 후 무반응 방지 */}
-      {eventTitle ? (
-        <section className="grid gap-2.5">
-          <h3 className={headingCls}>데이터</h3>
-          <button
-            type="button"
-            onClick={() => { if (confirm(`${eventTitle}의 방문 체크를 모두 지울까요?`)) onReset(); }}
-            className={rowCls + "border border-line bg-card text-danger hover:bg-danger/10"}
-          >
-            이 행사 방문 체크 초기화
-          </button>
-        </section>
-      ) : null}
 
       <section className="grid gap-2.5">
         <h3 className={headingCls}>정보</h3>
