@@ -149,8 +149,8 @@ export default function App() {
   // 모바일: 시트가 열렸을 때만 하단 패널로 노출(네비 높이만큼 위). md 이상: topbar 인라인.
   const sheetCls = (s: Exclude<Sheet, null>) =>
     (sheet === s
-      ? "fixed left-1/2 -translate-x-1/2 w-full max-w-[560px] bottom-0 z-20 rounded-t-[20px] border-t border-line bg-bg px-5 pt-4 pb-[calc(72px+env(safe-area-inset-bottom))] max-h-[75vh] overflow-y-auto "
-      : "hidden ") + "md:static md:block md:translate-x-0 md:max-w-none md:rounded-none md:border-0 md:p-0 md:max-h-none md:overflow-visible";
+      ? "glass fixed left-1/2 -translate-x-1/2 w-full max-w-[560px] bottom-0 z-20 rounded-t-[20px] px-5 pt-4 pb-[calc(80px+env(safe-area-inset-bottom))] max-h-[75vh] overflow-y-auto "
+      : "hidden ") + "md:static md:block md:translate-x-0 md:max-w-none md:rounded-none md:border-0 md:bg-transparent md:backdrop-filter-none md:p-0 md:max-h-none md:overflow-visible";
   const filterCount = (status === "all" ? 0 : 1) + selectedIps.length;
   const showNav = route.kind !== "events" && !detailSlug;
 
@@ -178,7 +178,7 @@ export default function App() {
         ) : (
           <div className="xl:flex xl:items-start">
             {/* 목록 — 상세가 열리면 xl 미만은 숨김(전체 화면 상세), xl 이상은 유지 */}
-            <div className={"min-w-0 flex-1 pb-[calc(80px+env(safe-area-inset-bottom))] md:pb-7 " + (detail ? "hidden xl:block" : "")}>
+            <div className={"min-w-0 flex-1 pb-[calc(80px+env(safe-area-inset-bottom))] md:pb-7 " /* 하단 바 56px + 오프셋 12px + 여백 12px */ + (detail ? "hidden xl:block" : "")}>
               {/* sticky 헤더(모바일: 제목 + 진행률만) / topbar(데스크톱: 검색·필터 인라인) — fixed 시트가 자식이라 backdrop-blur 금지 */}
               <div className="sticky top-0 z-10 bg-bg px-5 pt-4 pb-3 border-b border-line md:px-8 md:bg-bg/95 md:backdrop-blur">
                 <div className="flex items-center justify-between gap-3 md:mb-3 md:gap-6">
