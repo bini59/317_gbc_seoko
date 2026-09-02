@@ -16,7 +16,11 @@ function parse(raw: string | null): Checks {
   if (!raw) return {};
   try {
     const v = JSON.parse(raw);
-    return v && typeof v === "object" ? (v as Checks) : {};
+    if (!v || typeof v !== "object" || Array.isArray(v)) return {};
+    const entries = Object.entries(v);
+    return entries.every(([key, value]) => key.length <= 200 && typeof value === "boolean")
+      ? Object.fromEntries(entries) as Checks
+      : {};
   } catch {
     return {};
   }
@@ -40,7 +44,11 @@ export function loadChecks(kv: KV, eventSlug: string, migrateLegacy = false): Ch
 
   if (migrateLegacy && kv.getItem(MIGRATED_FLAG) === null) {
     const legacy = kv.getItem(LEGACY_KEY);
-    kv.setItem(MIGRATED_FLAG, "1");
+    try {
+      kv.setItem(MIGRATED_FLAG, "1");
+    } catch {
+      // private mode / quota; the legacy data can still be read for this load
+    }
     if (legacy !== null) {
       const migrated = parse(legacy);
       saveChecks(kv, eventSlug, migrated);

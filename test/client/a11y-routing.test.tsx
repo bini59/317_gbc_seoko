@@ -98,10 +98,13 @@ describe("<App/> accessibility + routing", () => {
 
   it("shows a retry button that re-fetches without a page reload", async () => {
     window.location.hash = "#/events/ev";
+    let failures = 0;
     const fetchMock = vi
       .fn()
-      .mockRejectedValueOnce(new Error("네트워크 오류"))
       .mockImplementation(async (url: string) => {
+        if ((url.includes("/api/events") || url.includes("/api/circles")) && failures++ < 2) {
+          throw new Error("네트워크 오류");
+        }
         if (url.includes("/api/events")) return json({ events: [EVENT] });
         if (url.includes("/api/circles")) return json({ circles: CIRCLES });
         throw new Error("unexpected " + url);

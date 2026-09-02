@@ -4,6 +4,7 @@
 
 - CSR SPA (Vite + React), 체크 상태는 브라우저 `localStorage`에 저장
 - 각 서클의 X(트위터), 통판, 행사 관련 링크를 새 탭으로 열어 확인
+- 행사·서클 응답은 서버 MD5 메타데이터와 버전 캐시를 사용하며, 네트워크가 끊기면 유효한 로컬 캐시로 대체
 
 ## 로컬 실행
 ```bash
@@ -47,6 +48,13 @@ npm run preview # 빌드 결과 미리보기
 - 모든 쓰기 요청은 런타임 스키마 검증(`worker/validate.ts`)을 통과해야 한다(slug/URL/enum/배열/숫자 ID).
 - 서클 upsert는 다중 테이블을 D1 `batch()`(단일 트랜잭션)로 원자 처리 — 전부 성공 또는 전부 롤백.
 - 쓰기 허용 origin은 `ALLOWED_ORIGINS`(쉼표 구분) 환경변수로 제한한다. 미설정 시 `*`.
+
+읽기 데이터의 변경 감지는 `GET /api/events?metadata=1` 및
+`GET /api/circles?event=<slug>&status=all&metadata=1`의 `{ meta: { schemaVersion, hash } }`로 확인한다.
+전체 응답에도 같은 `meta`가 포함된다. 브라우저는 행사 목록을
+`gbc-seoko-cache:v1:events`, 행사별 서클을
+`gbc-seoko-cache:v1:circles:<eventSlug>`에 `schemaVersion/hash/data/cachedAt` 형태로 저장한다.
+로그인 정보와 세션 쿠키는 이 저장 구조에 포함하지 않는다.
 
 ## Cloudflare 배포
 ### 방법 A — Workers (권장)

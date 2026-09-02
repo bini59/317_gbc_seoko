@@ -42,4 +42,9 @@ describe("per-event checks", () => {
     const kv = fakeKV({ [checksKey("ev")]: "{broken" });
     expect(loadChecks(kv, "ev")).toEqual({});
   });
+
+  it("ignores check entries that are not booleans", () => {
+    const kv = fakeKV({ [checksKey("ev")]: JSON.stringify({ good: true, bad: "yes" }) });
+    expect(loadChecks(kv, "ev")).toEqual({});
+  });
 });

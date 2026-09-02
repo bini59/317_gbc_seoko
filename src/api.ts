@@ -1,5 +1,8 @@
 import type { Circle, TweetInfo } from "./types";
 import type { Checks } from "./lib/checks";
+import { cacheKeys, loadCache, saveCache, type CacheStorage } from "./lib/cache";
+
+export type ApiMeta = { schemaVersion: number; hash: string };
 
 export type ApiCircle = {
   id: number;
@@ -32,6 +35,73 @@ export type ApiEvent = {
   status: string;
 };
 
+type DatasetLoader<T> = {
+  cacheKey: string;
+  metadataUrl: string;
+  dataUrl: string;
+  errorMessage: string;
+  isData: (value: unknown) => value is T;
+  parseData: (body: unknown) => T | null;
+};
+
+function browserStorage(): CacheStorage | null {
+  return typeof localStorage === "undefined" ? null : localStorage;
+}
+
+function parseMeta(body: unknown): ApiMeta | null {
+  if (!body || typeof body !== "object") return null;
+  const meta = (body as Record<string, unknown>).meta;
+  if (!meta || typeof meta !== "object") return null;
+  const value = meta as Record<string, unknown>;
+  if (value.schemaVersion !== 1 || typeof value.hash !== "string" || !/^[a-f0-9]{32}$/i.test(value.hash)) return null;
+  return { schemaVersion: value.schemaVersion, hash: value.hash.toLowerCase() };
+}
+
+function isAbort(error: unknown): boolean {
+  return error instanceof DOMException && error.name === "AbortError";
+}
+
+async function requestJson(url: string, signal?: AbortSignal): Promise<{ response: Response; body: unknown }> {
+  const response = signal ? await fetch(url, { signal }) : await fetch(url);
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch {
+    body = null;
+  }
+  return { response, body };
+}
+
+async function loadDataset<T>({ cacheKey, metadataUrl, dataUrl, errorMessage, isData, parseData }: DatasetLoader<T>, signal?: AbortSignal): Promise<T> {
+  const storage = browserStorage();
+  const cached = storage ? loadCache(storage, cacheKey, isData) : null;
+  let remoteMeta: ApiMeta | null = null;
+
+  try {
+    const metadata = await requestJson(metadataUrl, signal);
+    if (metadata.response.ok) remoteMeta = parseMeta(metadata.body);
+    if (remoteMeta && cached && cached.hash === remoteMeta.hash) return cached.data;
+    if (!remoteMeta && cached) return cached.data;
+  } catch (error) {
+    if (isAbort(error)) throw error;
+    if (cached) return cached.data;
+  }
+
+  try {
+    const full = await requestJson(dataUrl, signal);
+    if (!full.response.ok) throw new Error(errorMessage);
+    const data = parseData(full.body);
+    if (data === null) throw new Error("API response was invalid");
+    const meta = parseMeta(full.body) ?? remoteMeta;
+    if (storage && meta) saveCache(storage, cacheKey, meta.hash, data);
+    return data;
+  } catch (error) {
+    if (isAbort(error)) throw error;
+    if (cached) return cached.data;
+    throw error;
+  }
+}
+
 function toCircle(c: ApiCircle): Circle {
   return {
     id: c.slug,
@@ -55,10 +125,27 @@ export function pickActiveEvent(events: ApiEvent[]): ApiEvent | null {
 }
 
 export async function fetchEvents(signal?: AbortSignal): Promise<ApiEvent[]> {
-  const res = signal ? await fetch("/api/events", { signal }) : await fetch("/api/events");
-  if (!res.ok) throw new Error("이벤트 정보를 불러오지 못했어요");
-  const data = await res.json();
-  return data.events || [];
+  return loadDataset({
+    cacheKey: cacheKeys.events,
+    metadataUrl: "/api/events?metadata=1",
+    dataUrl: "/api/events",
+    errorMessage: "이벤트 정보를 불러오지 못했어요",
+    isData: (value): value is ApiEvent[] => Array.isArray(value) && value.every((event) => (
+      event !== null && typeof event === "object"
+      && typeof (event as { slug?: unknown }).slug === "string"
+      && typeof (event as { title?: unknown }).title === "string"
+    )),
+    parseData: (body) => {
+      if (!body || typeof body !== "object") return null;
+      const events = (body as { events?: unknown }).events;
+      if (!Array.isArray(events) || !events.every((event) => (
+        event !== null && typeof event === "object"
+        && typeof (event as { slug?: unknown }).slug === "string"
+        && typeof (event as { title?: unknown }).title === "string"
+      ))) return null;
+      return events as ApiEvent[];
+    },
+  }, signal);
 }
 
 export type AuthUser = {
@@ -107,15 +194,37 @@ export async function fetchCircles(
   eventSlug: string,
   signal?: AbortSignal,
 ): Promise<{ circles: Circle[]; witchformExtra: Circle[] }> {
-  const res = await fetch(
-    `/api/circles?event=${encodeURIComponent(eventSlug)}&status=all`,
-    { signal },
-  );
-  if (!res.ok) throw new Error("서클 목록을 불러오지 못했어요");
-  const data = await res.json();
-  const all: ApiCircle[] = data.circles || [];
-  return {
-    circles: all.filter((c) => c.status === "confirmed").map(toCircle),
-    witchformExtra: all.filter((c) => c.status === "unlisted").map(toCircle),
-  };
+  const query = `event=${encodeURIComponent(eventSlug)}&status=all`;
+  return loadDataset({
+    cacheKey: cacheKeys.circles(eventSlug),
+    metadataUrl: `/api/circles?${query}&metadata=1`,
+    dataUrl: `/api/circles?${query}`,
+    errorMessage: "서클 목록을 불러오지 못했어요",
+    isData: (value): value is { circles: Circle[]; witchformExtra: Circle[] } => {
+      if (!value || typeof value !== "object") return false;
+      const data = value as { circles?: unknown; witchformExtra?: unknown };
+      return [data.circles, data.witchformExtra].every((list) => Array.isArray(list) && list.every((circle) => (
+        circle !== null && typeof circle === "object"
+        && typeof (circle as { id?: unknown }).id === "string"
+        && typeof (circle as { name?: unknown }).name === "string"
+        && Array.isArray((circle as { links?: unknown }).links)
+      )));
+    },
+    parseData: (body) => {
+      if (!body || typeof body !== "object") return null;
+      const circles = (body as { circles?: unknown }).circles;
+      if (!Array.isArray(circles)) return null;
+      const all = circles as ApiCircle[];
+      if (!all.every((circle) => (
+        circle !== null && typeof circle === "object"
+        && typeof circle.slug === "string"
+        && typeof circle.name === "string"
+        && Array.isArray(circle.links)
+      ))) return null;
+      return {
+        circles: all.filter((circle) => circle.status === "confirmed").map(toCircle),
+        witchformExtra: all.filter((circle) => circle.status === "unlisted").map(toCircle),
+      };
+    },
+  }, signal);
 }
