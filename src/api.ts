@@ -66,7 +66,8 @@ async function requestJson(url: string, signal?: AbortSignal): Promise<{ respons
   let body: unknown;
   try {
     body = await response.json();
-  } catch {
+  } catch (error) {
+    if (isAbort(error)) throw error;
     body = null;
   }
   return { response, body };
