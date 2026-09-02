@@ -1,5 +1,5 @@
 import type { ApiEvent, AuthUser } from "../api";
-import { Settings } from "./Settings";
+import { Settings, type Theme } from "./Settings";
 import { eventSubtitle } from "../lib/event";
 
 const EVENT_SECTIONS = [
@@ -59,6 +59,9 @@ export function Sidebar({
   authEnabled,
   user,
   syncedAt,
+  eventTitle,
+  theme,
+  onTheme,
   onLogout,
   onReset,
 }: {
@@ -68,6 +71,9 @@ export function Sidebar({
   authEnabled: boolean;
   user: AuthUser | null;
   syncedAt: number | null;
+  eventTitle: string | null;
+  theme: Theme;
+  onTheme: (next: Theme) => void;
   onLogout: () => void;
   onReset: () => void;
 }) {
@@ -93,7 +99,7 @@ export function Sidebar({
           설정
         </summary>
         <div className="mt-3">
-          <Settings authEnabled={authEnabled} user={user} syncedAt={syncedAt} onLogout={onLogout} onReset={onReset} />
+          <Settings authEnabled={authEnabled} user={user} syncedAt={syncedAt} eventTitle={eventTitle} theme={theme} onTheme={onTheme} onLogout={onLogout} onReset={onReset} />
         </div>
       </details>
     </aside>

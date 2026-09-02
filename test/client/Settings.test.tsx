@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
-import { Settings } from "../../src/components/Settings";
+import { Settings, useTheme } from "../../src/components/Settings";
 
 vi.mock("../../src/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../src/api")>()),
@@ -11,7 +11,13 @@ import { login } from "../../src/api";
 
 const USER = { userId: "u1", email: "seoko@example.com", name: "세오코", avatarUrl: null };
 const noop = () => {};
-const base = { authEnabled: true, user: null, syncedAt: null, onLogout: noop, onReset: noop };
+const base = { authEnabled: true, user: null, syncedAt: null, eventTitle: "코믹월드", theme: "system" as const, onTheme: noop, onLogout: noop, onReset: noop };
+
+/** 실제 배선과 동일 — 테마 상태는 부모(App)의 useTheme가 들고 내려준다 */
+function Themed(props: Partial<Parameters<typeof Settings>[0]>) {
+  const [theme, onTheme] = useTheme();
+  return <Settings {...base} {...props} theme={theme} onTheme={onTheme} />;
+}
 
 describe("<Settings/>", () => {
   beforeEach(() => {
@@ -64,8 +70,14 @@ describe("<Settings/>", () => {
     expect(document.querySelector("img")?.getAttribute("src")).toBe("https://cdn.example/a.png");
   });
 
+  it("hides the 데이터 section when there is no current 행사 (reset would be a no-op)", () => {
+    render(<Settings {...base} eventTitle={null} />);
+    expect(screen.queryByText("데이터")).toBeNull();
+    expect(screen.queryByRole("button", { name: "이 행사 방문 체크 초기화" })).toBeNull();
+  });
+
   it("theme segment writes data-theme + localStorage and 시스템 clears the attribute", () => {
-    render(<Settings {...base} />);
+    render(<Themed />);
     expect(screen.getByRole("button", { name: "시스템" }).getAttribute("aria-pressed")).toBe("true");
     fireEvent.click(screen.getByRole("button", { name: "다크" }));
     expect(document.documentElement.dataset.theme).toBe("dark");
@@ -78,7 +90,7 @@ describe("<Settings/>", () => {
 
   it("restores the saved theme on remount (survives reload)", () => {
     localStorage.setItem("theme", "light");
-    render(<Settings {...base} />);
+    render(<Themed />);
     expect(screen.getByRole("button", { name: "라이트" }).getAttribute("aria-pressed")).toBe("true");
   });
 
@@ -91,5 +103,6 @@ describe("<Settings/>", () => {
     confirm.mockReturnValue(true);
     fireEvent.click(screen.getByRole("button", { name: "이 행사 방문 체크 초기화" }));
     expect(onReset).toHaveBeenCalledTimes(1);
+    expect(confirm).toHaveBeenLastCalledWith("코믹월드의 방문 체크를 모두 지울까요?");
   });
 });

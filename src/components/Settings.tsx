@@ -23,7 +23,7 @@ function Avatar({ src, fallback }: { src: string | null; fallback: string }) {
   );
 }
 
-type Theme = "system" | "light" | "dark";
+export type Theme = "system" | "light" | "dark";
 const THEMES: { k: Theme; label: string }[] = [
   { k: "system", label: "시스템" },
   { k: "light", label: "라이트" },
@@ -46,6 +46,12 @@ function applyTheme(next: Theme) {
   try { localStorage.setItem("theme", next); } catch { /* private mode */ }
 }
 
+/** 테마 상태는 App에서 한 번만 가진다 — 모바일 시트와 사이드바 두 사본이 같은 값을 보도록 */
+export function useTheme(): [Theme, (next: Theme) => void] {
+  const [theme, setTheme] = useState<Theme>(readTheme);
+  return [theme, (next) => { applyTheme(next); setTheme(next); }];
+}
+
 const svgProps = { viewBox: "0 0 24 24", width: 14, height: 14, fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true } as const;
 const External = () => <svg {...svgProps} className="ml-auto shrink-0 text-faint"><path d="M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5" /></svg>;
 
@@ -61,17 +67,21 @@ export function Settings({
   authEnabled,
   user,
   syncedAt,
+  eventTitle,
+  theme,
+  onTheme,
   onLogout,
   onReset,
 }: {
   authEnabled: boolean;
   user: AuthUser | null;
   syncedAt: number | null;
+  eventTitle: string | null;
+  theme: Theme;
+  onTheme: (next: Theme) => void;
   onLogout: () => void;
   onReset: () => void;
 }) {
-  const [theme, setTheme] = useState<Theme>(readTheme);
-  const pick = (next: Theme) => { applyTheme(next); setTheme(next); };
 
   const displayName = user?.name ?? user?.email ?? "사용자";
   const fallback = [...displayName][0]?.toUpperCase() ?? "?";
@@ -102,7 +112,7 @@ export function Settings({
             </div>
           ) : (
             <div className="flex items-center justify-between gap-3 rounded-[14px] border border-line bg-card px-3.5 py-3">
-              <p className="m-0 text-[13px] text-muted">로그인하면 방문 체크가 다른 기기와 동기화돼요</p>
+              <p className="m-0 break-keep text-[13px] text-muted">로그인하면 방문 체크가 다른 기기와 동기화돼요</p>
               <button type="button" onClick={login} className={primaryBtn + " shrink-0"}>연동하기</button>
             </div>
           )}
@@ -117,7 +127,7 @@ export function Settings({
               key={t.k}
               type="button"
               aria-pressed={theme === t.k}
-              onClick={() => pick(t.k)}
+              onClick={() => onTheme(t.k)}
               className={"h-8 rounded-[7px] text-[13px] font-semibold " + (theme === t.k ? "bg-ink text-bg" : "text-muted hover:bg-chip")}
             >
               {t.label}
@@ -126,16 +136,19 @@ export function Settings({
         </div>
       </section>
 
-      <section className="grid gap-2.5">
-        <h3 className={headingCls}>데이터</h3>
-        <button
-          type="button"
-          onClick={() => { if (confirm("이 행사의 방문 체크를 모두 지울까요?")) onReset(); }}
-          className={rowCls + "border border-line bg-card text-danger hover:bg-danger/10"}
-        >
-          이 행사 방문 체크 초기화
-        </button>
-      </section>
+      {/* 초기화 대상 행사가 없으면(행사 선택 화면) 섹션 자체를 숨긴다 — confirm 후 무반응 방지 */}
+      {eventTitle ? (
+        <section className="grid gap-2.5">
+          <h3 className={headingCls}>데이터</h3>
+          <button
+            type="button"
+            onClick={() => { if (confirm(`${eventTitle}의 방문 체크를 모두 지울까요?`)) onReset(); }}
+            className={rowCls + "border border-line bg-card text-danger hover:bg-danger/10"}
+          >
+            이 행사 방문 체크 초기화
+          </button>
+        </section>
+      ) : null}
 
       <section className="grid gap-2.5">
         <h3 className={headingCls}>정보</h3>

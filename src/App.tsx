@@ -8,7 +8,7 @@ import { Card } from "./components/Card";
 import { Detail } from "./components/Detail";
 import { EventList, Sidebar } from "./components/Sidebar";
 import { BottomNav, type Sheet } from "./components/BottomNav";
-import { Settings } from "./components/Settings";
+import { Settings, useTheme } from "./components/Settings";
 import { eventSubtitle } from "./lib/event";
 
 /* ---------- 앱 ---------- */
@@ -25,7 +25,9 @@ export default function App() {
     setSyncedAt(Date.now());
     if (merged > 0) setAnnounce(`${merged}개 항목을 동기화했어요`);
   }, []);
-  const [checks, toggle, reset] = useChecks(event?.slug ?? null, event?.status === "active", !!user, authLoading, handleSync);
+  const handleSyncError = useCallback(() => setAnnounce("방문 체크를 저장하지 못했어요"), []);
+  const [checks, toggle, reset] = useChecks(event?.slug ?? null, event?.status === "active", !!user, authLoading, handleSync, handleSyncError);
+  const [theme, setTheme] = useTheme();
   const [status, setStatus] = useState<Status>("all");
   const [selectedIps, setSelectedIps] = useState<string[]>([]);
   const [query, setQuery] = useState("");
@@ -184,6 +186,9 @@ export default function App() {
         authEnabled={authEnabled}
         user={user}
         syncedAt={syncedAt}
+        eventTitle={event?.title ?? null}
+        theme={theme}
+        onTheme={setTheme}
         onLogout={handleLogout}
         onReset={reset}
       />
@@ -352,7 +357,7 @@ export default function App() {
                 {/* 설정 시트(#45) — 열릴 때만 렌더(사이드바 사본과 중복 방지). md 이상은 사이드바 <details>가 담당 */}
                 <div id="sheet-settings" role="group" aria-label="설정" className={sheetPanel("settings") + "md:hidden"}>
                   {sheet === "settings" ? (
-                    <Settings authEnabled={authEnabled} user={user} syncedAt={syncedAt} onLogout={handleLogout} onReset={reset} />
+                    <Settings authEnabled={authEnabled} user={user} syncedAt={syncedAt} eventTitle={event?.title ?? null} theme={theme} onTheme={setTheme} onLogout={handleLogout} onReset={reset} />
                   ) : null}
                 </div>
               </div>
