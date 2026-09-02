@@ -79,9 +79,8 @@ export function login(): void {
   window.location.href = `https://auth.bini59.dev/login?client_id=seoko-maps&return_to=${encodeURIComponent(returnTo)}`;
 }
 
-export function logout(): void {
-  const returnTo = `${window.location.origin}${window.location.pathname}${window.location.hash}`;
-  window.location.href = `https://auth.bini59.dev/logout?client_id=seoko-maps&return_to=${encodeURIComponent(returnTo)}`;
+export async function logout(): Promise<void> {
+  await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
 }
 
 export async function fetchChecks(eventSlug: string): Promise<ChecksResponse> {

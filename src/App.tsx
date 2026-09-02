@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Circle } from "./types";
-import { fetchAuth, fetchCircles, fetchEvents, pickActiveEvent, type ApiEvent, type AuthUser } from "./api";
+import { fetchAuth, fetchCircles, fetchEvents, logout, pickActiveEvent, type ApiEvent, type AuthUser } from "./api";
 import { badgeColor, filterCircles, STATUS, type Status } from "./lib/circle";
 import { useChecks } from "./hooks/useChecks";
 import { useAppRoute } from "./hooks/useAppRoute";
@@ -44,6 +44,11 @@ export default function App() {
       setAuthEnabled(false);
       setUser(null);
     }).finally(() => setAuthLoading(false));
+  }, []);
+
+  // 워커가 쿠키를 지우므로 revoke 결과와 무관하게 클라이언트는 로그아웃 상태로 전환한다.
+  const handleLogout = useCallback(() => {
+    void logout().catch(() => {}).finally(() => setUser(null));
   }, []);
 
   // 행사장 서클 + 통판(unlisted)을 한 데이터셋으로 다뤄 검색·필터·체크를 일관 적용
@@ -166,6 +171,7 @@ export default function App() {
         showOnMobile={route.kind === "events"}
         authEnabled={authEnabled}
         user={user}
+        onLogout={handleLogout}
       />
       <main className={"w-full max-w-[560px] mx-auto border-x border-line md:max-w-none md:mx-0 md:border-x-0 md:min-h-screen " + (route.kind === "events" ? "" : "flex-1")}>
         {route.kind === "events" ? (

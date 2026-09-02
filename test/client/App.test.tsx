@@ -33,6 +33,7 @@ function mockApi(circles: ApiCircleLike[], authEnabled = false, user: { userId: 
           ],
         });
       if (url.includes("/api/circles")) return json({ circles });
+      if (url.includes("/api/auth/logout")) return json({ ok: true });
       if (url.includes("/api/auth/me")) return json({ enabled: authEnabled, user });
       throw new Error("unexpected fetch " + url);
     }),
@@ -99,6 +100,29 @@ describe("<App/> confirmed + unlisted", () => {
     expect(screen.getByRole("button", { name: "로그아웃" }).closest("aside")).not.toBeNull();
     expect(screen.queryByRole("button", { name: "기기 간 동기화" })).toBeNull();
     expect(screen.queryByRole("button", { name: "로그인" })).toBeNull();
+  });
+
+  it("logs out with a POST to the worker and falls back to the sync entry (#34)", async () => {
+    window.location.hash = "#/events/ev";
+    mockApi(CIRCLES, true, { userId: "u1", email: null, name: "세오코", avatarUrl: null });
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "로그아웃" }));
+    expect(await screen.findByRole("button", { name: "기기 간 동기화" })).toBeTruthy();
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith("/api/auth/logout", { method: "POST", credentials: "include" });
+    expect(screen.queryByText("세오코 · 동기화 중")).toBeNull();
+  });
+
+  it("still signs out locally when the logout request fails (#34)", async () => {
+    window.location.hash = "#/events/ev";
+    mockApi(CIRCLES, true, { userId: "u1", email: null, name: "세오코", avatarUrl: null });
+    const base = vi.mocked(fetch).getMockImplementation()!;
+    vi.mocked(fetch).mockImplementation(async (url, init) => {
+      if (String(url).includes("/api/auth/logout")) throw new Error("offline");
+      return base(url, init);
+    });
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "로그아웃" }));
+    expect(await screen.findByRole("button", { name: "기기 간 동기화" })).toBeTruthy();
   });
 
   it("opens the 통판 detail from its card", async () => {
