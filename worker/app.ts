@@ -181,9 +181,10 @@ app.use("*", cors({
   },
 }));
 
-// require bearer token for mutating routes only
+// require bearer token for mutating routes only (session-cookie routes are exempt)
+const SESSION_ROUTES = ["/api/checks", "/api/auth/logout"];
 app.use("*", async (c, next) => {
-  if (["POST", "PATCH", "PUT", "DELETE"].includes(c.req.method) && c.req.path !== "/api/checks") {
+  if (["POST", "PATCH", "PUT", "DELETE"].includes(c.req.method) && !SESSION_ROUTES.includes(c.req.path)) {
     const auth = c.req.header("authorization") || "";
     const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
     if (!c.env.ADMIN_TOKEN || token !== c.env.ADMIN_TOKEN) {
@@ -197,6 +198,43 @@ app.use("*", async (c, next) => {
 app.get("/auth/me", async (c) => {
   const user = await verifyAuth(c);
   return c.json({ enabled: authConfigured(c.env), user });
+});
+
+// 321_auth `/logout`은 POST + CSRF double-submit 전용이라 브라우저가 직접 못 부른다.
+// 워커가 sid를 대신 넘겨 서버 간 POST로 세션을 revoke하고, 로컬 sid 쿠키를 지운다.
+app.post("/auth/logout", async (c) => {
+  // 우리 라우트가 321_auth의 CSRF 가드를 대신 만족시키므로, 타 출처 폼 POST로 강제 로그아웃되지 않게 출처를 확인한다.
+  const site = c.req.header("sec-fetch-site");
+  const origin = c.req.header("origin");
+  const crossSite = (site && site !== "same-origin") || (origin && new URL(origin).host !== new URL(c.req.url).host);
+  if (crossSite) return c.json({ error: "forbidden", code: "forbidden" }, 403);
+
+  const sid = /(?:^|;\s*)sid=([A-Za-z0-9._~+/=-]+)/.exec(c.req.header("cookie") ?? "")?.[1];
+  let revoked = false;
+  if (sid && authConfigured(c.env)) {
+    const csrf = crypto.randomUUID();
+    const url = new URL("/logout", c.env.AUTH_ORIGIN);
+    url.searchParams.set("client_id", c.env.AUTH_CLIENT_ID!);
+    try {
+      const res = await fetch(url.toString(), {
+        method: "POST",
+        headers: { cookie: `sid=${sid}; csrf=${csrf}`, "x-csrf-token": csrf },
+        redirect: "manual",
+        signal: AbortSignal.timeout(3000),
+      });
+      revoked = res.ok || res.status === 302;
+      if (!revoked) console.error("321_auth logout revoke failed", res.status);
+    } catch (error) {
+      // revoke가 실패해도 로컬 쿠키는 지워 반쯤 로그아웃된 상태를 피한다.
+      console.error("321_auth logout revoke error", error);
+    }
+  }
+  // sid는 321_auth가 상위 도메인(.bini59.dev)으로 심으므로 host-only와 상위 도메인 둘 다 지운다.
+  const expired = "sid=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax";
+  c.header("set-cookie", expired, { append: true });
+  const parent = c.env.AUTH_ORIGIN ? new URL(c.env.AUTH_ORIGIN).hostname.split(".").slice(1).join(".") : "";
+  if (parent.includes(".")) c.header("set-cookie", `${expired}; Domain=${parent}`, { append: true });
+  return c.json({ ok: true, revoked });
 });
 
 app.get("/checks", async (c) => {

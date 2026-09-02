@@ -1,4 +1,4 @@
-import { login, logout, type ApiEvent, type AuthUser } from "../api";
+import { login, type ApiEvent, type AuthUser } from "../api";
 import { eventSubtitle } from "../lib/event";
 
 const EVENT_SECTIONS = [
@@ -53,12 +53,14 @@ export function Sidebar({
   showOnMobile,
   authEnabled,
   user,
+  onLogout,
 }: {
   events: ApiEvent[];
   currentSlug: string | null;
   showOnMobile: boolean;
   authEnabled: boolean;
   user: AuthUser | null;
+  onLogout: () => void;
 }) {
   return (
     <aside
@@ -78,7 +80,7 @@ export function Sidebar({
           {user ? (
             <div className="flex items-center justify-between gap-2">
               <span className="truncate">{user.name ?? "로그인됨"} · 동기화 중</span>
-              <button type="button" onClick={logout} className="shrink-0 font-bold text-muted">로그아웃</button>
+              <button type="button" onClick={onLogout} className="shrink-0 font-bold text-muted">로그아웃</button>
             </div>
           ) : (
             <button type="button" onClick={login} className="text-left font-semibold text-muted">
