@@ -54,12 +54,14 @@ export function Sidebar({
   showOnMobile,
   authEnabled,
   user,
+  onLogout,
 }: {
   events: ApiEvent[];
   currentSlug: string | null;
   showOnMobile: boolean;
   authEnabled: boolean;
   user: AuthUser | null;
+  onLogout: () => void;
 }) {
   return (
     <aside
@@ -77,7 +79,7 @@ export function Sidebar({
       {authEnabled ? (
         <div className="border-t border-line px-5 py-4 text-xs text-faint">
           {user ? (
-            <ProfileMenu user={user} />
+            <ProfileMenu user={user} onLogout={onLogout} />
           ) : (
             <button type="button" onClick={login} className="text-left font-semibold text-muted">
               기기 간 동기화

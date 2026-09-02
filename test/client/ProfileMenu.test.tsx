@@ -3,8 +3,7 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { ProfileMenu } from "../../src/components/ProfileMenu";
 
-vi.mock("../../src/api", () => ({ logout: vi.fn(), AUTH_ORIGIN: "https://auth.bini59.dev" }));
-import { logout } from "../../src/api";
+const logout = vi.fn();
 
 const USER = { userId: "u1", email: "seoko@example.com", name: "세오코", avatarUrl: null };
 
@@ -12,7 +11,7 @@ describe("<ProfileMenu/>", () => {
   afterEach(cleanup);
 
   it("toggles the menu from the avatar trigger and shows account center + logout", () => {
-    render(<ProfileMenu user={USER} />);
+    render(<ProfileMenu user={USER} onLogout={logout} />);
     const trigger = screen.getByRole("button", { name: /프로필 메뉴/ });
     expect(screen.queryByRole("menu")).toBeNull();
     fireEvent.click(trigger);
@@ -27,7 +26,7 @@ describe("<ProfileMenu/>", () => {
   });
 
   it("closes on Escape and returns focus to the trigger", () => {
-    render(<ProfileMenu user={USER} />);
+    render(<ProfileMenu user={USER} onLogout={logout} />);
     const trigger = screen.getByRole("button", { name: /프로필 메뉴/ });
     fireEvent.click(trigger);
     fireEvent.keyDown(window, { key: "Escape" });
@@ -36,7 +35,7 @@ describe("<ProfileMenu/>", () => {
   });
 
   it("closes on outside pointerdown but not inside", () => {
-    render(<div><ProfileMenu user={USER} /><p>바깥</p></div>);
+    render(<div><ProfileMenu user={USER} onLogout={logout} /><p>바깥</p></div>);
     fireEvent.click(screen.getByRole("button", { name: /프로필 메뉴/ }));
     fireEvent.pointerDown(screen.getByRole("menu"));
     expect(screen.getByRole("menu")).toBeTruthy();
@@ -45,7 +44,7 @@ describe("<ProfileMenu/>", () => {
   });
 
   it("cycles focus with ArrowDown/ArrowUp and calls logout", () => {
-    render(<ProfileMenu user={USER} />);
+    render(<ProfileMenu user={USER} onLogout={logout} />);
     fireEvent.click(screen.getByRole("button", { name: /프로필 메뉴/ }));
     const out = screen.getByRole("menuitem", { name: "로그아웃" });
     fireEvent.keyDown(window, { key: "ArrowDown" });
@@ -59,7 +58,7 @@ describe("<ProfileMenu/>", () => {
   });
 
   it("closes when the account center link is clicked and keeps focus where an outside click landed", () => {
-    render(<div><ProfileMenu user={USER} /><button>바깥</button></div>);
+    render(<div><ProfileMenu user={USER} onLogout={logout} /><button>바깥</button></div>);
     const trigger = screen.getByRole("button", { name: /프로필 메뉴/ });
     fireEvent.click(trigger);
     fireEvent.click(screen.getByRole("menuitem", { name: /계정센터/ }));
@@ -73,11 +72,11 @@ describe("<ProfileMenu/>", () => {
   });
 
   it("renders only https avatars, falls back to the initial otherwise", () => {
-    const { unmount } = render(<ProfileMenu user={{ ...USER, avatarUrl: "http://x/a.png" }} />);
+    const { unmount } = render(<ProfileMenu user={{ ...USER, avatarUrl: "http://x/a.png" }} onLogout={logout} />);
     expect(document.querySelector("img")).toBeNull();
     expect(screen.getByRole("button", { name: /프로필 메뉴/ }).textContent).toContain("세");
     unmount();
-    render(<ProfileMenu user={{ ...USER, avatarUrl: "https://x/a.png" }} />);
+    render(<ProfileMenu user={{ ...USER, avatarUrl: "https://x/a.png" }} onLogout={logout} />);
     expect(document.querySelector("img")?.getAttribute("src")).toBe("https://x/a.png");
   });
 });

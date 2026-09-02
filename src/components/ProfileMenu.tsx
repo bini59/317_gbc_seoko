@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { AUTH_ORIGIN, logout, type AuthUser } from "../api";
+import { AUTH_ORIGIN, type AuthUser } from "../api";
 
 const ACCOUNT_CENTER_URL = `${AUTH_ORIGIN}/client`;
 
@@ -28,7 +28,7 @@ const svgProps = { viewBox: "0 0 24 24", width: 16, height: 16, fill: "none", st
  * 아바타 트리거 + 드롭다운(role="menu"). 320_archive `ProfileMenu` 포팅 — 키보드/포커스/aria 동작 동일.
  * 사이드바 하단에서 위로 열린다(모바일 루트 화면에선 인라인 렌더).
  */
-export function ProfileMenu({ user }: { user: AuthUser }) {
+export function ProfileMenu({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
   const menuId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -107,7 +107,7 @@ export function ProfileMenu({ user }: { user: AuthUser }) {
               <span>계정센터<span className="sr-only"> (새 창)</span></span>
               <svg {...svgProps} width={13} height={13} className="ml-auto shrink-0 text-faint"><path d="M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5" /></svg>
             </a>
-            <button role="menuitem" type="button" onClick={logout} className={itemCls + "text-danger hover:bg-danger/10"}>
+            <button role="menuitem" type="button" onClick={onLogout} className={itemCls + "text-danger hover:bg-danger/10"}>
               <svg {...svgProps} className="shrink-0"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" /></svg>
               <span>로그아웃</span>
             </button>

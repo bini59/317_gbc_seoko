@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { app, determineEventStatus } from "../../worker/app";
 import { makeTestDB } from "../helpers/d1";
 
@@ -30,6 +30,7 @@ describe("worker API", () => {
   beforeEach(() => {
     env = makeEnv();
   });
+  afterEach(() => vi.restoreAllMocks());
 
   it("rejects mutations without a valid bearer token", async () => {
     const r = await call(env, "POST", "/api/events", { slug: "e", title: "t" }, false);
@@ -71,6 +72,76 @@ describe("worker API", () => {
       {} as ExecutionContext,
     );
     expect(await loaded.json()).toEqual({ checks: { booth: true } });
+  });
+
+  it("logs out via server-side POST to 321_auth and clears the sid cookie (#34)", async () => {
+    const authFetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 302 }));
+    const authEnv = { ...env, AUTH_ORIGIN: "https://auth.bini59.dev", AUTH_CLIENT_ID: "seoko-maps", AUTH_CLIENT_SECRET: "secret" };
+    const r = await app.fetch(
+      new Request("http://x/api/auth/logout", { method: "POST", headers: { cookie: "sid=session; other=1" } }),
+      authEnv,
+      {} as ExecutionContext,
+    );
+    expect(r.status).toBe(200);
+    const [url, init] = authFetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("https://auth.bini59.dev/logout?client_id=seoko-maps");
+    expect(init.method).toBe("POST");
+    const headers = init.headers as Record<string, string>;
+    expect(headers.cookie).toBe(`sid=session; csrf=${headers["x-csrf-token"]}`);
+    expect(headers["x-csrf-token"]).toBeTruthy();
+    const cookies = r.headers.getSetCookie();
+    expect(cookies.some((c) => c.startsWith("sid=;") && c.includes("Max-Age=0") && !c.includes("Domain="))).toBe(true);
+    expect(cookies.some((c) => c.startsWith("sid=;") && c.includes("Domain=bini59.dev"))).toBe(true);
+    expect(await r.json()).toEqual({ ok: true, revoked: true });
+  });
+
+  it("still clears the local sid cookie when 321_auth revoke fails (#34)", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("down"));
+    const authEnv = { ...env, AUTH_ORIGIN: "https://auth.bini59.dev", AUTH_CLIENT_ID: "seoko-maps", AUTH_CLIENT_SECRET: "secret" };
+    const r = await app.fetch(
+      new Request("http://x/api/auth/logout", { method: "POST", headers: { cookie: "sid=session" } }),
+      authEnv,
+      {} as ExecutionContext,
+    );
+    expect(r.status).toBe(200);
+    expect(r.headers.getSetCookie().some((c) => c.startsWith("sid=;") && c.includes("Max-Age=0"))).toBe(true);
+  });
+
+  it("reports revoked=false when 321_auth rejects the logout (#34)", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 403 }));
+    const authEnv = { ...env, AUTH_ORIGIN: "https://auth.bini59.dev", AUTH_CLIENT_ID: "seoko-maps", AUTH_CLIENT_SECRET: "secret" };
+    const r = await app.fetch(
+      new Request("http://x/api/auth/logout", { method: "POST", headers: { cookie: "sid=session" } }),
+      authEnv,
+      {} as ExecutionContext,
+    );
+    expect(await r.json()).toEqual({ ok: true, revoked: false });
+  });
+
+  it("skips the upstream call without a sid cookie but still clears it (#34)", async () => {
+    const authFetch = vi.spyOn(globalThis, "fetch");
+    const authEnv = { ...env, AUTH_ORIGIN: "https://auth.bini59.dev", AUTH_CLIENT_ID: "seoko-maps", AUTH_CLIENT_SECRET: "secret" };
+    const r = await app.fetch(new Request("http://x/api/auth/logout", { method: "POST" }), authEnv, {} as ExecutionContext);
+    expect(r.status).toBe(200);
+    expect(authFetch).not.toHaveBeenCalled();
+    expect(r.headers.getSetCookie().some((c) => c.startsWith("sid=;"))).toBe(true);
+  });
+
+  it("rejects cross-site logout requests (#34)", async () => {
+    const authFetch = vi.spyOn(globalThis, "fetch");
+    for (const headers of [{ "sec-fetch-site": "cross-site", cookie: "sid=s" }, { origin: "https://evil.example", cookie: "sid=s" }]) {
+      const r = await app.fetch(new Request("http://x/api/auth/logout", { method: "POST", headers }), env, {} as ExecutionContext);
+      expect(r.status).toBe(403);
+    }
+    expect(authFetch).not.toHaveBeenCalled();
+    const ok = await app.fetch(
+      new Request("http://x/api/auth/logout", { method: "POST", headers: { "sec-fetch-site": "same-origin", origin: "http://x" } }),
+      env,
+      {} as ExecutionContext,
+    );
+    expect(ok.status).toBe(200);
   });
 
   it("creates an event and lists it", async () => {
