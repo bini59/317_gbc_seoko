@@ -1,5 +1,5 @@
-import { login, type ApiEvent, type AuthUser } from "../api";
-import { ProfileMenu } from "./ProfileMenu";
+import type { ApiEvent, AuthUser } from "../api";
+import { Settings } from "./Settings";
 import { eventSubtitle } from "../lib/event";
 
 const EVENT_SECTIONS = [
@@ -49,7 +49,7 @@ export function EventList({ events, currentSlug }: { events: ApiEvent[]; current
 }
 
 /**
- * 데스크톱(md+) 좌측 사이드바: 브랜드 · 행사 목록 · 하단 동기화(로그인) 진입점.
+ * 데스크톱(md+) 좌측 사이드바: 브랜드 · 행사 목록 · 하단 설정(기기 간 연동 포함, #45).
  * 모바일에서는 행사 선택 화면(루트)에서만 본문 아래에 인라인으로 노출된다.
  */
 export function Sidebar({
@@ -58,14 +58,18 @@ export function Sidebar({
   showOnMobile,
   authEnabled,
   user,
+  syncedAt,
   onLogout,
+  onReset,
 }: {
   events: ApiEvent[];
   currentSlug: string | null;
   showOnMobile: boolean;
   authEnabled: boolean;
   user: AuthUser | null;
+  syncedAt: number | null;
   onLogout: () => void;
+  onReset: () => void;
 }) {
   return (
     <aside
@@ -80,17 +84,18 @@ export function Sidebar({
       <nav aria-label="행사" className="flex-1 px-5 pb-6">
         <EventList events={events} currentSlug={currentSlug} />
       </nav>
-      {authEnabled ? (
-        <div className="border-t border-line px-5 py-4 text-xs text-faint">
-          {user ? (
-            <ProfileMenu user={user} onLogout={onLogout} />
-          ) : (
-            <button type="button" onClick={login} className="text-left font-semibold text-muted">
-              기기 간 동기화
-            </button>
-          )}
+      {/* 설정 — native <details>: 팝오버 상태/포커스 코드 없이 인라인 펼침 */}
+      <details className="border-t border-line px-5 py-4">
+        <summary className="flex cursor-pointer list-none items-center gap-2 text-xs font-semibold text-muted hover:text-ink [&::-webkit-details-marker]:hidden">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
+          </svg>
+          설정
+        </summary>
+        <div className="mt-3">
+          <Settings authEnabled={authEnabled} user={user} syncedAt={syncedAt} onLogout={onLogout} onReset={onReset} />
         </div>
-      ) : null}
+      </details>
     </aside>
   );
 }

@@ -8,6 +8,7 @@ import { Card } from "./components/Card";
 import { Detail } from "./components/Detail";
 import { EventList, Sidebar } from "./components/Sidebar";
 import { BottomNav, type Sheet } from "./components/BottomNav";
+import { Settings } from "./components/Settings";
 import { eventSubtitle } from "./lib/event";
 
 /* ---------- 앱 ---------- */
@@ -18,12 +19,18 @@ export default function App() {
   const [authEnabled, setAuthEnabled] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [checks, toggle] = useChecks(event?.slug ?? null, event?.status === "active", !!user, authLoading);
+  const [syncedAt, setSyncedAt] = useState<number | null>(null);
+  // 원격 저장 완료 시각 + 첫 병합 안내(#45). merged 0 = 단순 저장(안내 없음)
+  const handleSync = useCallback((merged: number) => {
+    setSyncedAt(Date.now());
+    if (merged > 0) setAnnounce(`${merged}개 항목을 동기화했어요`);
+  }, []);
+  const [checks, toggle, reset] = useChecks(event?.slug ?? null, event?.status === "active", !!user, authLoading, handleSync);
   const [status, setStatus] = useState<Status>("all");
   const [selectedIps, setSelectedIps] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [announce, setAnnounce] = useState("");
-  // 모바일 bottom sheet(검색/필터/행사). 검색·필터는 md 이상에서 topbar에 인라인, 행사는 사이드바가 대신한다.
+  // 모바일 bottom sheet(검색/필터/행사/설정). 검색·필터는 md 이상에서 topbar에 인라인, 행사·설정은 사이드바가 대신한다.
   const [sheet, setSheet] = useState<Sheet>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -48,7 +55,7 @@ export default function App() {
 
   // 워커가 쿠키를 지우므로 revoke 결과와 무관하게 클라이언트는 로그아웃 상태로 전환한다.
   const handleLogout = useCallback(() => {
-    void logout().catch(() => {}).finally(() => setUser(null));
+    void logout().catch(() => {}).finally(() => { setUser(null); setSyncedAt(null); });
   }, []);
 
   // 행사장 서클 + 통판(unlisted)을 한 데이터셋으로 다뤄 검색·필터·체크를 일관 적용
@@ -117,7 +124,7 @@ export default function App() {
     opener.current = document.activeElement as HTMLElement | null;
     if (sheet === "search") searchRef.current?.focus();
     // 시트가 네비보다 DOM 앞에 있어 Tab으로 못 들어간다 — 첫 항목으로 포커스 이동
-    if (sheet === "events") document.querySelector<HTMLAnchorElement>("#sheet-events a")?.focus();
+    if (sheet === "events" || sheet === "settings") document.querySelector<HTMLElement>(`#sheet-${sheet} a, #sheet-${sheet} button`)?.focus();
     document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setSheet(null); };
     window.addEventListener("keydown", onKey);
@@ -176,7 +183,9 @@ export default function App() {
         showOnMobile={route.kind === "events"}
         authEnabled={authEnabled}
         user={user}
+        syncedAt={syncedAt}
         onLogout={handleLogout}
+        onReset={reset}
       />
       <main className={"w-full max-w-[560px] mx-auto border-x border-line md:max-w-none md:mx-0 md:border-x-0 md:min-h-screen " + (route.kind === "events" ? "" : "flex-1")}>
         {route.kind === "events" ? (
@@ -201,7 +210,21 @@ export default function App() {
                       {eventSubtitle(event)}
                     </div>
                   </div>
-                  <div className="shrink-0 text-[12.5px] font-bold text-accent">방문 {doneCount}/{all.length}</div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <div className="text-[12.5px] font-bold text-accent">방문 {doneCount}/{all.length}</div>
+                    <button
+                      type="button"
+                      aria-label="설정"
+                      aria-expanded={sheet === "settings"}
+                      aria-controls="sheet-settings"
+                      onClick={() => setSheet(sheet === "settings" ? null : "settings")}
+                      className="-mr-2 grid h-10 w-10 place-items-center rounded-full text-muted md:hidden"
+                    >
+                      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
 
                 {sheet ? <button type="button" aria-label="시트 닫기" onClick={() => setSheet(null)} className="fixed inset-0 z-20 bg-black/40 md:hidden" /> : null}
@@ -323,6 +346,13 @@ export default function App() {
                       <div className="mt-1 text-[17px] font-extrabold text-ink truncate">{event?.title}</div>
                       <EventList events={events} currentSlug={event?.slug ?? null} />
                     </>
+                  ) : null}
+                </div>
+
+                {/* 설정 시트(#45) — 열릴 때만 렌더(사이드바 사본과 중복 방지). md 이상은 사이드바 <details>가 담당 */}
+                <div id="sheet-settings" role="group" aria-label="설정" className={sheetPanel("settings") + "md:hidden"}>
+                  {sheet === "settings" ? (
+                    <Settings authEnabled={authEnabled} user={user} syncedAt={syncedAt} onLogout={handleLogout} onReset={reset} />
                   ) : null}
                 </div>
               </div>
