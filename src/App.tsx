@@ -1,95 +1,69 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchAuth, fetchCircles, fetchEvents, logout, pickActiveEvent, type AuthUser } from "./api";
-import { badgeColor, filterCircles, STATUS, type Status } from "./lib/circle";
+import { fetchAuth, fetchEvents, logout, pickActiveEvent, type AuthUser } from "./api";
 import { useChecks } from "./hooks/useChecks";
 import { useAppRoute } from "./hooks/useAppRoute";
-import { Card } from "./components/Card";
-import { Detail } from "./components/Detail";
-import { EventList, Sidebar } from "./components/Sidebar";
-import { BottomNav, type Sheet } from "./components/BottomNav";
-import { Settings, useTheme } from "./components/Settings";
-import { InstallBanner } from "./components/InstallGuide";
+import { useChecklistFilters } from "./hooks/useChecklistFilters";
 import { useInstallPrompt } from "./hooks/useInstallPrompt";
-import { eventSubtitle } from "./lib/event";
+import { useTheme } from "./components/Settings";
+import { Sidebar } from "./components/Sidebar";
+import { BottomNav, type Sheet } from "./components/BottomNav";
+import { ChecklistScreen } from "./screens/ChecklistScreen";
+import { EventsScreen } from "./screens/EventsScreen";
+import { SettingsScreen } from "./screens/SettingsScreen";
 import { clearAllChecks } from "./lib/checks";
+import { READ_STALE_TIME } from "./lib/query";
 
-const READ_STALE_TIME = 5 * 60 * 1000;
-
-/* ---------- 앱 ---------- */
+/* ---------- 앱 쉘: 라우트 → 화면 분기, 사이드바/하단 네비, 인증, 체크 동기화 ---------- */
 export default function App() {
-  const { route, openEvents, openEvent, openCircle, backToEvent, openSettings } = useAppRoute();
+  const { route, openEvents, openEvent, openCircle, openSettings } = useAppRoute();
   const [authEnabled, setAuthEnabled] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [syncedAt, setSyncedAt] = useState<number | null>(null);
+  const [announce, setAnnounce] = useState("");
+  const [theme, setTheme] = useTheme();
+  const install = useInstallPrompt();
+
   // 원격 저장 완료 시각 + 첫 병합 안내(#45). merged 0 = 단순 저장(안내 없음)
   const handleSync = useCallback((merged: number) => {
     setSyncedAt(Date.now());
     if (merged > 0) setAnnounce(`${merged}개 항목을 동기화했어요`);
   }, []);
   const handleSyncError = useCallback(() => setAnnounce("방문 체크를 저장하지 못했어요"), []);
-  const [theme, setTheme] = useTheme();
-  const install = useInstallPrompt();
-  const [status, setStatus] = useState<Status>("all");
-  const [selectedIps, setSelectedIps] = useState<string[]>([]);
-  const [query, setQuery] = useState("");
-  const [announce, setAnnounce] = useState("");
-  // 모바일 bottom sheet(검색/필터/행사). 설정은 항상 독립 라우트로 렌더링한다.
-  const [sheet, setSheet] = useState<Sheet>(null);
-  const pendingSheet = useRef<Exclude<Sheet, null> | null>(null);
-  const searchRef = useRef<HTMLInputElement>(null);
-
-  const requestedEventSlug = route.kind === "event" || route.kind === "circle" ? route.eventSlug : null;
-  const routeMode = route.kind === "events" ? "events" : route.kind === "settings" ? "settings" : route.kind === "legacy-circle" ? "legacy" : "event";
 
   const eventsQuery = useQuery({
     queryKey: ["events"],
     queryFn: ({ signal }) => fetchEvents(signal),
     staleTime: READ_STALE_TIME,
     retry: false,
-    enabled: routeMode !== "settings",
+    enabled: route.kind !== "settings",
   });
   const events = eventsQuery.data ?? [];
-  const routeEvent = routeMode === "legacy"
+  const requestedEventSlug = route.kind === "event" || route.kind === "circle" ? route.eventSlug : null;
+  const routeEvent = route.kind === "legacy-circle"
     ? pickActiveEvent(events)
-    : routeMode === "event"
+    : requestedEventSlug !== null
       ? events.find((candidate) => candidate.slug === requestedEventSlug) ?? null
       : null;
-  const currentEventSlug = useRef<string | null>(null);
-
+  // 설정 화면은 행사 컨텍스트가 URL에 없으므로 마지막 행사를 기억해 체크 동기화와 하단 탭을 이어 준다.
+  const lastEventSlug = useRef<string | null>(null);
   useEffect(() => {
-    if (routeMode === "events") currentEventSlug.current = null;
-    else if (routeEvent) currentEventSlug.current = routeEvent.slug;
-  }, [routeEvent, routeMode]);
-
-  const event = routeMode === "settings"
-    ? events.find((candidate) => candidate.slug === currentEventSlug.current) ?? null
+    if (route.kind === "events") lastEventSlug.current = null;
+    else if (routeEvent) lastEventSlug.current = routeEvent.slug;
+  }, [routeEvent, route.kind]);
+  const event = route.kind === "settings"
+    ? events.find((candidate) => candidate.slug === lastEventSlug.current) ?? null
     : routeEvent;
   const eventSlug = event?.slug ?? null;
-  const isChecklistRoute = routeMode === "event" || routeMode === "legacy";
-  const circlesQuery = useQuery({
-    queryKey: ["circles", eventSlug],
-    queryFn: ({ signal }) => fetchCircles(eventSlug!, signal),
-    staleTime: READ_STALE_TIME,
-    retry: false,
-    enabled: isChecklistRoute && eventSlug !== null,
-  });
-  const circles = circlesQuery.data?.circles ?? [];
-  const witchformExtra = circlesQuery.data?.witchformExtra ?? [];
-  const missingEvent = isChecklistRoute && eventsQuery.isSuccess && !event;
-  const queryError = eventsQuery.error ?? circlesQuery.error;
-  const loadError = missingEvent
-    ? "행사 정보를 찾지 못했어요"
-    : queryError instanceof Error
-      ? queryError.message
-      : queryError
-        ? "불러오기 실패"
-        : null;
-  const loading = routeMode !== "settings" && (eventsQuery.isFetching || circlesQuery.isFetching);
-  const [checks, toggle] = useChecks(event?.slug ?? null, event?.status === "active", !!user, authLoading, handleSync, handleSyncError, user?.userId ?? null);
 
-  const loadAuth = useCallback(() => {
+  const [checks, toggle] = useChecks(eventSlug, event?.status === "active", !!user, authLoading, handleSync, handleSyncError, user?.userId ?? null);
+  const handleToggle = (id: string) => {
+    setAnnounce(checks[id] ? "방문 체크를 해제했어요" : "방문 체크했어요");
+    toggle(id);
+  };
+
+  useEffect(() => {
     void fetchAuth().then(({ enabled, user: currentUser }) => {
       setAuthEnabled(enabled);
       setUser(currentUser);
@@ -108,99 +82,36 @@ export default function App() {
     });
   }, []);
 
-  // 행사장 서클 + 통판(unlisted)을 한 데이터셋으로 다뤄 검색·필터·체크를 일관 적용
-  const all = useMemo(() => [...circles, ...witchformExtra], [circles, witchformExtra]);
-
+  // 하단 네비와 체크리스트가 공유하는 상태. 네비는 라우트가 바뀌어도 한 인스턴스로 유지돼야 포커스가 살아 있다.
+  const filters = useChecklistFilters(requestedEventSlug);
+  const [sheet, setSheet] = useState<Sheet>(null);
+  // 라우트가 바뀌면 시트를 닫는다. 설정에서 검색/필터 탭으로 현재 행사에 진입한 경우에는 그 시트를 연다.
+  const pendingSheet = useRef<Sheet>(null);
   useEffect(() => {
-    loadAuth();
-  }, [loadAuth]);
-
-  useEffect(() => {
-    if (requestedEventSlug === null) return;
-    setStatus("all");
-    setSelectedIps([]);
-    setQuery("");
-  }, [requestedEventSlug]);
-
-  // 라우트가 바뀌면 시트를 닫는다. 설정에서 현재 행사로 이동한 경우에는
-  // 요청한 검색/필터 시트를 새 화면에서 다시 연다.
-  useEffect(() => {
-    const next = pendingSheet.current;
+    setSheet(pendingSheet.current);
     pendingSheet.current = null;
-    setSheet(next);
   }, [route]);
-
-  const opener = useRef<HTMLElement | null>(null);
-  useEffect(() => {
-    if (!sheet) { opener.current?.focus(); opener.current = null; return; }
-    opener.current = document.activeElement as HTMLElement | null;
-    if (sheet === "search") searchRef.current?.focus();
-    // 시트가 네비보다 DOM 앞에 있어 Tab으로 못 들어간다 — 첫 항목으로 포커스 이동
-    if (sheet === "events") document.querySelector<HTMLElement>(`#sheet-${sheet} a, #sheet-${sheet} button`)?.focus();
-    document.body.style.overflow = "hidden";
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setSheet(null); };
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = "";
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [sheet]);
-
-  const handleToggle = (id: string) => {
-    setAnnounce(checks[id] ? "방문 체크를 해제했어요" : "방문 체크했어요");
-    toggle(id);
-  };
-
-  // 진행률은 통판 포함(모두 방문 대상) — 제품 규칙
-  const doneCount = all.filter((c) => checks[c.id]).length;
-
-  const filtered = useMemo(
-    () => filterCircles(all, { checks, status, ips: selectedIps, query }),
-    [all, checks, status, selectedIps, query],
-  );
-  const boothList = filtered.filter((c) => !c.unlisted);
-  const tsuhanList = filtered.filter((c) => c.unlisted);
-
-  const detailSlug = route.kind === "circle" || route.kind === "legacy-circle" ? route.circleSlug : null;
-  const detail = detailSlug ? all.find((c) => c.id === detailSlug) ?? null : null;
-
-  const statusChip = (active: boolean) =>
-    "inline-flex items-center h-[32px] px-3 rounded-[8px] text-[13px] font-medium cursor-pointer whitespace-nowrap border " +
-    (active ? "bg-ink text-bg border-ink" : "bg-card text-muted border-line");
-  const genreChip = (active: boolean) =>
-    "inline-flex items-center h-7 px-2.5 rounded-full text-[12px] font-medium cursor-pointer whitespace-nowrap border " +
-    (active ? "bg-accent/10 text-accent border-accent/30" : "bg-card text-muted border-line");
-  // 상세 패널이 열리면 xl에서도 2열 유지(목록 폭이 줄어듦)
-  const gridCls = "grid gap-3 md:grid-cols-2 " + (detail ? "" : "xl:grid-cols-3");
-  // 시트는 행사 체크리스트에서만 존재한다. 라우트 전환 직후의 이전 상태가
-  // 설정/행사 목록 화면에 한 프레임이라도 남지 않도록 렌더 경계를 둔다.
-  const visibleSheet = route.kind === "event" ? sheet : null;
-  // 모바일: 시트가 열렸을 때만 하단 패널로 노출(네비 높이만큼 위). md 이상: topbar 인라인.
-  const sheetPanel = (s: Exclude<Sheet, null>) =>
-    visibleSheet === s
-      ? "glass fixed left-1/2 -translate-x-1/2 w-full max-w-[560px] bottom-0 z-20 rounded-t-[28px] border-b-0 px-5 pt-5 pb-[calc(92px+env(safe-area-inset-bottom))] max-h-[75vh] overflow-y-auto "
-      : "hidden ";
-  const sheetCls = (s: Exclude<Sheet, null>) =>
-    sheetPanel(s) + "md:static md:block md:translate-x-0 md:max-w-none md:rounded-none md:border-0 md:bg-transparent md:shadow-none md:backdrop-filter-none md:after:hidden md:p-0 md:max-h-none md:overflow-visible";
-  const filterCount = (status === "all" ? 0 : 1) + selectedIps.length;
-  const showNav = !detailSlug;
-  const openChecklistOrEvents = () => {
-    if (event?.slug) openEvent(event.slug);
-    else openEvents();
-  };
   const handleNavSheet = (next: Sheet) => {
     if (route.kind === "settings") {
-      if (next === "search" || next === "filter") {
-        if (!event?.slug) return openEvents();
-        pendingSheet.current = next;
-        openEvent(event.slug);
-        return;
-      }
-      if (next === "events") return openEvents();
+      if (next === "events" || !eventSlug) return openEvents();
+      pendingSheet.current = next;
+      return openEvent(eventSlug);
     }
     if (route.kind !== "events") setSheet(next);
   };
+  const handleNavList = () => {
+    setSheet(null);
+    if (route.kind === "event") return;
+    if (eventSlug) openEvent(eventSlug);
+    else openEvents();
+  };
+  // 시트는 행사 체크리스트에서만 존재한다. 라우트 전환 직후의 이전 상태가 한 프레임이라도 남지 않도록 렌더 경계를 둔다.
+  const visibleSheet = route.kind === "event" ? sheet : null;
   const navContext = route.kind === "settings" ? "settings" : route.kind === "events" ? "events" : "event";
+  const showNav = route.kind !== "circle" && route.kind !== "legacy-circle";
+
+  const eventsError = eventsQuery.error;
+  const eventsLoadError = eventsError instanceof Error ? eventsError.message : eventsError ? "불러오기 실패" : null;
 
   return (
     // 쉘: 모바일은 단일 컬럼(560px), md 이상은 사이드바 + 콘텐츠 2컬럼. 컴포넌트는 공유하고 레이아웃만 분기.
@@ -210,268 +121,34 @@ export default function App() {
       </div>
       <Sidebar
         events={events}
-        currentSlug={(route.kind === "event" || route.kind === "circle") ? event?.slug ?? null : null}
+        currentSlug={requestedEventSlug !== null ? eventSlug : null}
         showOnMobile={route.kind === "events"}
         settingsActive={route.kind === "settings"}
         onSettings={openSettings}
       />
       <main className={"w-full max-w-[560px] mx-auto border-x border-line md:max-w-none md:mx-0 md:border-x-0 md:min-h-screen " + (route.kind === "events" ? "" : "flex-1")}>
         {route.kind === "settings" ? (
-          <div className="px-5 pt-7 pb-[calc(88px+env(safe-area-inset-bottom))] md:px-8 md:py-10">
-            <h1 className="text-[26px] font-extrabold text-ink">설정</h1>
-            <div className="mt-7 max-w-[640px]"><Settings authEnabled={authEnabled} user={user} syncedAt={syncedAt} theme={theme} onTheme={setTheme} onLogout={handleLogout} install={install} /></div>
-          </div>
+          <SettingsScreen authEnabled={authEnabled} user={user} syncedAt={syncedAt} theme={theme} onTheme={setTheme} onLogout={handleLogout} install={install} />
         ) : route.kind === "events" ? (
-          <div className="px-5 pt-7 pb-2 md:px-8 md:py-10">
-            <h1 className="text-[26px] font-extrabold text-ink">행사 선택</h1>
-            <p className="mt-2 text-sm text-muted">방문할 행사를 골라 관심 서클을 확인하세요.</p>
-            <InstallBanner install={install} onOpenSettings={openSettings} />
-            {loadError ? <div role="alert" className="mt-8 text-sm text-danger">{loadError}</div> : null}
-            {!loading && !loadError && events.length === 0 ? <div className="py-14 text-center text-sm text-faint">등록된 행사가 없어요</div> : null}
-          </div>
+          <EventsScreen install={install} onOpenSettings={openSettings} loadError={eventsLoadError} loading={eventsQuery.isFetching} empty={events.length === 0} />
         ) : (
-          <div className="xl:flex xl:items-start">
-            {/* 목록 — 상세가 열리면 xl 미만은 숨김(전체 화면 상세), xl 이상은 유지 */}
-            <div className={"min-w-0 flex-1 pb-[calc(88px+env(safe-area-inset-bottom))] md:pb-7 " /* 하단 바 64px + 오프셋 12px + 여백 12px */ + (detail ? "hidden xl:block" : "")}>
-              {/* sticky 헤더(모바일: 제목 + 진행률만) / topbar(데스크톱: 검색·필터 인라인) — fixed 시트가 자식이라 backdrop-blur 금지 */}
-              <div className="sticky top-0 z-10 bg-bg px-5 pt-4 pb-3 border-b border-line md:px-8 md:bg-bg/95 md:backdrop-blur">
-                <div className="flex items-center justify-between gap-3 md:mb-3 md:gap-6">
-                  <div className="min-w-0">
-                    <div className="text-[19px] font-extrabold -tracking-[0.02em] text-ink leading-none truncate">
-                    {event?.title ?? "걸즈밴드 체크리스트"}
-                    </div>
-                    <div className="text-xs font-semibold text-faint mt-[5px] truncate">
-                      {eventSubtitle(event)}
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <div className="text-[12.5px] font-bold text-accent">방문 {doneCount}/{all.length}</div>
-                    {false && (
-                    <button
-                      type="button"
-                      aria-label="설정"
-                      aria-expanded={false}
-                      onClick={openSettings}
-                      className="hidden"
-                    >
-                      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
-                      </svg>
-                    </button>
-                    )}
-                  </div>
-                </div>
-
-                {visibleSheet ? <button type="button" aria-label="시트 닫기" onClick={() => setSheet(null)} className="fixed inset-0 z-20 bg-black/40 md:hidden" /> : null}
-
-                <div id="sheet-search" role="group" aria-label="검색" className={sheetCls("search")}>
-                <div className="flex items-center gap-2.5 h-12 bg-card border border-line rounded-[14px] px-3.5 md:h-10 md:max-w-[520px]">
-                  <svg
-                    viewBox="0 0 24 24"
-                    width="20"
-                    height="20"
-                    fill="none"
-                    stroke="#9aa0aa"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                  >
-                    <circle cx="11" cy="11" r="7" />
-                    <path d="M21 21l-4-4" />
-                  </svg>
-                  <input
-                    ref={searchRef}
-                    type="search"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="서클 · 부스 · 장르 검색"
-                    aria-label="서클·부스·장르 검색"
-                    className="flex-1 min-w-0 border-0 outline-none bg-transparent text-[16px] text-ink placeholder:text-faint"
-                  />
-                  {query ? (
-                    <button
-                      onClick={() => setQuery("")}
-                      title="검색 초기화"
-                      aria-label="검색 초기화"
-                      className="flex items-center"
-                    >
-                      <svg
-                        viewBox="0 0 24 24"
-                        width="20"
-                        height="20"
-                        fill="none"
-                        stroke="#9aa0aa"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                      >
-                        <path d="M6 6l12 12M18 6L6 18" />
-                      </svg>
-                    </button>
-                  ) : event?.map_url ? (
-                    <a
-                      href={event.map_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      title="전체 부스배치도"
-                      aria-label="전체 부스배치도 (새 창)"
-                      className="flex items-center"
-                    >
-                      <svg
-                        viewBox="0 0 24 24"
-                        width="20"
-                        height="20"
-                        fill="none"
-                        stroke="#9aa0aa"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z" />
-                        <circle cx="12" cy="10" r="3" />
-                      </svg>
-                    </a>
-                  ) : null}
-                </div>
-                </div>
-
-                <div id="sheet-filter" role="group" aria-label="필터" className={sheetCls("filter")}>
-                <div className="flex gap-2 md:mt-3.5">
-                  {STATUS.map((s) => (
-                    <button
-                      key={s.k}
-                      onClick={() => setStatus(s.k)}
-                      aria-pressed={status === s.k}
-                      className={statusChip(status === s.k)}
-                    >
-                      {s.label}
-                    </button>
-                  ))}
-                </div>
-
-              {/* 장르 칩 — 모바일 시트 안에서는 줄바꿈, 데스크톱은 topbar 아래 */}
-              <div className="flex flex-wrap gap-2 pt-3 md:pt-4 md:max-h-24 md:overflow-y-auto">
-                <button
-                  onClick={() => setSelectedIps([])}
-                  aria-pressed={selectedIps.length === 0}
-                  className={genreChip(selectedIps.length === 0)}
-                >
-                  전체 장르
-                </button>
-                {Array.from(new Set(all.flatMap((circle) => circle.ips ?? []).filter(Boolean))).sort().map((g) => (
-                  <button
-                    key={g}
-                    onClick={() =>
-                      setSelectedIps((prev) =>
-                        prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g],
-                      )
-                    }
-                    aria-pressed={selectedIps.includes(g)}
-                    className={genreChip(selectedIps.includes(g))}
-                  >
-                    {g}
-                  </button>
-                ))}
-              </div>
-                </div>
-
-                {/* 행사 전환 시트 — 항목 탭 시 닫힘(현재 행사를 다시 눌러도 hashchange가 없어 명시적으로 닫는다). md 이상은 사이드바가 담당 */}
-                <div id="sheet-events" role="group" aria-label="행사 전환" onClick={() => setSheet(null)} className={sheetPanel("events") + "md:hidden"}>
-                  {sheet === "events" ? (
-                    <>
-                      <div className="text-xs font-extrabold tracking-[0.04em] text-faint">현재 행사</div>
-                      <div className="mt-1 text-[17px] font-extrabold text-ink truncate">{event?.title}</div>
-                      <EventList events={events} currentSlug={event?.slug ?? null} />
-                    </>
-                  ) : null}
-                </div>
-
-              </div>
-
-              <div className="px-[22px] pt-3.5 pb-2 text-[12.5px] font-bold text-faint md:px-8">참가 서클 {filtered.length}곳</div>
-
-              {/* 카드 목록 — 데스크톱은 2~3열 그리드 */}
-              <div className="px-5 md:px-8" {...(visibleSheet ? { inert: "" } : {})}>
-                {loadError && (
-                  <div className="text-center py-14" role="alert">
-                    <div className="text-danger text-sm font-semibold">{loadError}</div>
-                    <button
-                      onClick={() => void (eventsQuery.error || missingEvent ? eventsQuery.refetch() : circlesQuery.refetch())}
-                      disabled={loading}
-                      className="mt-3 inline-flex items-center h-9 px-4 rounded-full bg-ink text-bg text-[13px] font-bold cursor-pointer border-0 disabled:opacity-60"
-                    >
-                      {loading ? "다시 시도 중…" : "다시 시도"}
-                    </button>
-                  </div>
-                )}
-                {!loadError && loading && circles.length === 0 && (
-                  <div className="text-center py-14 text-[#b0b4bc] text-sm font-semibold">
-                    불러오는 중...
-                  </div>
-                )}
-                {!loadError && (
-                  <div className={gridCls}>
-                    {boothList.map((c) => (
-                      <Card
-                        key={c.id}
-                        item={c}
-                        checked={!!checks[c.id]}
-                        onToggle={() => handleToggle(c.id)}
-                        onOpen={() => event && openCircle(event.slug, c.id)}
-                        color={badgeColor(c.id, all)}
-                      />
-                    ))}
-                  </div>
-                )}
-
-                {/* 통판(윗치폼) 섹션 — 행사장 부스 없이 온라인 주문 */}
-                {!loadError && tsuhanList.length > 0 && (
-                  <>
-                    <div className="flex items-center gap-2 mt-7 mb-3.5">
-                      <span className="text-[12.5px] font-extrabold tracking-[0.04em] text-faint">
-                        윗치폼 통판
-                      </span>
-                      <span className="text-[11px] font-bold text-accent">{tsuhanList.length}</span>
-                      <div className="flex-1 h-px bg-line" />
-                    </div>
-                    <div className={gridCls}>
-                      {tsuhanList.map((c) => (
-                        <Card
-                          key={c.id}
-                          item={c}
-                          checked={!!checks[c.id]}
-                          onToggle={() => handleToggle(c.id)}
-                          onOpen={() => event && openCircle(event.slug, c.id)}
-                          color={badgeColor(c.id, all)}
-                        />
-                      ))}
-                    </div>
-                  </>
-                )}
-
-                {!loadError && !loading && filtered.length === 0 && (
-                  <div className="text-center py-14 text-[#b0b4bc] text-sm font-semibold">
-                    조건에 맞는 서클이 없어요
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* 서클 상세 — xl 미만은 전체 화면, xl 이상은 우측 패널(목록 유지) */}
-            {detail && (
-              <section aria-label="서클 상세" className="min-w-0 xl:w-[400px] xl:shrink-0 xl:sticky xl:top-0 xl:h-screen xl:overflow-y-auto xl:border-l xl:border-line">
-                <Detail
-                  item={detail}
-                  checked={!!checks[detail.id]}
-                  onToggle={() => handleToggle(detail.id)}
-                  onBack={() => event && backToEvent(event.slug)}
-                  color={badgeColor(detail.id, all)}
-                />
-              </section>
-            )}
-          </div>
+          <ChecklistScreen
+            event={event}
+            circleSlug={route.kind === "circle" || route.kind === "legacy-circle" ? route.circleSlug : null}
+            events={events}
+            eventsQuery={eventsQuery}
+            checks={checks}
+            onToggle={handleToggle}
+            filters={filters}
+            sheet={visibleSheet}
+            onSheet={setSheet}
+            onOpenEvent={openEvent}
+            onOpenCircle={openCircle}
+          />
         )}
       </main>
       {showNav && (
-        <BottomNav context={navContext} sheet={visibleSheet} onSheet={handleNavSheet} onList={openChecklistOrEvents} onEvents={openEvents} searchCount={query ? 1 : 0} filterCount={filterCount} onSettings={openSettings} />
+        <BottomNav context={navContext} sheet={visibleSheet} onSheet={handleNavSheet} onList={handleNavList} onEvents={openEvents} searchCount={filters.query ? 1 : 0} filterCount={filters.filterCount} onSettings={openSettings} />
       )}
     </div>
   );
