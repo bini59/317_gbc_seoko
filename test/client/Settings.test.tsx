@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
-import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup, within } from "@testing-library/react";
 import { Settings, useTheme } from "../../src/components/Settings";
 
 vi.mock("../../src/api", async (importOriginal) => ({
@@ -32,7 +32,7 @@ describe("<Settings/>", () => {
   it("hides the sync section entirely when auth is disabled but keeps 화면/데이터/정보", () => {
     render(<Settings {...base} authEnabled={false} />);
     expect(screen.queryByRole("button", { name: "연동하기" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "연동 해제" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "로그아웃" })).toBeNull();
     expect(screen.queryByText("기기 간 연동")).toBeNull();
     expect(screen.getByRole("group", { name: "테마" })).toBeTruthy();
     expect(screen.queryByText("데이터")).toBeNull();
@@ -43,11 +43,12 @@ describe("<Settings/>", () => {
   it("signed out: explains sync and calls login() from 연동하기 (#30: no feature-limit copy)", () => {
     render(<Settings {...base} />);
     expect(screen.getByText("로그인하면 방문 체크가 다른 기기와 동기화돼요")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "로그아웃" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "연동하기" }));
     expect(login).toHaveBeenCalledTimes(1);
   });
 
-  it("signed in: shows profile, sync status, account center, and calls onLogout from 연동 해제 (#34)", () => {
+  it("signed in: shows profile, sync status, and calls onLogout from the final 로그아웃 section (#52)", () => {
     const onLogout = vi.fn();
     render(<Settings {...base} user={USER} syncedAt={new Date(2026, 8, 2, 14, 5).getTime()} onLogout={onLogout} />);
     expect(screen.getByText("세오코")).toBeTruthy();
@@ -57,7 +58,11 @@ describe("<Settings/>", () => {
     expect(link.getAttribute("href")).toBe("https://auth.bini59.dev/client");
     expect(link.getAttribute("target")).toBe("_blank");
     expect(screen.queryByRole("button", { name: "연동하기" })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "연동 해제" }));
+    expect(screen.queryByRole("button", { name: "연동 해제" })).toBeNull();
+    const accountSection = screen.getByRole("heading", { name: "계정" }).parentElement!;
+    expect(accountSection.parentElement?.lastElementChild).toBe(accountSection);
+    expect(within(accountSection).getByRole("button", { name: "로그아웃" })).toBeTruthy();
+    fireEvent.click(within(accountSection).getByRole("button", { name: "로그아웃" }));
     expect(onLogout).toHaveBeenCalledTimes(1);
   });
 
