@@ -1,7 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { render, screen, fireEvent, cleanup, waitFor, act, within } from "@testing-library/react";
+import { render as rtlRender, screen, fireEvent, cleanup, waitFor, act, within } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "../../src/App";
+import { cacheKeys } from "../../src/lib/cache";
 
 type ApiCircleLike = Record<string, unknown>;
 
@@ -18,6 +21,10 @@ const apiCircle = (o: Partial<ApiCircleLike> & { slug: string; name: string; sta
   links: [],
   ...o,
 });
+
+function json(obj: unknown) {
+  return new Response(JSON.stringify(obj), { status: 200, headers: { "content-type": "application/json" } });
+}
 
 function mockApi(circles: ApiCircleLike[], authEnabled = false, user: { userId: string; email: null; name: string; avatarUrl: null } | null = null) {
   const json = (obj: unknown) =>
@@ -39,6 +46,21 @@ function mockApi(circles: ApiCircleLike[], authEnabled = false, user: { userId: 
       throw new Error("unexpected fetch " + url);
     }),
   );
+}
+
+/** Keep App tests independent: every render gets an isolated client with no automatic retries. */
+function render(ui: ReactElement) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return rtlRender(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+}
+
+function goTo(hash: string) {
+  window.location.hash = hash;
+  fireEvent(window, new Event("hashchange"));
+}
+
+function cached<T>(hash: string, data: T) {
+  return JSON.stringify({ schemaVersion: 1, hash, cachedAt: Date.now(), data });
 }
 
 const CIRCLES = [
@@ -267,7 +289,7 @@ describe("<App/> confirmed + unlisted", () => {
     fireEvent.click(screen.getByRole("button", { name: "걸즈밴드크라이" }));
     window.location.hash = "#/events/illustar";
     fireEvent(window, new Event("hashchange"));
-    await screen.findByText("일러스타 페스");
+    await screen.findByText("부스서클");
     expect((screen.getByRole("searchbox") as HTMLInputElement).value).toBe("");
     expect(screen.getByRole("button", { name: "전체" }).getAttribute("aria-pressed")).toBe("true");
     expect(screen.getByRole("button", { name: "전체 장르" }).getAttribute("aria-pressed")).toBe("true");
@@ -281,7 +303,7 @@ describe("<App/> confirmed + unlisted", () => {
 
     window.location.hash = "#/events/illustar";
     fireEvent(window, new Event("hashchange"));
-    await screen.findByText("일러스타 페스");
+    await screen.findByText("부스서클");
     expect(screen.getAllByLabelText("방문 체크").length).toBeGreaterThan(0);
     expect(localStorage.getItem("gbc-seoko-checks:illustar")).toBeNull();
   });
@@ -326,6 +348,152 @@ describe("<App/> confirmed + unlisted", () => {
     expect(await screen.findByRole("alert")).toBeTruthy();
     expect(screen.queryByText("부스서클")).toBeNull();
     expect(screen.queryByLabelText("방문 체크")).toBeNull();
+  });
+
+  it("reuses the events and circles query caches when re-entering within five minutes", async () => {
+    const hash = "a".repeat(32);
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url === "/api/events?metadata=1") return json({ meta: { schemaVersion: 1, hash } });
+      if (url === "/api/events") return json({ events: [
+        { id: 1, slug: "ev", title: "캐시 행사", status: "active" },
+      ], meta: { schemaVersion: 1, hash } });
+      if (url === "/api/circles?event=ev&status=all&metadata=1") return json({ meta: { schemaVersion: 1, hash } });
+      if (url === "/api/circles?event=ev&status=all") return json({
+        circles: [apiCircle({ slug: "cached-circle", name: "첫 로드 서클", status: "confirmed" })],
+        meta: { schemaVersion: 1, hash },
+      });
+      if (url === "/api/auth/me") return json({ enabled: false, user: null });
+      throw new Error("unexpected fetch " + url);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    goTo("#/events/ev");
+    render(<App />);
+    await screen.findByText("첫 로드 서클");
+    expect(fetchMock.mock.calls.filter(([url]) => url === "/api/events").length).toBe(1);
+    expect(fetchMock.mock.calls.filter(([url]) => url === "/api/events?metadata=1").length).toBe(1);
+    expect(fetchMock.mock.calls.filter(([url]) => url === "/api/circles?event=ev&status=all").length).toBe(1);
+
+    goTo("#/");
+    await screen.findByRole("heading", { name: "행사 선택" });
+    goTo("#/events/ev");
+    await screen.findByText("첫 로드 서클");
+
+    expect(fetchMock.mock.calls.filter(([url]) => url === "/api/events").length).toBe(1);
+    expect(fetchMock.mock.calls.filter(([url]) => url === "/api/events?metadata=1").length).toBe(1);
+    expect(fetchMock.mock.calls.filter(([url]) => url === "/api/circles?event=ev&status=all").length).toBe(1);
+  });
+
+  it("isolates circle caches by event slug and restores the matching cached dataset", async () => {
+    const eventHash = "b".repeat(32);
+    const evCircle = apiCircle({ slug: "ev-circle", name: "코믹 서클", status: "confirmed" });
+    const illustarCircle = apiCircle({ slug: "illustar-circle", name: "일러스타 서클", status: "confirmed" });
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url === "/api/events?metadata=1") return json({ meta: { schemaVersion: 1, hash: eventHash } });
+      if (url === "/api/events") return json({ events: [
+        { id: 1, slug: "ev", title: "코믹월드", status: "active" },
+        { id: 2, slug: "illustar", title: "일러스타 페스", status: "upcoming" },
+      ], meta: { schemaVersion: 1, hash: eventHash } });
+      if (url === "/api/circles?event=ev&status=all&metadata=1") return json({ meta: { schemaVersion: 1, hash: "c".repeat(32) } });
+      if (url === "/api/circles?event=ev&status=all") return json({ circles: [evCircle] });
+      if (url === "/api/circles?event=illustar&status=all&metadata=1") return json({ meta: { schemaVersion: 1, hash: "d".repeat(32) } });
+      if (url === "/api/circles?event=illustar&status=all") return json({ circles: [illustarCircle] });
+      if (url === "/api/auth/me") return json({ enabled: false, user: null });
+      throw new Error("unexpected fetch " + url);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    goTo("#/events/ev");
+    render(<App />);
+    await screen.findByText("코믹 서클");
+
+    goTo("#/events/illustar");
+    await screen.findByText("일러스타 서클");
+    expect(screen.queryByText("코믹 서클")).toBeNull();
+
+    goTo("#/events/ev");
+    await screen.findByText("코믹 서클");
+    expect(screen.queryByText("일러스타 서클")).toBeNull();
+    expect(fetchMock.mock.calls.filter(([url]) => url === "/api/circles?event=ev&status=all").length).toBe(1);
+    expect(fetchMock.mock.calls.filter(([url]) => url === "/api/circles?event=illustar&status=all").length).toBe(1);
+  });
+
+  it("revalidates metadata and refreshes both datasets after staleTime expires", async () => {
+    const initialHash = "e".repeat(32);
+    const refreshedHash = "f".repeat(32);
+    let version = 1;
+    const fetchMock = vi.fn((url: string) => {
+      const hash = version === 1 ? initialHash : refreshedHash;
+      if (url === "/api/events?metadata=1") return json({ meta: { schemaVersion: 1, hash } });
+      if (url === "/api/events") return json({ events: [
+        { id: 1, slug: "ev", title: version === 1 ? "첫 행사 버전" : "새 행사 버전", status: "active" },
+      ], meta: { schemaVersion: 1, hash } });
+      if (url === "/api/circles?event=ev&status=all&metadata=1") return json({ meta: { schemaVersion: 1, hash } });
+      if (url === "/api/circles?event=ev&status=all") return json({ circles: [apiCircle({
+        slug: "versioned-circle",
+        name: version === 1 ? "이전 데이터" : "새 데이터",
+        status: "confirmed",
+      })], meta: { schemaVersion: 1, hash } });
+      if (url === "/api/auth/me") return json({ enabled: false, user: null });
+      throw new Error("unexpected fetch " + url);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const initialNow = Date.now();
+    vi.useFakeTimers({ now: initialNow });
+    try {
+      goTo("#/events/ev");
+      render(<App />);
+      for (let i = 0; i < 100; i += 1) {
+        await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+        await Promise.resolve();
+      }
+      expect(screen.getByText("이전 데이터")).toBeTruthy();
+      await act(async () => { await vi.advanceTimersByTimeAsync(5 * 60 * 1000 + 1); });
+      vi.setSystemTime(initialNow + 5 * 60 * 1000 + 1);
+      version = 2;
+      goTo("#/settings");
+      expect(screen.getByRole("heading", { name: "설정" })).toBeTruthy();
+      await act(async () => { await Promise.resolve(); });
+      goTo("#/events/ev");
+      await act(async () => {
+        for (let i = 0; i < 100; i += 1) {
+          await vi.advanceTimersByTimeAsync(1);
+          await Promise.resolve();
+        }
+      });
+      expect(screen.getByText("새 데이터")).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+
+    expect(fetchMock.mock.calls.filter(([url]) => url === "/api/events?metadata=1").length).toBe(2);
+    expect(fetchMock.mock.calls.filter(([url]) => url === "/api/events").length).toBe(2);
+    expect(fetchMock.mock.calls.filter(([url]) => url === "/api/circles?event=ev&status=all&metadata=1").length).toBe(2);
+    expect(fetchMock.mock.calls.filter(([url]) => url === "/api/circles?event=ev&status=all").length).toBe(2);
+  });
+
+  it("uses matching local metadata caches without downloading either full dataset", async () => {
+    const eventsHash = "1".repeat(32);
+    const circlesHash = "2".repeat(32);
+    const cachedEvent = { id: 1, slug: "ev", title: "로컬 캐시 행사", status: "active" };
+    const cachedCircle = { id: "local-circle", name: "로컬 캐시 서클", links: [] };
+    localStorage.setItem(cacheKeys.events, cached(eventsHash, [cachedEvent]));
+    localStorage.setItem(cacheKeys.circles("ev"), cached(circlesHash, { circles: [cachedCircle], witchformExtra: [] }));
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url === "/api/events?metadata=1") return json({ meta: { schemaVersion: 1, hash: eventsHash } });
+      if (url === "/api/circles?event=ev&status=all&metadata=1") return json({ meta: { schemaVersion: 1, hash: circlesHash } });
+      if (url === "/api/auth/me") return json({ enabled: false, user: null });
+      throw new Error("full dataset should not be requested: " + url);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    goTo("#/events/ev");
+    render(<App />);
+    await screen.findByText("로컬 캐시 서클");
+    expect(fetchMock.mock.calls.filter(([url]) => url === "/api/events")).toHaveLength(0);
+    expect(fetchMock.mock.calls.filter(([url]) => url === "/api/circles?event=ev&status=all")).toHaveLength(0);
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).includes("metadata=1"))).toHaveLength(2);
   });
 });
 
