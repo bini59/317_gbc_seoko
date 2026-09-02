@@ -34,6 +34,7 @@ function mockApi(circles: ApiCircleLike[], authEnabled = false, user: { userId: 
         });
       if (url.includes("/api/circles")) return json({ circles });
       if (url.includes("/api/auth/logout")) return json({ ok: true });
+      if (url.includes("/api/checks")) return json({ checks: { booth1: true } });
       if (url.includes("/api/auth/me")) return json({ enabled: authEnabled, user });
       throw new Error("unexpected fetch " + url);
     }),
@@ -44,6 +45,14 @@ const CIRCLES = [
   apiCircle({ slug: "booth1", name: "부스서클", status: "confirmed", booth: "A-01", ips: ["걸즈밴드크라이"] }),
   apiCircle({ slug: "tsuhan1", name: "통판서클", status: "unlisted", ips: [] }),
 ];
+
+/** 데스크톱 사이드바 설정은 닫힌 <details> 안 — 실제 브라우저처럼 summary를 눌러 연다 */
+function openSidebarSettings() {
+  const summary = screen.getByText("설정", { selector: "summary" });
+  fireEvent.click(summary);
+  expect((summary.closest("details") as HTMLDetailsElement).open).toBe(true);
+  return within(summary.closest("aside")!);
+}
 
 describe("<App/> confirmed + unlisted", () => {
   beforeEach(() => {
@@ -81,25 +90,32 @@ describe("<App/> confirmed + unlisted", () => {
     await screen.findByText("부스서클");
     expect(screen.getByRole("link", { name: /코믹월드/ }).getAttribute("aria-current")).toBe("page");
     expect(screen.getByRole("link", { name: /일러스타 페스/ }).getAttribute("aria-current")).toBeNull();
-    expect(screen.queryByRole("button", { name: "기기 간 동기화" })).toBeNull();
+    // 설정은 항상 있지만 연동 섹션은 auth 비활성이면 없다 (#45)
+    const settings = openSidebarSettings();
+    expect(settings.queryByRole("button", { name: "연동하기" })).toBeNull();
+    expect(settings.queryByText("기기 간 연동")).toBeNull();
+    expect(settings.getByRole("group", { name: "테마" })).toBeTruthy();
   });
 
-  it("shows the sync entry only in the sidebar when auth is enabled", async () => {
+  it("shows the sync entry inside the sidebar settings when auth is enabled (#45)", async () => {
     window.location.hash = "#/events/ev";
     mockApi(CIRCLES, true);
     render(<App />);
-    expect(await screen.findByRole("button", { name: "기기 간 동기화" })).toBeTruthy();
+    await screen.findByText("부스서클");
+    const settings = openSidebarSettings();
+    expect(await settings.findByRole("button", { name: "연동하기" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "로그인" })).toBeNull();
   });
 
-  it("keeps name/logout in the sidebar slot only when signed in (#30)", async () => {
+  it("keeps name/logout in the sidebar settings only when signed in (#30)", async () => {
     window.location.hash = "#/events/ev";
     mockApi(CIRCLES, true, { userId: "u1", email: null, name: "세오코", avatarUrl: null });
     render(<App />);
-    const trigger = await screen.findByRole("button", { name: /프로필 메뉴/ });
-    expect(trigger.closest("aside")).not.toBeNull();
-    expect(screen.getByText("세오코")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "기기 간 동기화" })).toBeNull();
+    await screen.findByText("부스서클");
+    const settings = openSidebarSettings();
+    expect(await settings.findByRole("button", { name: "연동 해제" })).toBeTruthy();
+    expect(settings.getByText("세오코")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "연동하기" })).toBeNull();
     expect(screen.queryByRole("button", { name: "로그인" })).toBeNull();
   });
 
@@ -107,11 +123,72 @@ describe("<App/> confirmed + unlisted", () => {
     window.location.hash = "#/events/ev";
     mockApi(CIRCLES, true, { userId: "u1", email: null, name: "세오코", avatarUrl: null });
     render(<App />);
-    fireEvent.click(await screen.findByRole("button", { name: /프로필 메뉴/ }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "로그아웃" }));
-    expect(await screen.findByRole("button", { name: "기기 간 동기화" })).toBeTruthy();
+    await screen.findByText("부스서클");
+    const settings = openSidebarSettings();
+    fireEvent.click(await settings.findByRole("button", { name: "연동 해제" }));
+    expect(await settings.findByRole("button", { name: "연동하기" })).toBeTruthy();
     expect(vi.mocked(fetch)).toHaveBeenCalledWith("/api/auth/logout", { method: "POST", credentials: "include" });
-    expect(screen.queryByRole("button", { name: /프로필 메뉴/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "연동 해제" })).toBeNull();
+  });
+
+  it("announces the merged count after the first remote sync (#45)", async () => {
+    window.location.hash = "#/events/ev";
+    localStorage.setItem("gbc-seoko-checks:ev", JSON.stringify({ tsuhan1: true }));
+    mockApi(CIRCLES, true, { userId: "u1", email: null, name: "세오코", avatarUrl: null });
+    render(<App />);
+    expect(await screen.findByText("1개 항목을 동기화했어요")).toBeTruthy(); // 로컬에서 올라간 항목만 센다
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith(expect.stringContaining("/api/checks"), expect.objectContaining({ method: "PUT" }));
+    openSidebarSettings();
+    expect(screen.getByText(/마지막 저장/)).toBeTruthy();
+  });
+
+  it("does not announce or stamp a save on a plain load with nothing to merge (#45)", async () => {
+    window.location.hash = "#/events/ev";
+    mockApi(CIRCLES, true, { userId: "u1", email: null, name: "세오코", avatarUrl: null });
+    render(<App />);
+    await screen.findByLabelText("방문 체크 해제"); // 원격 booth1 반영됨
+    expect(screen.queryByText(/동기화했어요/)).toBeNull();
+    expect(vi.mocked(fetch)).not.toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ method: "PUT" }));
+    openSidebarSettings();
+    expect(screen.queryByText(/마지막 저장/)).toBeNull();
+  });
+
+  it("keeps the merged checks and announces when the merge save fails (#45)", async () => {
+    window.location.hash = "#/events/ev";
+    localStorage.setItem("gbc-seoko-checks:ev", JSON.stringify({ tsuhan1: true }));
+    mockApi(CIRCLES, true, { userId: "u1", email: null, name: "세오코", avatarUrl: null });
+    const base = vi.mocked(fetch).getMockImplementation()!;
+    vi.mocked(fetch).mockImplementation(async (url, init) => {
+      if (String(url).includes("/api/checks") && init?.method === "PUT") return new Response(null, { status: 500 });
+      return base(url, init);
+    });
+    render(<App />);
+    expect(await screen.findByText("방문 체크를 저장하지 못했어요")).toBeTruthy();
+    expect(screen.getAllByLabelText("방문 체크 해제").length).toBe(2); // 원격 booth1 + 로컬 tsuhan1 모두 유지
+  });
+
+  it("hides the reset action on the 행사 landing where there is nothing to reset (#45)", async () => {
+    window.location.hash = "#/events";
+    render(<App />);
+    await screen.findByRole("heading", { name: "행사 선택" });
+    openSidebarSettings();
+    expect(screen.queryByRole("button", { name: "이 행사 방문 체크 초기화" })).toBeNull();
+  });
+
+  it("clears the current 행사 checks from settings after confirm (#45)", async () => {
+    window.location.hash = "#/events/ev";
+    localStorage.setItem("gbc-seoko-checks:ev", JSON.stringify({ booth1: true }));
+    render(<App />);
+    await screen.findByText("부스서클");
+    expect(screen.getAllByLabelText("방문 체크 해제").length).toBe(1);
+    const settings = openSidebarSettings();
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    fireEvent.click(settings.getByRole("button", { name: "이 행사 방문 체크 초기화" }));
+    expect(screen.getAllByLabelText("방문 체크 해제").length).toBe(1);
+    confirm.mockReturnValue(true);
+    fireEvent.click(settings.getByRole("button", { name: "이 행사 방문 체크 초기화" }));
+    await waitFor(() => expect(screen.queryByLabelText("방문 체크 해제")).toBeNull());
+    expect(localStorage.getItem("gbc-seoko-checks:ev")).toBe("{}");
   });
 
   it("still signs out locally when the logout request fails (#34)", async () => {
@@ -123,9 +200,10 @@ describe("<App/> confirmed + unlisted", () => {
       return base(url, init);
     });
     render(<App />);
-    fireEvent.click(await screen.findByRole("button", { name: /프로필 메뉴/ }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "로그아웃" }));
-    expect(await screen.findByRole("button", { name: "기기 간 동기화" })).toBeTruthy();
+    await screen.findByText("부스서클");
+    const settings = openSidebarSettings();
+    fireEvent.click(await settings.findByRole("button", { name: "연동 해제" }));
+    expect(await settings.findByRole("button", { name: "연동하기" })).toBeTruthy();
   });
 
   it("opens the 통판 detail from its card", async () => {
@@ -300,6 +378,33 @@ describe("<App/> bottom navigation (mobile)", () => {
     expect(window.location.hash).toBe("#/events/ev");
     expect(document.body.style.overflow).toBe("");
     await act(() => new Promise((r) => setTimeout(r, 0))); // jsdom의 지연된 앵커 내비게이션이 다음 테스트로 새지 않게
+  });
+
+  it("opens the settings sheet from the header gear, keeps 4 tabs, and closes on Escape (#45)", async () => {
+    mockApi(CIRCLES, true);
+    render(<App />);
+    await screen.findByText("부스서클");
+    const gear = screen.getByRole("button", { name: "설정" });
+    expect(gear.getAttribute("aria-controls")).toBe("sheet-settings");
+    const sheet = document.getElementById("sheet-settings")!;
+    expect(sheet.className.split(" ")).toContain("hidden");
+    expect(within(sheet).queryByRole("button", { name: "연동하기" })).toBeNull(); // 닫힘 = 미렌더(사이드바 사본과 중복 방지)
+    gear.focus(); // 브라우저는 클릭 시 포커스가 붙지만 jsdom의 fireEvent.click은 아니다
+    fireEvent.click(gear);
+    expect(gear.getAttribute("aria-expanded")).toBe("true");
+    expect(sheet.className.split(" ")).not.toContain("hidden");
+    expect(sheet.className).toContain("md:hidden");
+    expect(document.activeElement).toBe(within(sheet).getByRole("button", { name: "연동하기" }));
+    expect(screen.getByRole("navigation", { name: "하단 메뉴" }).querySelectorAll("button").length).toBe(4);
+    expect(screen.getByRole("button", { name: "목록" }).getAttribute("aria-current")).toBe("page");
+    // 테마는 App이 한 번만 들고 있어 시트에서 고르면 사이드바 사본도 같은 값을 본다
+    fireEvent.click(within(sheet).getByRole("button", { name: "다크" }));
+    const aside = screen.getByText("설정", { selector: "summary" }).closest("aside")!;
+    expect(within(aside).getByRole("button", { name: "다크" }).getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(within(sheet).getByRole("button", { name: "시스템" })); // data-theme 정리
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(gear.getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(gear);
   });
 
   it("shows the 행사 landing without a nav on direct #/events entry", async () => {
