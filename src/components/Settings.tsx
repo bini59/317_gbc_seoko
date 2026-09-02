@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { AUTH_ORIGIN, login, type AuthUser } from "../api";
+import { AUTH_ORIGIN, login, sendFeedback, type AuthUser } from "../api";
 import { InstallGuide } from "./InstallGuide";
 import type { InstallState } from "../hooks/useInstallPrompt";
 
 const ACCOUNT_CENTER_URL = `${AUTH_ORIGIN}/client`;
-const ISSUES_URL = "https://github.com/bini59/317_gbc_seoko/issues";
+const CONTACT_EMAIL = "contact@bini59.dev";
 
 /** 320_archive와 동일 — https 아바타만 허용, 파싱 실패는 null */
 function safeAvatarUrl(value: string | null): string | null {
@@ -22,6 +22,39 @@ function Avatar({ src, fallback }: { src: string | null; fallback: string }) {
     <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full border border-line bg-chip text-[13px] font-semibold text-muted">
       {src ? <img alt="" src={src} width={36} height={36} referrerPolicy="no-referrer" className="h-full w-full object-cover" /> : fallback}
     </span>
+  );
+}
+
+function FeedbackForm() {
+  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const data = new FormData(form);
+    setStatus("sending");
+    try {
+      await sendFeedback(String(data.get("message") ?? ""), String(data.get("contact") ?? ""));
+      form.reset();
+      setStatus("sent");
+    } catch {
+      setStatus("error");
+    }
+  };
+  const fieldCls = "w-full rounded-[8px] border border-line bg-bg px-3 py-2 text-[14px] text-ink placeholder:text-faint";
+  return (
+    <form onSubmit={onSubmit} className="grid gap-2 p-2.5">
+      <textarea name="message" required maxLength={2000} rows={3} placeholder="불편한 점, 잘못된 정보, 바라는 기능을 적어주세요" className={fieldCls} />
+      <input name="contact" type="text" maxLength={200} placeholder="답변 받을 연락처 (선택 · 이메일/트위터)" className={fieldCls} />
+      <div className="flex items-center gap-3">
+        <button type="submit" disabled={status === "sending"} className="h-9 rounded-[8px] bg-ink px-4 text-[13px] font-semibold text-bg disabled:opacity-50">
+          {status === "sending" ? "보내는 중…" : "보내기"}
+        </button>
+        <a href={`mailto:${CONTACT_EMAIL}`} className="text-[12px] text-faint underline">이메일로 보내기</a>
+        <span role="status" className="ml-auto text-[12px] text-muted">
+          {status === "sent" ? "보냈어요. 감사합니다!" : status === "error" ? "전송 실패 — 다시 시도해주세요" : ""}
+        </span>
+      </div>
+    </form>
   );
 }
 
@@ -141,10 +174,13 @@ export function Settings({
         <h3 className={headingCls}>정보</h3>
         <div className="rounded-[14px] border border-line bg-card p-1.5">
           <div className={rowCls + "text-muted"}>앱 버전<span className="ml-auto text-faint">v{import.meta.env.VITE_APP_VERSION ?? "dev"}</span></div>
-          <a href={ISSUES_URL} target="_blank" rel="noreferrer noopener" className={rowCls + "text-muted hover:text-ink"}>
-            <span>문의·피드백<span className="sr-only"> (새 창)</span></span>
-            <External />
-          </a>
+        </div>
+      </section>
+
+      <section className="grid gap-2.5">
+        <h3 className={headingCls}>문의·피드백</h3>
+        <div className="rounded-[14px] border border-line bg-card">
+          <FeedbackForm />
         </div>
       </section>
 

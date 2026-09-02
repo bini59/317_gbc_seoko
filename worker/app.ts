@@ -23,6 +23,8 @@ export type Bindings = {
   AUTH_ORIGIN?: string;
   AUTH_CLIENT_ID?: string;
   AUTH_CLIENT_SECRET?: string;
+  EMAIL?: SendEmail;
+  FEEDBACK_TO?: string;
 };
 
 type AuthenticatedUser = {
@@ -239,7 +241,7 @@ app.use("*", cors({
 }));
 
 // require bearer token for mutating routes only (session-cookie routes are exempt)
-const SESSION_ROUTES = ["/api/checks", "/api/auth/logout"];
+const SESSION_ROUTES = ["/api/checks", "/api/auth/logout", "/api/feedback"];
 app.use("*", async (c, next) => {
   if (["POST", "PATCH", "PUT", "DELETE"].includes(c.req.method) && !SESSION_ROUTES.includes(c.req.path)) {
     const auth = c.req.header("authorization") || "";
@@ -289,6 +291,31 @@ app.post("/auth/logout", async (c) => {
   const parent = c.env.AUTH_ORIGIN ? new URL(c.env.AUTH_ORIGIN).hostname.split(".").slice(1).join(".") : "";
   if (parent.includes(".")) c.header("set-cookie", `${expired}; Domain=${parent}`, { append: true });
   return c.json({ ok: true, revoked });
+});
+
+// 문의·피드백 — 로그인 불필요. 조회는 `wrangler d1 execute gbc-seoko-db --remote --command "SELECT * FROM feedback ORDER BY id DESC"`.
+// ponytail: 레이트리밋 없음(본문 2000자 + readJson 크기 제한만). 스팸 생기면 Cloudflare WAF rate rule을 /api/feedback에 붙인다.
+app.post("/feedback", async (c) => {
+  const body = await readJson(c, 16 * 1024);
+  const message = str(body.message, "message", 2000);
+  const contact = optStr(body.contact, "contact", 200);
+  const user = await verifyAuth(c).catch(() => null);
+  await c.env.DB.prepare("INSERT INTO feedback (message, contact, user_id, user_agent) VALUES (?, ?, ?, ?)")
+    .bind(message.trim(), contact?.trim() || null, user?.userId ?? null, (c.req.header("user-agent") || "").slice(0, 300))
+    .run();
+  // 메일 전달은 부가 기능 — 바인딩/도메인 미설정이나 실패해도 저장은 이미 끝났으므로 응답에 영향 없음.
+  if (c.env.EMAIL && c.env.FEEDBACK_TO) {
+    const to = c.env.FEEDBACK_TO;
+    c.executionCtx.waitUntil(
+      c.env.EMAIL.send({
+        from: { email: `noreply@${to.split("@")[1]}`, name: "seoko-maps 피드백" },
+        to,
+        subject: `[seoko-maps 피드백] ${message.trim().slice(0, 40)}`,
+        text: `${message.trim()}\n\n연락처: ${contact?.trim() || "(없음)"}\n사용자: ${user?.userId ?? "(비로그인)"}`,
+      }).catch((error) => console.error("feedback email failed", error)),
+    );
+  }
+  return c.json({ ok: true }, 201);
 });
 
 app.get("/checks", async (c) => {
