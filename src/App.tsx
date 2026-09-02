@@ -9,6 +9,8 @@ import { Detail } from "./components/Detail";
 import { EventList, Sidebar } from "./components/Sidebar";
 import { BottomNav, type Sheet } from "./components/BottomNav";
 import { Settings, useTheme } from "./components/Settings";
+import { InstallBanner } from "./components/InstallGuide";
+import { useInstallPrompt } from "./hooks/useInstallPrompt";
 import { eventSubtitle } from "./lib/event";
 
 /* ---------- 앱 ---------- */
@@ -28,6 +30,7 @@ export default function App() {
   const handleSyncError = useCallback(() => setAnnounce("방문 체크를 저장하지 못했어요"), []);
   const [checks, toggle] = useChecks(event?.slug ?? null, event?.status === "active", !!user, authLoading, handleSync, handleSyncError);
   const [theme, setTheme] = useTheme();
+  const install = useInstallPrompt();
   const [status, setStatus] = useState<Status>("all");
   const [selectedIps, setSelectedIps] = useState<string[]>([]);
   const [query, setQuery] = useState("");
@@ -220,12 +223,13 @@ export default function App() {
         {route.kind === "settings" ? (
           <div className="px-5 pt-7 pb-[calc(88px+env(safe-area-inset-bottom))] md:px-8 md:py-10">
             <h1 className="text-[26px] font-extrabold text-ink">설정</h1>
-            <div className="mt-7 max-w-[640px]"><Settings authEnabled={authEnabled} user={user} syncedAt={syncedAt} theme={theme} onTheme={setTheme} onLogout={handleLogout} /></div>
+            <div className="mt-7 max-w-[640px]"><Settings authEnabled={authEnabled} user={user} syncedAt={syncedAt} theme={theme} onTheme={setTheme} onLogout={handleLogout} install={install} /></div>
           </div>
         ) : route.kind === "events" ? (
           <div className="px-5 pt-7 pb-2 md:px-8 md:py-10">
             <h1 className="text-[26px] font-extrabold text-ink">행사 선택</h1>
             <p className="mt-2 text-sm text-muted">방문할 행사를 골라 관심 서클을 확인하세요.</p>
+            <InstallBanner install={install} onOpenSettings={openSettings} />
             {loadError ? <div role="alert" className="mt-8 text-sm text-danger">{loadError}</div> : null}
             {!loading && !loadError && events.length === 0 ? <div className="py-14 text-center text-sm text-faint">등록된 행사가 없어요</div> : null}
           </div>

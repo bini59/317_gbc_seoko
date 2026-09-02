@@ -2,6 +2,7 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent, cleanup, within } from "@testing-library/react";
 import { Settings, useTheme } from "../../src/components/Settings";
+import type { InstallState } from "../../src/hooks/useInstallPrompt";
 
 vi.mock("../../src/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../src/api")>()),
@@ -11,7 +12,8 @@ import { login } from "../../src/api";
 
 const USER = { userId: "u1", email: "seoko@example.com", name: "세오코", avatarUrl: null };
 const noop = () => {};
-const base = { authEnabled: true, user: null, syncedAt: null, theme: "system" as const, onTheme: noop, onLogout: noop };
+const noInstall: InstallState = { isInstalled: false, canPrompt: false, promptInstall: vi.fn() };
+const base = { authEnabled: true, user: null, syncedAt: null, theme: "system" as const, onTheme: noop, onLogout: noop, install: noInstall };
 
 /** 실제 배선과 동일 — 테마 상태는 부모(App)의 useTheme가 들고 내려준다 */
 function Themed(props: Partial<Parameters<typeof Settings>[0]>) {
@@ -91,6 +93,19 @@ describe("<Settings/>", () => {
     localStorage.setItem("theme", "light");
     render(<Themed />);
     expect(screen.getByRole("button", { name: "라이트" }).getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("shows the manual home-screen installation guide when prompting is unavailable", () => {
+    render(<Settings {...base} />);
+    expect(screen.getByRole("heading", { name: "홈 화면에 추가" })).toBeTruthy();
+    expect(screen.getByText("iPhone Safari에서 공유 버튼 선택")).toBeTruthy();
+    expect(screen.getByText("Android Chrome 메뉴(⋮)에서 홈 화면에 추가 선택")).toBeTruthy();
+  });
+
+  it("shows the installed state without a call to action", () => {
+    render(<Settings {...base} install={{ ...noInstall, isInstalled: true }} />);
+    expect(screen.getByText("홈 화면에 추가됨")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "홈 화면에 추가" })).toBeNull();
   });
 
 });

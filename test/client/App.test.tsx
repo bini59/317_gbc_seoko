@@ -76,12 +76,22 @@ describe("<App/> confirmed + unlisted", () => {
   it("shows registered events at the root and opens the selected checklist", async () => {
     render(<App />);
     expect(await screen.findByRole("heading", { name: "행사 선택" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "홈 화면에 추가하는 방법" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "진행 중" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "예정" })).toBeTruthy();
     expect(screen.getByText("코믹월드")).toBeTruthy();
     fireEvent.click(screen.getByRole("link", { name: /일러스타 페스/ }));
     await waitFor(() => expect(window.location.hash).toBe("#/events/illustar"));
     expect(await screen.findByText("부스서클")).toBeTruthy();
+  });
+
+  it("opens the detailed installation guide from the event landing card", async () => {
+    render(<App />);
+    await screen.findByRole("heading", { name: "행사 선택" });
+    fireEvent.click(screen.getByRole("link", { name: "설치 방법 자세히 보기" }));
+
+    expect(window.location.hash).toBe("#/settings");
+    expect(await screen.findByRole("heading", { name: "홈 화면에 추가" })).toBeTruthy();
   });
 
   it("marks the current 행사 in the sidebar", async () => {
