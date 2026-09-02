@@ -1,4 +1,4 @@
-export type Sheet = "search" | "filter" | "events" | null;
+export type Sheet = "search" | "filter" | "events" | "settings" | null;
 
 const ICONS = {
   list: <><path d="M4 6h16M4 12h16M4 18h16" /></>,
@@ -57,6 +57,7 @@ export function BottomNav({
   filterCount: number;
 }) {
   const toggle = (s: Exclude<Sheet, null>) => onSheet(sheet === s ? null : s);
+  // ponytail: 설정 시트는 탭이 아니라 헤더 톱니에서 열린다 — 렌즈는 "목록"(0)에 머무른다
   const activeIndex = sheet === "search" ? 1 : sheet === "filter" ? 2 : sheet === "events" ? 3 : 0;
   return (
     <nav aria-label="하단 메뉴" className="glass glass-refract fixed left-1/2 -translate-x-1/2 w-[calc(100%-24px)] max-w-[536px] bottom-[calc(env(safe-area-inset-bottom)+12px)] z-30 flex rounded-full p-1.5 md:hidden">

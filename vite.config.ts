@@ -4,6 +4,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 import { cloudflare } from "@cloudflare/vite-plugin";
+import pkg from "./package.json";
 
 // CSR SPA + Cloudflare Worker(Hono API + D1). `vite dev`/`vite build` 모두
 // @cloudflare/vite-plugin이 wrangler.jsonc 기준으로 worker/index.ts를 함께 번들링합니다.
@@ -50,6 +51,8 @@ export default defineConfig({
       },
     }),
   ],
+  // 설정 > 정보에 표시하는 앱 버전(#45). vitest는 별도 config라 주입되지 않는다 → 소비 측 `?? "dev"`
+  define: { "import.meta.env.VITE_APP_VERSION": JSON.stringify(pkg.version) },
   base: "./",
   build: {
     outDir: "dist",
