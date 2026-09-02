@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { fetchAuth, fetchEvents, logout, pickActiveEvent, type AuthUser } from "./api";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { logout, pickActiveEvent } from "./api";
 import { useChecks } from "./hooks/useChecks";
 import { useAppRoute } from "./hooks/useAppRoute";
 import { useChecklistFilters } from "./hooks/useChecklistFilters";
@@ -12,14 +12,15 @@ import { ChecklistScreen } from "./screens/ChecklistScreen";
 import { EventsScreen } from "./screens/EventsScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { clearAllChecks } from "./lib/checks";
-import { READ_STALE_TIME } from "./lib/query";
+import { authQuery, eventsQuery as eventsOptions, SIGNED_OUT } from "./lib/queries";
 
 /* ---------- 앱 쉘: 라우트 → 화면 분기, 사이드바/하단 네비, 인증, 체크 동기화 ---------- */
 export default function App() {
   const { route, openEvents, openEvent, openCircle, openSettings } = useAppRoute();
-  const [authEnabled, setAuthEnabled] = useState(false);
-  const [authLoading, setAuthLoading] = useState(true);
-  const [user, setUser] = useState<AuthUser | null>(null);
+  const queryClient = useQueryClient();
+  const auth = useQuery(authQuery());
+  const { enabled: authEnabled, user } = auth.data ?? SIGNED_OUT;
+  const authLoading = auth.isPending;
   const [syncedAt, setSyncedAt] = useState<number | null>(null);
   const [announce, setAnnounce] = useState("");
   const [theme, setTheme] = useTheme();
@@ -32,13 +33,7 @@ export default function App() {
   }, []);
   const handleSyncError = useCallback(() => setAnnounce("방문 체크를 저장하지 못했어요"), []);
 
-  const eventsQuery = useQuery({
-    queryKey: ["events"],
-    queryFn: ({ signal }) => fetchEvents(signal),
-    staleTime: READ_STALE_TIME,
-    retry: false,
-    enabled: route.kind !== "settings",
-  });
+  const eventsQuery = useQuery({ ...eventsOptions(), enabled: route.kind !== "settings" });
   const events = eventsQuery.data ?? [];
   const requestedEventSlug = route.kind === "event" || route.kind === "circle" ? route.eventSlug : null;
   const routeEvent = route.kind === "legacy-circle"
@@ -63,24 +58,14 @@ export default function App() {
     toggle(id);
   };
 
-  useEffect(() => {
-    void fetchAuth().then(({ enabled, user: currentUser }) => {
-      setAuthEnabled(enabled);
-      setUser(currentUser);
-    }).catch(() => {
-      setAuthEnabled(false);
-      setUser(null);
-    }).finally(() => setAuthLoading(false));
-  }, []);
-
   // 워커가 쿠키를 지우므로 revoke 결과와 무관하게 클라이언트는 로그아웃 상태로 전환한다.
   const handleLogout = useCallback(() => {
     void logout().catch(() => {}).finally(() => {
       clearAllChecks(localStorage);
-      setUser(null);
+      queryClient.setQueryData(authQuery().queryKey, (prev) => (prev ? { ...prev, user: null } : SIGNED_OUT));
       setSyncedAt(null);
     });
-  }, []);
+  }, [queryClient]);
 
   // 하단 네비와 체크리스트가 공유하는 상태. 네비는 라우트가 바뀌어도 한 인스턴스로 유지돼야 포커스가 살아 있다.
   const filters = useChecklistFilters(requestedEventSlug);

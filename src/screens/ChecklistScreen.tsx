@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
-import { fetchCircles, type ApiEvent } from "../api";
+import type { ApiEvent } from "../api";
 import { badgeColor, filterCircles, STATUS } from "../lib/circle";
 import type { Checks } from "../lib/checks";
 import { eventSubtitle } from "../lib/event";
-import { READ_STALE_TIME } from "../lib/query";
+import { circlesQuery as circlesOptions } from "../lib/queries";
 import { Card } from "../components/Card";
 import { Detail } from "../components/Detail";
 import { EventList } from "../components/Sidebar";
@@ -43,13 +43,7 @@ export function ChecklistScreen({
   const searchRef = useRef<HTMLInputElement>(null);
   const eventSlug = event?.slug ?? null;
 
-  const circlesQuery = useQuery({
-    queryKey: ["circles", eventSlug],
-    queryFn: ({ signal }) => fetchCircles(eventSlug!, signal),
-    staleTime: READ_STALE_TIME,
-    retry: false,
-    enabled: eventSlug !== null,
-  });
+  const circlesQuery = useQuery(circlesOptions(eventSlug));
   const circles = circlesQuery.data?.circles ?? [];
   const witchformExtra = circlesQuery.data?.witchformExtra ?? [];
   const missingEvent = eventsQuery.isSuccess && !event;
