@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Circle } from "./types";
-import { fetchAuth, fetchCircles, fetchEvents, logout, pickActiveEvent, type ApiEvent, type AuthUser } from "./api";
+import { useQuery } from "@tanstack/react-query";
+import { fetchAuth, fetchCircles, fetchEvents, logout, pickActiveEvent, type AuthUser } from "./api";
 import { badgeColor, filterCircles, STATUS, type Status } from "./lib/circle";
 import { useChecks } from "./hooks/useChecks";
 import { useAppRoute } from "./hooks/useAppRoute";
@@ -17,8 +17,6 @@ import { clearAllChecks } from "./lib/checks";
 /* ---------- 앱 ---------- */
 export default function App() {
   const { route, openEvents, openEvent, openCircle, backToEvent, openSettings } = useAppRoute();
-  const [events, setEvents] = useState<ApiEvent[]>([]);
-  const [event, setEvent] = useState<ApiEvent | null>(null);
   const [authEnabled, setAuthEnabled] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -29,7 +27,6 @@ export default function App() {
     if (merged > 0) setAnnounce(`${merged}개 항목을 동기화했어요`);
   }, []);
   const handleSyncError = useCallback(() => setAnnounce("방문 체크를 저장하지 못했어요"), []);
-  const [checks, toggle] = useChecks(event?.slug ?? null, event?.status === "active", !!user, authLoading, handleSync, handleSyncError, user?.userId ?? null);
   const [theme, setTheme] = useTheme();
   const install = useInstallPrompt();
   const [status, setStatus] = useState<Status>("all");
@@ -41,14 +38,54 @@ export default function App() {
   const pendingSheet = useRef<Exclude<Sheet, null> | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  const [circles, setCircles] = useState<Circle[]>([]);
-  const [witchformExtra, setWitchformExtra] = useState<Circle[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const loadGeneration = useRef(0);
-  const loadController = useRef<AbortController | null>(null);
   const requestedEventSlug = route.kind === "event" || route.kind === "circle" ? route.eventSlug : null;
   const routeMode = route.kind === "events" ? "events" : route.kind === "settings" ? "settings" : route.kind === "legacy-circle" ? "legacy" : "event";
+
+  const eventsQuery = useQuery({
+    queryKey: ["events"],
+    queryFn: ({ signal }) => fetchEvents(signal),
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+    enabled: routeMode !== "settings",
+  });
+  const events = eventsQuery.data ?? [];
+  const routeEvent = routeMode === "legacy"
+    ? pickActiveEvent(events)
+    : routeMode === "event"
+      ? events.find((candidate) => candidate.slug === requestedEventSlug) ?? null
+      : null;
+  const currentEventSlug = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (routeMode === "events") currentEventSlug.current = null;
+    else if (routeEvent) currentEventSlug.current = routeEvent.slug;
+  }, [routeEvent, routeMode]);
+
+  const event = routeMode === "settings"
+    ? events.find((candidate) => candidate.slug === currentEventSlug.current) ?? null
+    : routeEvent;
+  const eventSlug = event?.slug ?? null;
+  const isChecklistRoute = routeMode === "event" || routeMode === "legacy";
+  const circlesQuery = useQuery({
+    queryKey: ["circles", eventSlug],
+    queryFn: ({ signal }) => fetchCircles(eventSlug!, signal),
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+    enabled: isChecklistRoute && eventSlug !== null,
+  });
+  const circles = circlesQuery.data?.circles ?? [];
+  const witchformExtra = circlesQuery.data?.witchformExtra ?? [];
+  const missingEvent = isChecklistRoute && eventsQuery.isSuccess && !event;
+  const queryError = eventsQuery.error ?? circlesQuery.error;
+  const loadError = missingEvent
+    ? "행사 정보를 찾지 못했어요"
+    : queryError instanceof Error
+      ? queryError.message
+      : queryError
+        ? "불러오기 실패"
+        : null;
+  const loading = routeMode !== "settings" && (eventsQuery.isFetching || circlesQuery.isFetching);
+  const [checks, toggle] = useChecks(event?.slug ?? null, event?.status === "active", !!user, authLoading, handleSync, handleSyncError, user?.userId ?? null);
 
   const loadAuth = useCallback(() => {
     void fetchAuth().then(({ enabled, user: currentUser }) => {
@@ -71,54 +108,6 @@ export default function App() {
 
   // 행사장 서클 + 통판(unlisted)을 한 데이터셋으로 다뤄 검색·필터·체크를 일관 적용
   const all = useMemo(() => [...circles, ...witchformExtra], [circles, witchformExtra]);
-
-  const load = useCallback(async () => {
-    const generation = ++loadGeneration.current;
-    loadController.current?.abort();
-    const controller = new AbortController();
-    loadController.current = controller;
-    try {
-      if (routeMode === "settings") {
-        setLoading(false);
-        return;
-      }
-      setLoading(true);
-      setLoadError(null);
-      setEvent(null);
-      setCircles([]);
-      setWitchformExtra([]);
-      const available = await fetchEvents(controller.signal);
-      if (generation !== loadGeneration.current) return;
-      setEvents(available);
-      if (routeMode === "events") {
-        setEvent(null);
-        setCircles([]);
-        setWitchformExtra([]);
-        return;
-      }
-      const requestedSlug = routeMode === "legacy"
-        ? pickActiveEvent(available)?.slug
-        : requestedEventSlug;
-      const ev = available.find((candidate) => candidate.slug === requestedSlug);
-      if (!ev) throw new Error("행사 정보를 찾지 못했어요");
-      const { circles: cs, witchformExtra: wf } = await fetchCircles(ev.slug, controller.signal);
-      if (generation !== loadGeneration.current) return;
-      setEvent(ev);
-      setCircles(cs);
-      setWitchformExtra(wf);
-    } catch (e) {
-      if (generation !== loadGeneration.current) return;
-      if (e instanceof DOMException && e.name === "AbortError") return;
-      setLoadError(e instanceof Error ? e.message : "불러오기 실패");
-    } finally {
-      if (generation === loadGeneration.current) setLoading(false);
-    }
-  }, [requestedEventSlug, routeMode]);
-
-  useEffect(() => {
-    void load();
-    return () => loadController.current?.abort();
-  }, [load]);
 
   useEffect(() => {
     loadAuth();
@@ -403,7 +392,7 @@ export default function App() {
                   <div className="text-center py-14" role="alert">
                     <div className="text-danger text-sm font-semibold">{loadError}</div>
                     <button
-                      onClick={() => void load()}
+                      onClick={() => void (eventsQuery.error || missingEvent ? eventsQuery.refetch() : circlesQuery.refetch())}
                       disabled={loading}
                       className="mt-3 inline-flex items-center h-9 px-4 rounded-full bg-ink text-bg text-[13px] font-bold cursor-pointer border-0 disabled:opacity-60"
                     >
