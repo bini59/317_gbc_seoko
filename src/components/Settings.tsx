@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { AUTH_ORIGIN, login, type AuthUser } from "../api";
+import { InstallGuide } from "./InstallGuide";
+import type { InstallState } from "../hooks/useInstallPrompt";
 
 const ACCOUNT_CENTER_URL = `${AUTH_ORIGIN}/client`;
 const ISSUES_URL = "https://github.com/bini59/317_gbc_seoko/issues";
@@ -70,6 +72,7 @@ export function Settings({
   theme,
   onTheme,
   onLogout,
+  install,
 }: {
   authEnabled: boolean;
   user: AuthUser | null;
@@ -77,6 +80,7 @@ export function Settings({
   theme: Theme;
   onTheme: (next: Theme) => void;
   onLogout: () => void;
+  install: InstallState;
 }) {
 
   const displayName = user?.name ?? user?.email ?? "사용자";
@@ -114,6 +118,8 @@ export function Settings({
           )}
         </section>
       ) : null}
+
+      <InstallGuide install={install} />
 
       <section className="grid gap-2.5">
         <h3 className={headingCls}>화면</h3>
