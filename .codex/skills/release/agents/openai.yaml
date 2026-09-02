@@ -1,4 +1,4 @@
 interface:
   display_name: "Release gbc-seoko"
-  short_description: "Build and deploy gbc-seoko to Cloudflare Pages"
+  short_description: "Build and deploy gbc-seoko to Cloudflare Workers"
   default_prompt: "Use $release to prepare and deploy a gbc-seoko release."
