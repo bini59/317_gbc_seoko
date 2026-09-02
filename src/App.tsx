@@ -12,6 +12,7 @@ import { Settings, useTheme } from "./components/Settings";
 import { InstallBanner } from "./components/InstallGuide";
 import { useInstallPrompt } from "./hooks/useInstallPrompt";
 import { eventSubtitle } from "./lib/event";
+import { clearAllChecks } from "./lib/checks";
 
 /* ---------- 앱 ---------- */
 export default function App() {
@@ -28,7 +29,7 @@ export default function App() {
     if (merged > 0) setAnnounce(`${merged}개 항목을 동기화했어요`);
   }, []);
   const handleSyncError = useCallback(() => setAnnounce("방문 체크를 저장하지 못했어요"), []);
-  const [checks, toggle] = useChecks(event?.slug ?? null, event?.status === "active", !!user, authLoading, handleSync, handleSyncError);
+  const [checks, toggle] = useChecks(event?.slug ?? null, event?.status === "active", !!user, authLoading, handleSync, handleSyncError, user?.userId ?? null);
   const [theme, setTheme] = useTheme();
   const install = useInstallPrompt();
   const [status, setStatus] = useState<Status>("all");
@@ -61,7 +62,11 @@ export default function App() {
 
   // 워커가 쿠키를 지우므로 revoke 결과와 무관하게 클라이언트는 로그아웃 상태로 전환한다.
   const handleLogout = useCallback(() => {
-    void logout().catch(() => {}).finally(() => { setUser(null); setSyncedAt(null); });
+    void logout().catch(() => {}).finally(() => {
+      clearAllChecks(localStorage);
+      setUser(null);
+      setSyncedAt(null);
+    });
   }, []);
 
   // 행사장 서클 + 통판(unlisted)을 한 데이터셋으로 다뤄 검색·필터·체크를 일관 적용
