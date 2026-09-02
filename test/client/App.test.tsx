@@ -19,7 +19,7 @@ const apiCircle = (o: Partial<ApiCircleLike> & { slug: string; name: string; sta
   ...o,
 });
 
-function mockApi(circles: ApiCircleLike[]) {
+function mockApi(circles: ApiCircleLike[], authEnabled = false) {
   const json = (obj: unknown) =>
     new Response(JSON.stringify(obj), { status: 200, headers: { "content-type": "application/json" } });
   vi.stubGlobal(
@@ -33,6 +33,7 @@ function mockApi(circles: ApiCircleLike[]) {
           ],
         });
       if (url.includes("/api/circles")) return json({ circles });
+      if (url.includes("/api/auth/me")) return json({ enabled: authEnabled, user: null });
       throw new Error("unexpected fetch " + url);
     }),
   );
@@ -73,11 +74,29 @@ describe("<App/> confirmed + unlisted", () => {
     expect(await screen.findByText("부스서클")).toBeTruthy();
   });
 
+  it("marks the current 행사 in the sidebar", async () => {
+    window.location.hash = "#/events/ev";
+    render(<App />);
+    await screen.findByText("부스서클");
+    expect(screen.getByRole("link", { name: /코믹월드/ }).getAttribute("aria-current")).toBe("page");
+    expect(screen.getByRole("link", { name: /일러스타 페스/ }).getAttribute("aria-current")).toBeNull();
+    expect(screen.queryByRole("button", { name: "기기 간 동기화" })).toBeNull();
+  });
+
+  it("shows the sync entry only in the sidebar when auth is enabled", async () => {
+    window.location.hash = "#/events/ev";
+    mockApi(CIRCLES, true);
+    render(<App />);
+    expect(await screen.findByRole("button", { name: "기기 간 동기화" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "로그인" })).toBeNull();
+  });
+
   it("opens the 통판 detail from its card", async () => {
     window.location.hash = "#/events/ev";
     render(<App />);
     fireEvent.click(await screen.findByText("통판서클"));
     expect(screen.getByText("서클 상세")).toBeTruthy();
+    expect(screen.getByText("부스서클")).toBeTruthy(); // 데스크톱 2컬럼: 목록 유지
   });
 
   it("search matches 통판 by name and hides booth circles", async () => {
