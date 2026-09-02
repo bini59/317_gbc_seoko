@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { render, screen, fireEvent, cleanup, waitFor, act } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup, waitFor, act, within } from "@testing-library/react";
 import App from "../../src/App";
 
 type ApiCircleLike = Record<string, unknown>;
@@ -251,7 +251,7 @@ describe("<App/> bottom navigation (mobile)", () => {
     vi.unstubAllGlobals();
   });
 
-  it("renders 4 tabs with 목록 as the current page and 행사 tab navigating to the root", async () => {
+  it("renders 4 tabs and opens the 행사 sheet without hiding the nav", async () => {
     render(<App />);
     await screen.findByText("부스서클");
     const nav = screen.getByRole("navigation", { name: "하단 메뉴" });
@@ -261,9 +261,52 @@ describe("<App/> bottom navigation (mobile)", () => {
     expect(indicator.style.transform).toBe("translateX(0%)");
     fireEvent.click(screen.getByRole("button", { name: "검색" }));
     expect(indicator.style.transform).toBe("translateX(100%)");
-    fireEvent.click(screen.getByRole("button", { name: "목록" }));
-    fireEvent.click(screen.getByRole("button", { name: "행사 목록" }));
-    await waitFor(() => expect(window.location.hash).toBe("#/"));
+
+    const eventsTab = screen.getByRole("button", { name: "행사" });
+    fireEvent.click(eventsTab);
+    expect(indicator.style.transform).toBe("translateX(300%)");
+    expect(eventsTab.getAttribute("aria-expanded")).toBe("true");
+    expect(eventsTab.getAttribute("aria-controls")).toBe("sheet-events");
+    const sheet = document.getElementById("sheet-events")!;
+    expect(sheet.className).toContain("md:hidden");
+    expect(document.activeElement).toBe(within(sheet).getByRole("link", { name: /코믹월드/ }));
+    expect(screen.getByRole("navigation", { name: "하단 메뉴" })).toBeTruthy();
+    expect(window.location.hash).toBe("#/events/ev");
+    // 현재 행사는 헤더 + 체크 표시
+    expect(within(sheet).getByRole("link", { name: /코믹월드/ }).getAttribute("aria-current")).toBe("page");
+
+    fireEvent.click(within(sheet).getByRole("link", { name: /일러스타 페스/ }));
+    await waitFor(() => expect(window.location.hash).toBe("#/events/illustar"));
+    await waitFor(() => expect(within(sheet).queryByRole("link", { name: /일러스타 페스/ })).toBeNull());
+    expect(eventsTab.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.getByRole("navigation", { name: "하단 메뉴" })).toBeTruthy();
+  });
+
+  it("closes the 행사 sheet with Escape, the backdrop, and re-tapping the current 행사", async () => {
+    render(<App />);
+    await screen.findByText("부스서클");
+    const tab = screen.getByRole("button", { name: "행사" });
+    const sheet = document.getElementById("sheet-events")!;
+    fireEvent.click(tab);
+    expect(document.body.style.overflow).toBe("hidden");
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(tab.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(tab);
+    fireEvent.click(screen.getByRole("button", { name: "시트 닫기" }));
+    expect(tab.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(tab);
+    fireEvent.click(within(sheet).getByRole("link", { name: /코믹월드/ })); // 같은 해시 → hashchange 없음
+    expect(tab.getAttribute("aria-expanded")).toBe("false");
+    expect(window.location.hash).toBe("#/events/ev");
+    expect(document.body.style.overflow).toBe("");
+    await act(() => new Promise((r) => setTimeout(r, 0))); // jsdom의 지연된 앵커 내비게이션이 다음 테스트로 새지 않게
+  });
+
+  it("shows the 행사 landing without a nav on direct #/events entry", async () => {
+    window.location.hash = "#/events";
+    render(<App />);
+    expect(await screen.findByRole("heading", { name: "행사 선택" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: /코믹월드/ })).toBeTruthy();
     expect(screen.queryByRole("navigation", { name: "하단 메뉴" })).toBeNull();
   });
 

@@ -151,29 +151,32 @@ export function Detail({
           </div>
         </div>
 
-        <button
-          onClick={onToggle}
-          className={
-            "flex items-center justify-center gap-2 w-full h-[54px] mt-[26px] mb-6 rounded-2xl text-[15.5px] font-extrabold cursor-pointer border-0 text-white " +
-            (checked ? "bg-accent" : "bg-ink text-bg")
-          }
-        >
-          {checked && (
-            <svg
-              viewBox="0 0 24 24"
-              width="20"
-              height="20"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M20 6L9 17l-5-5" />
-            </svg>
-          )}
-          <span>{checked ? "방문함" : "방문 체크"}</span>
-        </button>
+        {/* 방문 체크는 스크롤 없이 항상 보이도록 하단 고정 */}
+        <div className="sticky bottom-0 mt-[26px] pt-3 pb-[calc(24px+env(safe-area-inset-bottom))] bg-bg/95 backdrop-blur">
+          <button
+            onClick={onToggle}
+            className={
+              "flex items-center justify-center gap-2 w-full h-[54px] rounded-2xl text-[15.5px] font-extrabold cursor-pointer border-0 text-white " +
+              (checked ? "bg-accent" : "bg-ink text-bg")
+            }
+          >
+            {checked && (
+              <svg
+                viewBox="0 0 24 24"
+                width="20"
+                height="20"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M20 6L9 17l-5-5" />
+              </svg>
+            )}
+            <span>{checked ? "방문함" : "방문 체크"}</span>
+          </button>
+        </div>
       </div>
     </div>
   );

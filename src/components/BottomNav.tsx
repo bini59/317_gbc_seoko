@@ -1,4 +1,4 @@
-export type Sheet = "search" | "filter" | null;
+export type Sheet = "search" | "filter" | "events" | null;
 
 const ICONS = {
   list: <><path d="M4 6h16M4 12h16M4 18h16" /></>,
@@ -49,19 +49,18 @@ function Tab({
 
 /** 모바일 전용 하단 네비 — md 이상은 사이드바/topbar가 대신한다. */
 export function BottomNav({
-  sheet, onSheet, onEvents, searchCount, filterCount,
+  sheet, onSheet, searchCount, filterCount,
 }: {
   sheet: Sheet;
   onSheet: (next: Sheet) => void;
-  onEvents: () => void;
   searchCount: number;
   filterCount: number;
 }) {
   const toggle = (s: Exclude<Sheet, null>) => onSheet(sheet === s ? null : s);
-  const activeIndex = sheet === "search" ? 1 : sheet === "filter" ? 2 : 0;
+  const activeIndex = sheet === "search" ? 1 : sheet === "filter" ? 2 : sheet === "events" ? 3 : 0;
   return (
     <nav aria-label="하단 메뉴" className="glass glass-refract fixed left-1/2 -translate-x-1/2 w-[calc(100%-24px)] max-w-[536px] bottom-[calc(env(safe-area-inset-bottom)+12px)] z-30 flex rounded-full p-1.5 md:hidden">
-      {/* 렌즈 인디케이터 — 탭 사이를 액체처럼 미끄러진다. 행사 탭은 라우팅이라 인디케이터 없음. ponytail: 탭 4개 고정(w = (100%-패딩)/4) */}
+      {/* 렌즈 인디케이터 — 탭 사이를 액체처럼 미끄러진다. ponytail: 탭 4개 고정(w = (100%-패딩)/4) */}
       <span
         aria-hidden="true"
         className="glass-lens absolute inset-y-1.5 left-1.5 w-[calc(25%-3px)]"
@@ -72,7 +71,7 @@ export function BottomNav({
       <Tab icon="list" label="목록" active={sheet === null} aria-current={sheet === null ? "page" : undefined} onClick={() => onSheet(null)} />
       <Tab icon="search" label="검색" active={sheet === "search"} badge={searchCount} aria-expanded={sheet === "search"} aria-controls="sheet-search" onClick={() => toggle("search")} />
       <Tab icon="filter" label="필터" active={sheet === "filter"} badge={filterCount} aria-expanded={sheet === "filter"} aria-controls="sheet-filter" onClick={() => toggle("filter")} />
-      <Tab icon="events" label="행사" aria-label="행사 목록" active={false} onClick={onEvents} />
+      <Tab icon="events" label="행사" active={sheet === "events"} aria-expanded={sheet === "events"} aria-controls="sheet-events" onClick={() => toggle("events")} />
     </nav>
   );
 }
