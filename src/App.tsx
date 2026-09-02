@@ -184,7 +184,7 @@ export default function App() {
                 <div className="flex items-center justify-between gap-3 md:mb-3 md:gap-6">
                   <div className="min-w-0">
                     <div className="text-[19px] font-extrabold -tracking-[0.02em] text-ink leading-none truncate">
-                    {event?.title ?? "동인행사 체크리스트"}
+                    {event?.title ?? "걸즈밴드 체크리스트"}
                     </div>
                     <div className="text-xs font-semibold text-faint mt-[5px] truncate">
                       {eventSubtitle(event)}

@@ -20,8 +20,8 @@ export default defineConfig({
       manifest: {
         id: "./",
         lang: "ko",
-        name: "동인행사 체크리스트",
-        short_name: "행사체크",
+        name: "걸즈밴드 체크리스트",
+        short_name: "밴드체크",
         description: "동인행사별 참가 서클과 통판 정보를 확인하고 방문 여부를 관리하는 체크리스트",
         theme_color: "#ffffff",
         background_color: "#ffffff",

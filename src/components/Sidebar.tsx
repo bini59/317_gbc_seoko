@@ -68,7 +68,7 @@ export function Sidebar({
       }
     >
       <div className="hidden px-5 md:block md:pt-6">
-        <a href="#/" className="text-sm font-extrabold text-accent no-underline">동인행사 체크리스트</a>
+        <a href="#/" className="text-sm font-extrabold text-accent no-underline">걸즈밴드 체크리스트</a>
       </div>
       <nav aria-label="행사" className="flex-1 px-5 pb-6">
         <EventList events={events} currentSlug={currentSlug} />
