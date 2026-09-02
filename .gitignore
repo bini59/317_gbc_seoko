@@ -3,7 +3,6 @@ dist
 .DS_Store
 CLAUDE.local.md
 graphify-out/
-.codex/
 AGENTS.md
 CONTEXT.md
 tmp/
