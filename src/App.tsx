@@ -33,8 +33,9 @@ export default function App() {
   }, []);
   const handleSyncError = useCallback(() => setAnnounce("방문 체크를 저장하지 못했어요"), []);
 
-  const eventsQuery = useQuery({ ...eventsOptions(), enabled: route.kind !== "settings" });
-  const events = eventsQuery.data ?? [];
+  // 화면들도 같은 쿼리를 각자 구독한다(캐시 공유). 여기서는 체크 동기화에 필요한 현재 행사만 해석한다.
+  // 설정 화면에서는 새 구독자가 없어 stale 데이터를 재조회하지 않는다.
+  const { data: events = [] } = useQuery({ ...eventsOptions(), enabled: route.kind !== "settings" });
   const requestedEventSlug = route.kind === "event" || route.kind === "circle" ? route.eventSlug : null;
   const routeEvent = route.kind === "legacy-circle"
     ? pickActiveEvent(events)
@@ -95,9 +96,6 @@ export default function App() {
   const navContext = route.kind === "settings" ? "settings" : route.kind === "events" ? "events" : "event";
   const showNav = route.kind !== "circle" && route.kind !== "legacy-circle";
 
-  const eventsError = eventsQuery.error;
-  const eventsLoadError = eventsError instanceof Error ? eventsError.message : eventsError ? "불러오기 실패" : null;
-
   return (
     // 쉘: 모바일은 단일 컬럼(560px), md 이상은 사이드바 + 콘텐츠 2컬럼. 컴포넌트는 공유하고 레이아웃만 분기.
     <div className="min-h-screen bg-bg flex flex-col md:grid md:grid-cols-[260px_minmax(0,1fr)]">
@@ -105,7 +103,6 @@ export default function App() {
         {announce}
       </div>
       <Sidebar
-        events={events}
         currentSlug={requestedEventSlug !== null ? eventSlug : null}
         showOnMobile={route.kind === "events"}
         settingsActive={route.kind === "settings"}
@@ -115,13 +112,11 @@ export default function App() {
         {route.kind === "settings" ? (
           <SettingsScreen authEnabled={authEnabled} user={user} syncedAt={syncedAt} theme={theme} onTheme={setTheme} onLogout={handleLogout} install={install} />
         ) : route.kind === "events" ? (
-          <EventsScreen install={install} onOpenSettings={openSettings} loadError={eventsLoadError} loading={eventsQuery.isFetching} empty={events.length === 0} />
+          <EventsScreen install={install} onOpenSettings={openSettings} />
         ) : (
           <ChecklistScreen
             event={event}
             circleSlug={route.kind === "circle" || route.kind === "legacy-circle" ? route.circleSlug : null}
-            events={events}
-            eventsQuery={eventsQuery}
             checks={checks}
             onToggle={handleToggle}
             filters={filters}

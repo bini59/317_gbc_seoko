@@ -1,3 +1,5 @@
+import { useQuery } from "@tanstack/react-query";
+import { eventsQuery } from "../lib/queries";
 import type { ApiEvent } from "../api";
 import { eventSubtitle } from "../lib/event";
 
@@ -52,18 +54,17 @@ export function EventList({ events, currentSlug }: { events: ApiEvent[]; current
  * 모바일에서는 행사 선택 화면(루트)에서만 본문 아래에 인라인으로 노출된다.
  */
 export function Sidebar({
-  events,
   currentSlug,
   showOnMobile,
   settingsActive,
   onSettings,
 }: {
-  events: ApiEvent[];
   currentSlug: string | null;
   showOnMobile: boolean;
   settingsActive: boolean;
   onSettings: () => void;
 }) {
+  const { data: events = [] } = useQuery(eventsQuery());
   return (
     <aside
       className={
