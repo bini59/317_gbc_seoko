@@ -34,7 +34,7 @@ function Tab({
       onClick={onClick}
       aria-label={badge ? `${label} ${badge}개 적용` : undefined}
       {...aria}
-      className={"relative flex flex-1 flex-col items-center justify-center gap-0.5 min-h-[56px] min-w-[44px] text-[11px] font-bold " + (active ? "text-accent" : "text-faint")}
+      className={"relative flex flex-1 flex-col items-center justify-center gap-0.5 z-[1] min-h-[52px] min-w-[44px] rounded-full text-[11px] font-bold transition-colors " + (active ? "text-accent" : "text-muted")}
     >
       <Icon name={icon} />
       {label}
@@ -60,13 +60,15 @@ export function BottomNav({
   const toggle = (s: Exclude<Sheet, null>) => onSheet(sheet === s ? null : s);
   const activeIndex = sheet === "search" ? 1 : sheet === "filter" ? 2 : 0;
   return (
-    <nav aria-label="하단 메뉴" className="glass fixed left-1/2 -translate-x-1/2 w-[calc(100%-24px)] max-w-[536px] bottom-[calc(env(safe-area-inset-bottom)+12px)] z-30 flex rounded-full shadow-[0_8px_30px_rgba(0,0,0,.18)] overflow-hidden md:hidden">
-      {/* 활성 탭 하이라이트 — 탭 사이를 미끄러지듯 이동. 행사 탭은 라우팅이라 인디케이터 없음. ponytail: 탭 4개 고정(w-1/4) */}
+    <nav aria-label="하단 메뉴" className="glass glass-refract fixed left-1/2 -translate-x-1/2 w-[calc(100%-24px)] max-w-[536px] bottom-[calc(env(safe-area-inset-bottom)+12px)] z-30 flex rounded-full p-1.5 md:hidden">
+      {/* 렌즈 인디케이터 — 탭 사이를 액체처럼 미끄러진다. 행사 탭은 라우팅이라 인디케이터 없음. ponytail: 탭 4개 고정(w = (100%-패딩)/4) */}
       <span
         aria-hidden="true"
-        className="absolute inset-y-1.5 left-0 w-1/4 rounded-full bg-accent/12 transition-transform duration-300 ease-out motion-reduce:transition-none"
+        className="glass-lens absolute inset-y-1.5 left-1.5 w-[calc(25%-3px)]"
         style={{ transform: `translateX(${activeIndex * 100}%)` }}
-      />
+      >
+        <span key={activeIndex} className="glass-lens-body block h-full w-full rounded-full" />
+      </span>
       <Tab icon="list" label="목록" active={sheet === null} aria-current={sheet === null ? "page" : undefined} onClick={() => onSheet(null)} />
       <Tab icon="search" label="검색" active={sheet === "search"} badge={searchCount} aria-expanded={sheet === "search"} aria-controls="sheet-search" onClick={() => toggle("search")} />
       <Tab icon="filter" label="필터" active={sheet === "filter"} badge={filterCount} aria-expanded={sheet === "filter"} aria-controls="sheet-filter" onClick={() => toggle("filter")} />

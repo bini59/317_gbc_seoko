@@ -21,7 +21,7 @@
 - `--color-chip: #f1f3f6` — 태그/링크 칩 배경
 - `--color-accent` — 액센트(로즈). 라이트 `#c8286b` / 다크 `#f472b6`, 본문 대비 WCAG AA. 소프트 틴트는 `bg-accent/10`, 보더는 `border-accent/30`.
 - `--color-danger` — 위험/오류 텍스트. 라이트 `#c2283c` / 다크 `#e0455c`.
-- `--glass-bg` / `--glass-border` + `glass` 유틸 — 하단 네비·시트의 리퀴드 글래스 재질(blur+saturate). `backdrop-filter` 미지원·`prefers-reduced-transparency`면 불투명 패널로 폴백.
+- 리퀴드 글래스(`glass` / `glass-refract` / `glass-lens*` 유틸): Frost `blur(10px) saturate(170%) brightness(1.08)` + Rim(inset 하이라이트, `--glass-rim`) + Sheen(135° `::after`, `mix-blend-mode: screen`, `--glass-sheen-1/2`) + Refraction(SVG `#lg-refract` feDisplacementMap, Chromium 전용 `@supports` 게이트, 시트에는 미적용). 토큰 `--glass-bg/--glass-border/--glass-rim/--glass-sheen-*/--glass-lens-bg`. `backdrop-filter` 미지원·`prefers-reduced-transparency`면 불투명 패널, `prefers-reduced-motion`이면 렌즈 애니메이션 제거. 스크린샷: `docs/screenshots/`.
 
 배지 팔레트(카드 앞 아이콘): `#3e5bff #7c5cff #f43f72 #0ea5a5 #f59e0b #6366f1 #22a559` — 서클 순서대로 배정.
 
