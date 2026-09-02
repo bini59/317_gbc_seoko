@@ -19,7 +19,7 @@ const apiCircle = (o: Partial<ApiCircleLike> & { slug: string; name: string; sta
   ...o,
 });
 
-function mockApi(circles: ApiCircleLike[]) {
+function mockApi(circles: ApiCircleLike[], authEnabled = false) {
   const json = (obj: unknown) =>
     new Response(JSON.stringify(obj), { status: 200, headers: { "content-type": "application/json" } });
   vi.stubGlobal(
@@ -33,6 +33,7 @@ function mockApi(circles: ApiCircleLike[]) {
           ],
         });
       if (url.includes("/api/circles")) return json({ circles });
+      if (url.includes("/api/auth/me")) return json({ enabled: authEnabled, user: null });
       throw new Error("unexpected fetch " + url);
     }),
   );
@@ -71,6 +72,20 @@ describe("<App/> confirmed + unlisted", () => {
     fireEvent.click(screen.getByRole("link", { name: /일러스타 페스/ }));
     await waitFor(() => expect(window.location.hash).toBe("#/events/illustar"));
     expect(await screen.findByText("부스서클")).toBeTruthy();
+  });
+
+  it("sidebar marks the current 행사 and exposes the sync entry only when auth is enabled", async () => {
+    window.location.hash = "#/events/ev";
+    render(<App />);
+    await screen.findByText("부스서클");
+    expect(screen.getByRole("link", { name: /코믹월드/ }).getAttribute("aria-current")).toBe("page");
+    expect(screen.getByRole("link", { name: /일러스타 페스/ }).getAttribute("aria-current")).toBeNull();
+    expect(screen.queryByRole("button", { name: "기기 간 동기화" })).toBeNull();
+    cleanup();
+    mockApi(CIRCLES, true);
+    render(<App />);
+    expect(await screen.findByRole("button", { name: "기기 간 동기화" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "로그인" })).toBeNull();
   });
 
   it("opens the 통판 detail from its card", async () => {

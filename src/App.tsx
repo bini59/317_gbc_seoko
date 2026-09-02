@@ -1,49 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Circle } from "./types";
-import { fetchAuth, fetchCircles, fetchEvents, login, logout, pickActiveEvent, type ApiEvent, type AuthUser } from "./api";
+import { fetchAuth, fetchCircles, fetchEvents, pickActiveEvent, type ApiEvent, type AuthUser } from "./api";
 import { badgeColor, filterCircles, STATUS, type Status } from "./lib/circle";
 import { useChecks } from "./hooks/useChecks";
 import { useAppRoute } from "./hooks/useAppRoute";
 import { Card } from "./components/Card";
 import { Detail } from "./components/Detail";
-
-/** 행사 부제: 별칭·장소·기간 중 존재하는 것만 · 로 잇는다. */
-function eventSubtitle(event: ApiEvent | null): string {
-  if (!event) return "행사 정보를 불러오는 중…";
-  const parts = [event.alias || event.title, event.venue, event.date_label].filter(Boolean);
-  return parts.length ? parts.join(" · ") : event.title;
-}
-
-const EVENT_SECTIONS = [
-  { status: "active", label: "진행 중" },
-  { status: "upcoming", label: "예정" },
-  { status: "past", label: "지난 행사" },
-] as const;
-
-function EventList({ events }: { events: ApiEvent[] }) {
-  return EVENT_SECTIONS.map(({ status, label }) => {
-    const matches = events
-      .filter((event) => event.status === status)
-      .sort((a, b) => {
-        const comparison = (a.start_date ?? "").localeCompare(b.start_date ?? "");
-        return status === "past" ? -comparison : comparison;
-      });
-    if (matches.length === 0) return null;
-    return (
-      <section key={status} className="mt-6">
-        <h2 className="mb-2 text-xs font-extrabold tracking-[0.04em] text-faint">{label}</h2>
-        <div className="flex flex-col gap-3">
-          {matches.map((candidate) => (
-            <a key={candidate.slug} href={`#/events/${encodeURIComponent(candidate.slug)}`} className="block rounded-[18px] border border-line bg-card p-4 no-underline">
-              <div className="text-[17px] font-extrabold text-ink">{candidate.title}</div>
-              <div className="mt-1 text-xs font-semibold text-faint">{eventSubtitle(candidate)}</div>
-            </a>
-          ))}
-        </div>
-      </section>
-    );
-  });
-}
+import { Sidebar } from "./components/Sidebar";
+import { eventSubtitle } from "./lib/event";
 
 /* ---------- 앱 ---------- */
 export default function App() {
@@ -156,59 +120,51 @@ export default function App() {
   const statusChip = (active: boolean) =>
     "inline-flex items-center h-[32px] px-3 rounded-[8px] text-[13px] font-medium cursor-pointer whitespace-nowrap border " +
     (active ? "bg-ink text-bg border-ink" : "bg-card text-muted border-line");
+  const gridCls = "grid gap-3 md:grid-cols-2 xl:grid-cols-3";
   const genreChip = (active: boolean) =>
     "inline-flex items-center h-7 px-2.5 rounded-full text-[12px] font-medium cursor-pointer whitespace-nowrap border " +
     (active ? "bg-accent/10 text-accent border-accent/30" : "bg-card text-muted border-line");
 
   return (
-    <div className="min-h-screen bg-bg max-w-[560px] mx-auto border-x border-line">
+    // 쉘: 모바일은 단일 컬럼(560px), md 이상은 사이드바 + 콘텐츠 2컬럼. 컴포넌트는 공유하고 레이아웃만 분기.
+    <div className="min-h-screen bg-bg flex flex-col md:grid md:grid-cols-[260px_minmax(0,1fr)]">
       <div role="status" aria-live="polite" className="sr-only">
         {announce}
       </div>
+      <Sidebar
+        events={events}
+        currentSlug={event?.slug ?? null}
+        showOnMobile={route.kind === "events"}
+        authEnabled={authEnabled}
+        user={user}
+      />
+      <div className={"w-full max-w-[560px] mx-auto border-x border-line md:max-w-none md:mx-0 md:border-x-0 md:min-h-screen " + (route.kind === "events" ? "" : "flex-1")}>
       {route.kind === "events" ? (
-        <main className="px-5 py-7">
-          <div className="text-sm font-extrabold text-accent">동인행사 체크리스트</div>
-          <h1 className="mt-1 text-[26px] font-extrabold text-ink">행사 선택</h1>
+        <main className="px-5 pt-7 pb-2 md:px-8 md:py-10">
+          <h1 className="text-[26px] font-extrabold text-ink">행사 선택</h1>
           <p className="mt-2 text-sm text-muted">방문할 행사를 골라 관심 서클을 확인하세요.</p>
           {loadError ? <div role="alert" className="mt-8 text-sm text-[#e0455c]">{loadError}</div> : null}
-          <EventList events={events} />
           {!loading && !loadError && events.length === 0 ? <div className="py-14 text-center text-sm text-faint">등록된 행사가 없어요</div> : null}
         </main>
-      ) : detail ? (
-        <Detail
-          item={detail}
-          checked={!!checks[detail.id]}
-          onToggle={() => handleToggle(detail.id)}
-          onBack={() => event && backToEvent(event.slug)}
-          color={badgeColor(detail.id, all)}
-        />
       ) : (
-        <div className="pb-7">
-          {/* sticky 헤더 */}
-          <div className="sticky top-0 z-10 bg-bg/95 backdrop-blur px-5 pt-[22px] pb-3 border-b border-line">
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div>
-                <div className="text-[22px] font-extrabold -tracking-[0.02em] text-ink leading-none">
+        <div className="md:flex md:items-start">
+        {/* 목록 — 모바일에서 상세가 열리면 숨김, 데스크톱은 유지 */}
+        <div className={"min-w-0 flex-1 pb-7 " + (detail ? "hidden md:block" : "")}>
+          {/* sticky 헤더(모바일) / topbar(데스크톱) */}
+          <div className="sticky top-0 z-10 bg-bg/95 backdrop-blur px-5 pt-[22px] pb-3 border-b border-line md:px-8 md:pt-4">
+            <div className="mb-4 flex items-start justify-between gap-3 md:mb-3 md:items-center md:gap-6">
+              <div className="min-w-0">
+                <div className="text-[22px] font-extrabold -tracking-[0.02em] text-ink leading-none md:text-[19px]">
                 {event?.title ?? "동인행사 체크리스트"}
                 </div>
-                <div className="text-xs font-semibold text-faint mt-[5px]">
+                <div className="text-xs font-semibold text-faint mt-[5px] truncate">
                   {eventSubtitle(event)}
                 </div>
               </div>
-               <div className="flex shrink-0 items-center gap-2">
-                 {authEnabled ? (
-                   user ? (
-                     <button type="button" onClick={logout} className="rounded-full border border-line bg-card px-3 py-2 text-xs font-bold text-muted">{user.name ?? "로그인됨"} · 로그아웃</button>
-                   ) : (
-                     <button type="button" onClick={login} className="rounded-full border border-line bg-card px-3 py-2 text-xs font-bold text-muted">로그인</button>
-                   )
-                 ) : null}
-                 <button type="button" onClick={openEvents} className="rounded-full border border-line bg-card px-3 py-2 text-xs font-bold text-muted">행사 목록</button>
-               </div>
-
+              <button type="button" onClick={openEvents} className="shrink-0 rounded-full border border-line bg-card px-3 py-2 text-xs font-bold text-muted md:hidden">행사 목록</button>
             </div>
 
-            <div className="flex items-center gap-2.5 h-12 bg-card border border-line rounded-[14px] px-3.5">
+            <div className="flex items-center gap-2.5 h-12 bg-card border border-line rounded-[14px] px-3.5 md:h-10 md:max-w-[520px]">
               <svg
                 viewBox="0 0 24 24"
                 width="20"
@@ -289,7 +245,7 @@ export default function App() {
           </div>
 
           {/* 장르 칩 (가로 스크롤) */}
-          <div className="flex gap-2 overflow-x-auto no-scrollbar px-5 pt-1 pb-0.5">
+          <div className="flex gap-2 overflow-x-auto no-scrollbar px-5 pt-1 pb-0.5 md:flex-wrap md:px-8 md:pt-4">
             <button
               onClick={() => setSelectedIps([])}
               aria-pressed={selectedIps.length === 0}
@@ -314,15 +270,15 @@ export default function App() {
           </div>
 
           {/* 진행 표시 */}
-          <div className="flex items-center justify-between px-[22px] pt-3.5 pb-2">
+          <div className="flex items-center justify-between px-[22px] pt-3.5 pb-2 md:px-8">
             <div className="text-[12.5px] font-bold text-faint">참가 서클 {filtered.length}곳</div>
             <div className="text-[12.5px] font-bold text-accent">
               방문 {doneCount}/{all.length}
             </div>
           </div>
 
-          {/* 카드 목록 */}
-          <div className="flex flex-col gap-3 px-5">
+          {/* 카드 목록 — 데스크톱은 2~3열 그리드 */}
+          <div className="px-5 md:px-8">
             {loadError && (
               <div className="text-center py-14" role="alert">
                 <div className="text-[#e0455c] text-sm font-semibold">{loadError}</div>
@@ -340,29 +296,9 @@ export default function App() {
                 불러오는 중...
               </div>
             )}
-            {!loadError &&
-              boothList.map((c) => (
-                <Card
-                  key={c.id}
-                  item={c}
-                  checked={!!checks[c.id]}
-                  onToggle={() => handleToggle(c.id)}
-                  onOpen={() => event && openCircle(event.slug, c.id)}
-                  color={badgeColor(c.id, all)}
-                />
-              ))}
-
-            {/* 통판(윗치폼) 섹션 — 행사장 부스 없이 온라인 주문 */}
-            {!loadError && tsuhanList.length > 0 && (
-              <>
-                <div className="flex items-center gap-2 mt-4 mb-0.5">
-                  <span className="text-[12.5px] font-extrabold tracking-[0.04em] text-faint">
-                    윗치폼 통판
-                  </span>
-                  <span className="text-[11px] font-bold text-accent">{tsuhanList.length}</span>
-                  <div className="flex-1 h-px bg-line" />
-                </div>
-                {tsuhanList.map((c) => (
+            {!loadError && (
+              <div className={gridCls}>
+                {boothList.map((c) => (
                   <Card
                     key={c.id}
                     item={c}
@@ -372,6 +308,31 @@ export default function App() {
                     color={badgeColor(c.id, all)}
                   />
                 ))}
+              </div>
+            )}
+
+            {/* 통판(윗치폼) 섹션 — 행사장 부스 없이 온라인 주문 */}
+            {!loadError && tsuhanList.length > 0 && (
+              <>
+                <div className="flex items-center gap-2 mt-7 mb-3.5">
+                  <span className="text-[12.5px] font-extrabold tracking-[0.04em] text-faint">
+                    윗치폼 통판
+                  </span>
+                  <span className="text-[11px] font-bold text-accent">{tsuhanList.length}</span>
+                  <div className="flex-1 h-px bg-line" />
+                </div>
+                <div className={gridCls}>
+                  {tsuhanList.map((c) => (
+                    <Card
+                      key={c.id}
+                      item={c}
+                      checked={!!checks[c.id]}
+                      onToggle={() => handleToggle(c.id)}
+                      onOpen={() => event && openCircle(event.slug, c.id)}
+                      color={badgeColor(c.id, all)}
+                    />
+                  ))}
+                </div>
               </>
             )}
 
@@ -382,7 +343,22 @@ export default function App() {
             )}
           </div>
         </div>
+
+        {/* 서클 상세 — 모바일은 전체 화면, 데스크톱은 우측 패널(목록 유지) */}
+        {detail && (
+          <aside className="min-w-0 md:w-[400px] md:shrink-0 md:sticky md:top-0 md:h-screen md:overflow-y-auto md:border-l md:border-line">
+            <Detail
+              item={detail}
+              checked={!!checks[detail.id]}
+              onToggle={() => handleToggle(detail.id)}
+              onBack={() => event && backToEvent(event.slug)}
+              color={badgeColor(detail.id, all)}
+            />
+          </aside>
+        )}
+        </div>
       )}
+      </div>
     </div>
   );
 }
