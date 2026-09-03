@@ -82,3 +82,34 @@ export function intId(v: unknown, name: string): number {
 export function optBool(v: unknown): boolean {
   return v === true || v === 1 || v === "1" || v === "true";
 }
+
+export type WishlistEntry = { star?: boolean; memo?: string };
+export type WishlistMap = Record<string, WishlistEntry>;
+
+export function wishlistMap(v: unknown, name = "circles"): WishlistMap {
+  if (!v || typeof v !== "object" || Array.isArray(v)) fail(`${name}는 JSON 객체여야 해요`);
+  const source = v as Record<string, unknown>;
+  const keys = Object.keys(source);
+  if (keys.length > 3000 || keys.some((key) => key.length === 0 || key.length > 200)) fail(`${name} 항목이 너무 많거나 길어요`);
+  const output: WishlistMap = {};
+  for (const key of keys) {
+    const value = source[key];
+    if (!value || typeof value !== "object" || Array.isArray(value)) fail(`${name}.${key}는 JSON 객체여야 해요`);
+    const entry = value as Record<string, unknown>;
+    if (Object.keys(entry).some((field) => field !== "star" && field !== "memo")) fail(`${name}.${key}에 허용되지 않은 필드가 있어요`);
+    if (entry.star !== undefined && typeof entry.star !== "boolean") fail(`${name}.${key}.star는 boolean이어야 해요`);
+    if (entry.memo !== undefined && typeof entry.memo !== "string") fail(`${name}.${key}.memo는 문자열이어야 해요`);
+    if (typeof entry.memo === "string" && entry.memo.length > 500) fail(`${name}.${key}.memo는 500자 이하이어야 해요`);
+    const memo = typeof entry.memo === "string" ? entry.memo.trim() : undefined;
+    const star = entry.star === true;
+    if (star || memo) output[key] = { ...(star ? { star: true } : {}), ...(memo ? { memo } : {}) };
+  }
+  return output;
+}
+
+export function wishlistEvents(v: unknown): string[] {
+  if (!Array.isArray(v)) fail("events는 배열이어야 해요");
+  const events = (v as unknown[]).map((item: unknown, index: number) => slug(item, `events[${index}]`));
+  if (new Set(events).size !== events.length || events.length > 3000) fail("events 항목이 너무 많거나 중복돼요");
+  return events;
+}

@@ -15,6 +15,14 @@ const ipsMigration = readFileSync(
   fileURLToPath(new URL("../../migrations/0003_ips_only.sql", import.meta.url)),
   "utf8",
 );
+const wishlistMigration = readFileSync(
+  fileURLToPath(new URL("../../migrations/0006_user_wishlist.sql", import.meta.url)),
+  "utf8",
+);
+const wishlistVersionMigration = readFileSync(
+  fileURLToPath(new URL("../../migrations/0007_user_wishlist_version.sql", import.meta.url)),
+  "utf8",
+);
 
 describe("event-scoped circles migration", () => {
   it("does not create a preservation event when there are no orphan circles", () => {
@@ -141,5 +149,32 @@ describe("event-scoped circles migration", () => {
       { name: "대표 장르" },
     ]);
     expect(db.prepare("SELECT COUNT(*) AS count FROM circle_ips").get()).toMatchObject({ count: 2 });
+  });
+
+  it("applies user_wishlist migration with independent timestamps and without unused table", () => {
+    const db = new DatabaseSync(":memory:");
+    db.exec("PRAGMA foreign_keys = ON");
+    db.exec(initMigration);
+    db.exec(wishlistMigration);
+    db.exec(wishlistVersionMigration);
+
+    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as Array<{ name: string }>;
+    const tableNames = tables.map((t) => t.name);
+    expect(tableNames).toContain("user_wishlist");
+    expect(tableNames).not.toContain("user_wishlist_versions");
+
+    const columns = db.prepare("PRAGMA table_info(user_wishlist)").all() as Array<{ name: string; pk: number; dflt_value: unknown }>;
+    const colNames = columns.map((c) => c.name);
+    expect(colNames).toEqual(["user_id", "event_slug", "starred", "circles", "starred_at", "circles_updated_at"]);
+
+    const pkCols = columns.filter((c) => c.pk > 0).map((c) => c.name);
+    expect(pkCols).toEqual(["user_id", "event_slug"]);
+
+    db.exec("INSERT INTO user_wishlist (user_id, event_slug) VALUES ('u1', 'ev1')");
+    const row = db.prepare("SELECT * FROM user_wishlist WHERE user_id = 'u1'").get() as any;
+    expect(row.starred).toBe(0);
+    expect(row.circles).toBe("{}");
+    expect(row.starred_at).toBeNull();
+    expect(row.circles_updated_at).toBeNull();
   });
 });

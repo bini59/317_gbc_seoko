@@ -232,7 +232,7 @@ describe("<App/> confirmed + unlisted", () => {
     window.location.hash = "#/events/ev";
     render(<App />);
     await screen.findByText("통판서클");
-    fireEvent.change(screen.getByPlaceholderText("서클 · 부스 · 장르 검색"), { target: { value: "통판" } });
+    fireEvent.change(screen.getByPlaceholderText("서클 · 부스 · 장르 · 메모 검색"), { target: { value: "통판" } });
     expect(screen.getByText("통판서클")).toBeTruthy();
     expect(screen.queryByText("부스서클")).toBeNull();
   });

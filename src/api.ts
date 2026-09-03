@@ -1,4 +1,4 @@
-import type { Circle, TweetInfo } from "./types";
+import type { Circle, CircleWishlistMap, CircleWishlistResponse, EventWishlistResponse, TweetInfo } from "./types";
 import type { Checks } from "./lib/checks";
 import { cacheKeys, loadCache, saveCache, type CacheStorage } from "./lib/cache";
 
@@ -196,6 +196,40 @@ export type ChecksResponse = {
   saved?: boolean;
   conflict?: "stale" | "clock_skew";
 };
+
+export async function fetchEventWishlist(): Promise<EventWishlistResponse> {
+  const res = await fetch("/api/wishlist", { credentials: "include" });
+  if (!res.ok) throw new Error("행사 위시리스트를 불러오지 못했어요");
+  return await res.json();
+}
+
+export async function saveEventWishlist(events: string[], updatedAt?: string | null): Promise<EventWishlistResponse> {
+  const res = await fetch("/api/wishlist", {
+    method: "PUT",
+    credentials: "include",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ events, ...(updatedAt ? { updatedAt } : {}) }),
+  });
+  if (!res.ok) throw new Error("행사 위시리스트를 저장하지 못했어요");
+  return await res.json();
+}
+
+export async function fetchCircleWishlist(eventSlug: string): Promise<CircleWishlistResponse> {
+  const res = await fetch(`/api/wishlist?event=${encodeURIComponent(eventSlug)}`, { credentials: "include" });
+  if (!res.ok) throw new Error("서클 위시리스트를 불러오지 못했어요");
+  return await res.json();
+}
+
+export async function saveCircleWishlist(eventSlug: string, circles: CircleWishlistMap, updatedAt?: string | null): Promise<CircleWishlistResponse> {
+  const res = await fetch(`/api/wishlist?event=${encodeURIComponent(eventSlug)}`, {
+    method: "PUT",
+    credentials: "include",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ circles, ...(updatedAt ? { updatedAt } : {}) }),
+  });
+  if (!res.ok) throw new Error("서클 위시리스트를 저장하지 못했어요");
+  return await res.json();
+}
 
 export async function fetchCircles(
   eventSlug: string,

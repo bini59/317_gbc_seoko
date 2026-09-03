@@ -13,6 +13,8 @@ import {
   intId,
   optBool,
   dateOnly,
+  wishlistMap,
+  wishlistEvents,
 } from "./validate";
 import { md5Hex } from "./md5";
 
@@ -93,6 +95,7 @@ type EventStatusRow = {
 };
 
 type UserChecksRow = { checks: string; updated_at: string };
+type UserWishlistRow = { starred: number; circles: string; starred_at: string | null; circles_updated_at: string | null };
 
 const CHECKS_TIMESTAMP_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 const MAX_CLIENT_CLOCK_AHEAD_MS = 5 * 60 * 1000;
@@ -241,7 +244,7 @@ app.use("*", cors({
 }));
 
 // require bearer token for mutating routes only (session-cookie routes are exempt)
-const SESSION_ROUTES = ["/api/checks", "/api/auth/logout", "/api/feedback"];
+const SESSION_ROUTES = ["/api/checks", "/api/wishlist", "/api/auth/logout", "/api/feedback"];
 app.use("*", async (c, next) => {
   if (["POST", "PATCH", "PUT", "DELETE"].includes(c.req.method) && !SESSION_ROUTES.includes(c.req.path)) {
     const auth = c.req.header("authorization") || "";
@@ -406,6 +409,139 @@ app.put("/checks", async (c) => {
     .bind(user.userId, eventSlug)
     .first<UserChecksRow>();
   return c.json({ checks: latest ? parseStoredChecks(latest.checks) : {}, updatedAt: formatStoredChecksTimestamp(latest?.updated_at), saved: false, conflict: "stale" });
+});
+
+function parseWishlistCircles(value: string): Record<string, { star?: boolean; memo?: string }> {
+  try {
+    return wishlistMap(JSON.parse(value));
+  } catch {
+    return {};
+  }
+}
+
+app.get("/wishlist", async (c) => {
+  const user = await requireAuth(c);
+  if (user instanceof Response) return user;
+  const eventSlug = c.req.query("event");
+  if (eventSlug) {
+    vSlug(eventSlug, "event");
+    const event = await c.env.DB.prepare("SELECT slug FROM events WHERE slug = ?").bind(eventSlug).first<{ slug: string }>();
+    if (!event) return c.json({ error: "event not found", code: "not_found" }, 404);
+    const row = await c.env.DB.prepare("SELECT circles, circles_updated_at FROM user_wishlist WHERE user_id = ? AND event_slug = ?")
+      .bind(user.userId, eventSlug).first<UserWishlistRow>();
+    return c.json({ circles: row ? parseWishlistCircles(row.circles) : {}, updatedAt: formatStoredChecksTimestamp(row?.circles_updated_at) });
+  }
+  const { results } = await c.env.DB.prepare("SELECT event_slug FROM user_wishlist WHERE user_id = ? AND starred = 1 ORDER BY event_slug")
+    .bind(user.userId).all<{ event_slug: string }>();
+  const latest = await c.env.DB.prepare("SELECT updated_at FROM user_wishlist_version WHERE user_id = ?")
+    .bind(user.userId).first<{ updated_at: string | null }>();
+  if (latest) return c.json({ events: results.map((row) => row.event_slug), updatedAt: formatStoredChecksTimestamp(latest.updated_at) });
+  const fallback = await c.env.DB.prepare("SELECT MAX(starred_at) as max_at FROM user_wishlist WHERE user_id = ?")
+    .bind(user.userId).first<{ max_at: string | null }>();
+  return c.json({ events: results.map((row) => row.event_slug), updatedAt: formatStoredChecksTimestamp(fallback?.max_at) });
+});
+
+app.put("/wishlist", async (c) => {
+  if (!sessionMutationAllowed(c)) return c.json({ error: "forbidden", code: "forbidden" }, 403);
+  const user = await requireAuth(c);
+  if (user instanceof Response) return user;
+  const eventSlug = c.req.query("event");
+  const body = await readJson(c, 512 * 1024);
+  const requestedAt = body.updatedAt === undefined || body.updatedAt === null ? null : normalizeChecksTimestamp(body.updatedAt);
+  if (body.updatedAt !== undefined && body.updatedAt !== null && !requestedAt) throw new ValidationError("updatedAt은 UTC 밀리초 ISO 시각이어야 해요");
+  if (eventSlug) {
+    vSlug(eventSlug, "event");
+    const event = await c.env.DB.prepare("SELECT slug FROM events WHERE slug = ?").bind(eventSlug).first<{ slug: string }>();
+    if (!event) return c.json({ error: "event not found", code: "invalid_request" }, 400);
+    const circles = wishlistMap(body.circles);
+    const circleRows = (await c.env.DB.prepare(
+      "SELECT c.id AS circle_id FROM circles c JOIN participations p ON p.circle_id = c.id WHERE c.event_id = (SELECT id FROM events WHERE slug = ?) AND p.event_id = (SELECT id FROM events WHERE slug = ?)",
+    ).bind(eventSlug, eventSlug).all<{ circle_id: number }>()).results;
+    const validCircleIds = new Set(circleRows.map((row) => row.circle_id));
+    for (const circleId of Object.keys(circles)) if (!validCircleIds.has(Number(circleId))) delete circles[circleId];
+
+    if (requestedAt && Date.parse(requestedAt) > Date.now() + MAX_CLIENT_CLOCK_AHEAD_MS) {
+      const current = await c.env.DB.prepare("SELECT circles, circles_updated_at FROM user_wishlist WHERE user_id = ? AND event_slug = ?")
+        .bind(user.userId, eventSlug)
+        .first<UserWishlistRow>();
+      return c.json({
+        circles: current ? parseWishlistCircles(current.circles) : {},
+        updatedAt: formatStoredChecksTimestamp(current?.circles_updated_at),
+        saved: false,
+        conflict: "clock_skew",
+      });
+    }
+
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const current = await c.env.DB.prepare("SELECT circles, circles_updated_at FROM user_wishlist WHERE user_id = ? AND event_slug = ?")
+        .bind(user.userId, eventSlug).first<UserWishlistRow>();
+      const rawCurrentAt = current?.circles_updated_at ?? null;
+      const currentAt = formatStoredChecksTimestamp(rawCurrentAt);
+      if (current && currentAt && (!requestedAt || Date.parse(requestedAt) <= Date.parse(currentAt))) {
+        return c.json({ circles: parseWishlistCircles(current.circles), updatedAt: currentAt, saved: false, conflict: "stale" });
+      }
+      const savedAt = nextServerTimestamp(currentAt, requestedAt);
+      if (!current) {
+        const inserted = await c.env.DB.prepare("INSERT INTO user_wishlist (user_id, event_slug, circles, starred, circles_updated_at) VALUES (?, ?, ?, 0, ?) ON CONFLICT(user_id, event_slug) DO NOTHING")
+          .bind(user.userId, eventSlug, JSON.stringify(circles), savedAt).run();
+        if (Number((inserted.meta as { changes?: number } | undefined)?.changes ?? 0) > 0) {
+          return c.json({ circles, updatedAt: savedAt, saved: true });
+        }
+        continue;
+      }
+      if (rawCurrentAt === null) {
+        const updated = await c.env.DB.prepare("UPDATE user_wishlist SET circles = ?, circles_updated_at = ? WHERE user_id = ? AND event_slug = ? AND circles_updated_at IS NULL")
+          .bind(JSON.stringify(circles), savedAt, user.userId, eventSlug).run();
+        if (Number((updated.meta as { changes?: number } | undefined)?.changes ?? 0) > 0) {
+          return c.json({ circles, updatedAt: savedAt, saved: true });
+        }
+      } else {
+        const updated = await c.env.DB.prepare("UPDATE user_wishlist SET circles = ?, circles_updated_at = ? WHERE user_id = ? AND event_slug = ? AND circles_updated_at = ? AND circles_updated_at < ?")
+          .bind(JSON.stringify(circles), savedAt, user.userId, eventSlug, rawCurrentAt, savedAt).run();
+        if (Number((updated.meta as { changes?: number } | undefined)?.changes ?? 0) > 0) {
+          return c.json({ circles, updatedAt: savedAt, saved: true });
+        }
+      }
+    }
+    const latest = await c.env.DB.prepare("SELECT circles, circles_updated_at FROM user_wishlist WHERE user_id = ? AND event_slug = ?")
+      .bind(user.userId, eventSlug).first<UserWishlistRow>();
+    return c.json({ circles: latest ? parseWishlistCircles(latest.circles) : {}, updatedAt: formatStoredChecksTimestamp(latest?.circles_updated_at), saved: false, conflict: "stale" });
+  }
+
+  const events = wishlistEvents(body.events);
+  const knownEvents = (await c.env.DB.prepare("SELECT slug FROM events").all<{ slug: string }>()).results.map((row) => row.slug);
+  if (events.some((event) => !knownEvents.includes(event))) return c.json({ error: "event not found", code: "invalid_request" }, 400);
+
+  const currentRows = (await c.env.DB.prepare("SELECT event_slug FROM user_wishlist WHERE user_id = ? AND starred = 1 ORDER BY event_slug").bind(user.userId).all<{ event_slug: string }>()).results;
+  const currentEvents = currentRows.map((row) => row.event_slug);
+  const currentVersion = await c.env.DB.prepare("SELECT updated_at FROM user_wishlist_version WHERE user_id = ?").bind(user.userId).first<{ updated_at: string | null }>();
+  const currentAtRow = await c.env.DB.prepare("SELECT MAX(starred_at) as max_at FROM user_wishlist WHERE user_id = ?").bind(user.userId).first<{ max_at: string | null }>();
+  const currentAt = formatStoredChecksTimestamp(currentVersion?.updated_at ?? currentAtRow?.max_at);
+
+  if (requestedAt && Date.parse(requestedAt) > Date.now() + MAX_CLIENT_CLOCK_AHEAD_MS) {
+    return c.json({ events: currentEvents, updatedAt: currentAt, saved: false, conflict: "clock_skew" });
+  }
+
+  if (currentAt && (!requestedAt || Date.parse(requestedAt) <= Date.parse(currentAt))) {
+    return c.json({ events: currentEvents, updatedAt: currentAt, saved: false, conflict: "stale" });
+  }
+
+  const savedAt = nextServerTimestamp(currentAt, requestedAt);
+  const batchResults = await c.env.DB.batch([
+    c.env.DB.prepare("INSERT INTO user_wishlist_version (user_id, updated_at) VALUES (?, ?) ON CONFLICT(user_id) DO NOTHING").bind(user.userId, currentAt),
+    currentVersion || currentAt
+      ? c.env.DB.prepare("UPDATE user_wishlist_version SET updated_at = ? WHERE user_id = ? AND updated_at = ? AND updated_at < ?").bind(savedAt, user.userId, currentVersion?.updated_at ?? currentAt, savedAt)
+      : c.env.DB.prepare("UPDATE user_wishlist_version SET updated_at = ? WHERE user_id = ? AND updated_at IS NULL").bind(savedAt, user.userId),
+    c.env.DB.prepare("UPDATE user_wishlist SET starred = 0, starred_at = ? WHERE user_id = ? AND starred = 1 AND EXISTS (SELECT 1 FROM user_wishlist_version WHERE user_id = ? AND updated_at = ?)").bind(savedAt, user.userId, user.userId, savedAt),
+    ...events.map((event) => c.env.DB.prepare("INSERT INTO user_wishlist (user_id, event_slug, starred, starred_at) SELECT ?, ?, 1, ? WHERE EXISTS (SELECT 1 FROM user_wishlist_version WHERE user_id = ? AND updated_at = ?) ON CONFLICT(user_id, event_slug) DO UPDATE SET starred = 1, starred_at = excluded.starred_at").bind(user.userId, event, savedAt, user.userId, savedAt)),
+  ]);
+  const versionResult = batchResults[1] as { meta?: { changes?: number } } | undefined;
+  if (Number(versionResult?.meta?.changes ?? 0) === 0) {
+    const latestRows = (await c.env.DB.prepare("SELECT event_slug FROM user_wishlist WHERE user_id = ? AND starred = 1 ORDER BY event_slug").bind(user.userId).all<{ event_slug: string }>()).results;
+    const latestVersion = await c.env.DB.prepare("SELECT updated_at FROM user_wishlist_version WHERE user_id = ?").bind(user.userId).first<{ updated_at: string | null }>();
+    return c.json({ events: latestRows.map((row) => row.event_slug), updatedAt: formatStoredChecksTimestamp(latestVersion?.updated_at), saved: false, conflict: "stale" });
+  }
+  return c.json({ events, updatedAt: savedAt, saved: true });
 });
 
 app.get("/events", async (c) => {

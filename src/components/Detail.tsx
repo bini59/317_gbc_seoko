@@ -1,30 +1,84 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Circle } from "../types";
 import { boothShort } from "../lib/circle";
 import { TweetCard } from "./TweetCard";
 
-/* ---------- 상세 화면 ---------- */
 export function Detail({
   item,
   checked,
   onToggle,
   onBack,
   color,
+  starred = false,
+  memo = "",
+  onStar,
+  onUpdateMemo,
 }: {
   item: Circle;
   checked: boolean;
   onToggle: () => void;
   onBack: () => void;
   color: string;
+  starred?: boolean;
+  memo?: string;
+  onStar?: () => void;
+  onUpdateMemo?: (memo: string) => void;
 }) {
   const backRef = useRef<HTMLButtonElement>(null);
-  // 상세 진입 시 포커스를 상세 컨텍스트(뒤로 버튼)로 이동 — 키보드/스크린리더 대응
   useEffect(() => {
     backRef.current?.focus();
   }, [item.id]);
 
+  const [localMemo, setLocalMemo] = useState(memo);
+  const timer = useRef<ReturnType<typeof setTimeout>>();
+  const localMemoRef = useRef(localMemo);
+  localMemoRef.current = localMemo;
+  const onUpdateMemoRef = useRef(onUpdateMemo);
+  onUpdateMemoRef.current = onUpdateMemo;
+  const externalMemoRef = useRef(memo);
+  externalMemoRef.current = memo;
+
+  useEffect(() => {
+    setLocalMemo(memo);
+  }, [item.id, memo]);
+
+  const flushMemo = () => {
+    if (timer.current) {
+      clearTimeout(timer.current);
+      timer.current = undefined;
+    }
+    if (localMemoRef.current !== externalMemoRef.current) {
+      onUpdateMemoRef.current?.(localMemoRef.current);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      flushMemo();
+    };
+  }, [item.id]);
+
+  const handleMemoChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const next = e.target.value.slice(0, 500);
+    setLocalMemo(next);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      onUpdateMemoRef.current?.(next);
+    }, 300);
+  };
+
+  const handleMemoBlur = () => {
+    flushMemo();
+  };
+
+  const handleStarClick = () => {
+    flushMemo();
+    onStar?.();
+  };
+
   const short = boothShort(item);
   const links: { label: string; url: string; primary: boolean }[] = [];
+
   if (item.boothUrl)
     links.push({
       label: `📍 배치도에서 ${item.booth} 확인`,
@@ -151,8 +205,36 @@ export function Detail({
           </div>
         </div>
 
-        {/* 방문 체크는 스크롤 없이 항상 보이도록 하단 고정 */}
-        <div className="sticky bottom-0 mt-[26px] pt-3 pb-[calc(24px+env(safe-area-inset-bottom))] bg-bg/95 backdrop-blur">
+        {onUpdateMemo && (
+          <div className="mt-6">
+            <label htmlFor="circle-memo" className="text-xs font-extrabold tracking-[0.04em] text-faint">메모</label>
+            <textarea
+              id="circle-memo"
+              maxLength={500}
+              value={localMemo}
+              onChange={handleMemoChange}
+              onBlur={handleMemoBlur}
+              className="mt-2 w-full min-h-24 resize-y rounded-xl border border-line bg-card p-3 text-sm text-ink outline-none"
+            />
+            <div className="mt-1 text-right text-xs text-faint">{localMemo.length}/500</div>
+          </div>
+        )}
+
+        <div className="sticky bottom-0 mt-[26px] pt-3 pb-[calc(24px+env(safe-area-inset-bottom))] bg-bg/95 backdrop-blur flex gap-2">
+          {onStar && (
+            <button
+              type="button"
+              onClick={handleStarClick}
+              aria-pressed={starred}
+              aria-label={`${item.name} 찜 ${starred ? "해제" : "하기"}`}
+              className={
+                "flex items-center justify-center w-[54px] h-[54px] rounded-2xl border text-xl font-extrabold cursor-pointer transition-colors shrink-0 " +
+                (starred ? "text-amber-500 border-amber-500/30 bg-amber-500/10" : "text-faint hover:text-muted border-line bg-card hover:bg-chip")
+              }
+            >
+              {starred ? "★" : "☆"}
+            </button>
+          )}
           <button
             onClick={onToggle}
             className={

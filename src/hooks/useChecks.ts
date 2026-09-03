@@ -64,8 +64,6 @@ export function useChecks(
       return;
     }
 
-    // The browser storage is intentionally not namespaced by user, so never use
-    // one account's locally synced snapshot as another account's upload source.
     if (authenticated && currentUserId && lastAuthenticatedUser.current && lastAuthenticatedUser.current !== currentUserId) {
       clearAllChecks(localStorage);
     }
@@ -87,7 +85,6 @@ export function useChecks(
     const enqueueSave = (state: ChecksState, capturedRevision: number, mergedCount: number) => {
       const queued = saveQueue.current.then(async () => {
         if (!isCurrent()) return;
-        // The timestamp is issued at dispatch time, after all preceding writes.
         const requestAt = clock.current ? nextChecksTimestamp(clock.current, false) : null;
         const response = await saveRemoteChecks(eventSlug, state.checks, requestAt);
         const saved = responseState(response);
