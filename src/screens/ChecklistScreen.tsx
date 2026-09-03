@@ -96,7 +96,7 @@ export function ChecklistScreen({
   const visibleSheet = sheet;
   const sheetPanel = (s: Exclude<Sheet, null>) =>
     visibleSheet === s
-      ? "glass fixed left-1/2 -translate-x-1/2 w-full max-w-[560px] bottom-0 z-20 rounded-t-[28px] border-b-0 px-5 pt-5 pb-[calc(92px+env(safe-area-inset-bottom))] max-h-[75vh] overflow-y-auto "
+      ? "glass fixed left-1/2 -translate-x-1/2 w-full max-w-[560px] bottom-0 z-20 rounded-t-[24px] border-b-0 px-5 pt-4 pb-[calc(76px+env(safe-area-inset-bottom))] max-h-[68vh] overflow-y-auto "
       : "hidden ";
   const sheetCls = (s: Exclude<Sheet, null>) =>
     sheetPanel(s) + "md:static md:block md:translate-x-0 md:max-w-none md:rounded-none md:border-0 md:bg-transparent md:shadow-none md:backdrop-filter-none md:after:hidden md:p-0 md:max-h-none md:overflow-visible";
@@ -143,7 +143,7 @@ export function ChecklistScreen({
           {visibleSheet ? <button type="button" aria-label="시트 닫기" onClick={() => setSheet(null)} className="fixed inset-0 z-20 bg-black/40 md:hidden" /> : null}
 
           <div id="sheet-search" role="group" aria-label="검색" className={sheetCls("search")}>
-            <div className="flex items-center gap-2.5 h-12 bg-card border border-line rounded-[14px] px-3.5 md:h-10 md:max-w-[520px]">
+            <div className="flex items-center gap-2.5 h-11 bg-card border border-line rounded-[14px] px-3.5 md:h-10 md:max-w-[520px]">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#9aa0aa" strokeWidth="2" strokeLinecap="round">
                 <circle cx="11" cy="11" r="7" />
                 <path d="M21 21l-4-4" />

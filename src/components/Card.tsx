@@ -24,16 +24,16 @@ export function Card({
 }) {
   const short = boothShort(item);
   const cardCls = [
-    "relative rounded-[10px] p-4 bg-card border border-line transition-colors hover:border-line-strong",
+    "relative rounded-[10px] px-3.5 py-3 bg-card border border-line transition-colors hover:border-line-strong md:p-4",
     item.highlight ? "ring-[1.6px] ring-accent/40" : "",
     checked ? "bg-chip opacity-60" : "",
   ].join(" ");
 
   return (
     <div className={cardCls}>
-      <div className="flex items-start gap-[11px]">
+      <div className="flex items-start gap-2 md:gap-[11px]">
         <div
-          className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center text-white font-extrabold flex-none -tracking-[0.02em]"
+          className="w-[30px] h-[30px] rounded-[9px] flex items-center justify-center text-white font-extrabold flex-none -tracking-[0.02em] md:w-[34px] md:h-[34px] md:rounded-[10px]"
           style={{
             background: color,
             fontSize: short.length > 2 ? 11 : 15,
@@ -57,7 +57,7 @@ export function Card({
           </div>
           <div
             className={
-              "text-[16.5px] font-extrabold -tracking-[0.01em] text-ink leading-[1.28] mt-0.5 " +
+              "text-[15px] font-extrabold -tracking-[0.01em] text-ink leading-[1.28] mt-0.5 md:text-[16.5px] " +
               (checked ? "line-through decoration-[#b8bcc4]" : "")
             }
           >
@@ -74,7 +74,7 @@ export function Card({
             aria-pressed={starred}
             aria-label={`${item.name} 찜 ${starred ? "해제" : "하기"}`}
             className={
-              "flex items-center justify-center w-11 h-11 rounded-xl text-lg font-extrabold cursor-pointer transition-colors border " +
+              "flex items-center justify-center w-9 h-9 rounded-lg text-base font-extrabold cursor-pointer transition-colors border md:w-11 md:h-11 md:rounded-xl md:text-lg " +
               (starred
                 ? "text-amber-500 border-amber-500/30 bg-amber-500/10"
                 : "text-faint hover:text-muted border-line bg-card hover:bg-chip")
@@ -87,7 +87,7 @@ export function Card({
           onClick={onToggle}
           aria-label={checked ? "방문 체크 해제" : "방문 체크"}
           className={
-            "w-[26px] h-[26px] rounded-full flex items-center justify-center flex-none border-2 cursor-pointer transition-colors " +
+            "w-6 h-6 rounded-full flex items-center justify-center flex-none border-2 cursor-pointer transition-colors md:w-[26px] md:h-[26px] " +
             (checked ? "bg-accent border-accent" : "bg-transparent border-line-strong")
           }
         >

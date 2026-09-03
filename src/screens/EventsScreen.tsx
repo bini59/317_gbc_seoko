@@ -19,16 +19,16 @@ export function EventsScreen({ install, onOpenSettings, wishlist = [], onToggleW
       {loadError ? <div role="alert" className="mt-8 text-sm text-danger">{loadError}</div> : null}
       {!isFetching && !loadError && events.length === 0 ? <div className="py-14 text-center text-sm text-faint">등록된 행사가 없어요</div> : null}
       {!loadError && wishlistMatches.length > 0 && (
-        <section className="mt-6 md:mt-8">
+        <section className="mt-5 md:mt-8">
           <h2 className="mb-2 text-xs font-extrabold tracking-[0.04em] text-faint">내 위시리스트</h2>
-          <div className="flex flex-col gap-3 md:gap-1">
+          <div className="flex flex-col gap-2 md:gap-1">
             {wishlistMatches.map((candidate) => (
               <div
                 key={`screen-wishlist-${candidate.slug}`}
-                className="block rounded-[18px] border border-line bg-card p-4 md:rounded-[10px] md:border-transparent md:px-3 md:py-2 md:bg-transparent md:hover:bg-chip"
+                className="block rounded-[14px] border border-line bg-card px-3.5 py-3 md:rounded-[10px] md:border-transparent md:px-3 md:py-2 md:bg-transparent md:hover:bg-chip"
               >
                 <div className="flex items-center gap-1.5">
-                  <a href={`#/events/${encodeURIComponent(candidate.slug)}`} className="min-w-0 flex-1 no-underline text-[17px] font-extrabold text-ink md:text-sm">
+                  <a href={`#/events/${encodeURIComponent(candidate.slug)}`} className="min-w-0 flex-1 no-underline text-[15px] font-extrabold text-ink md:text-sm">
                     {candidate.title}
                   </a>
                   {onToggleWishlist && (
@@ -37,13 +37,13 @@ export function EventsScreen({ install, onOpenSettings, wishlist = [], onToggleW
                       onClick={() => onToggleWishlist(candidate.slug)}
                       aria-pressed={true}
                       aria-label={`${candidate.title} 행사 찜 해제`}
-                      className="ml-auto flex items-center justify-center w-11 h-11 md:w-8 md:h-8 rounded-xl md:rounded-lg text-lg md:text-base border border-transparent hover:border-line hover:bg-chip cursor-pointer text-amber-500 shrink-0"
+                      className="ml-auto flex items-center justify-center w-9 h-9 md:w-8 md:h-8 rounded-lg text-base md:text-base border border-transparent hover:border-line hover:bg-chip cursor-pointer text-amber-500 shrink-0"
                     >
                       ★
                     </button>
                   )}
                 </div>
-                <div className="mt-1 text-xs font-semibold text-faint md:mt-0.5 md:text-[11px]">{eventSubtitle(candidate)}</div>
+                <div className="mt-0.5 text-[11px] font-semibold text-faint md:mt-0.5 md:text-[11px]">{eventSubtitle(candidate)}</div>
               </div>
             ))}
           </div>
