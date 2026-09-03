@@ -69,7 +69,7 @@ export function ChecklistScreen({
   useEffect(() => {
     if (!sheet) { opener.current?.focus(); opener.current = null; return; }
     opener.current = document.activeElement as HTMLElement | null;
-    if (sheet === "search") searchRef.current?.focus();
+    if (sheet === "search-filter") searchRef.current?.focus();
     // 시트가 네비보다 DOM 앞에 있어 Tab으로 못 들어간다 — 첫 항목으로 포커스 이동
     if (sheet === "events") document.querySelector<HTMLElement>(`#sheet-${sheet} a, #sheet-${sheet} button`)?.focus();
     document.body.style.overflow = "hidden";
@@ -142,7 +142,7 @@ export function ChecklistScreen({
 
           {visibleSheet ? <button type="button" aria-label="시트 닫기" onClick={() => setSheet(null)} className="fixed inset-0 z-20 bg-black/40 md:hidden" /> : null}
 
-          <div id="sheet-search" role="group" aria-label="검색" className={sheetCls("search")}>
+          <div id="sheet-search-filter" role="group" aria-label="검색과 필터" className={sheetCls("search-filter")}>
             <div className="flex items-center gap-2.5 h-11 bg-card border border-line rounded-[14px] px-3.5 md:h-10 md:max-w-[520px]">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#9aa0aa" strokeWidth="2" strokeLinecap="round">
                 <circle cx="11" cy="11" r="7" />
@@ -174,7 +174,7 @@ export function ChecklistScreen({
             </div>
           </div>
 
-          <div id="sheet-filter" role="group" aria-label="필터" className={sheetCls("filter")}>
+          <div className="mt-3 md:mt-4" role="group" aria-label="필터">
             <div className="flex gap-2 md:mt-3.5">
               {STATUS.map((s) => (
                 <button key={s.k} onClick={() => setStatus(s.k)} aria-pressed={status === s.k} className={statusChip(status === s.k)}>
