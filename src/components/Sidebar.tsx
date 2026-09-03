@@ -18,21 +18,21 @@ export function EventList({ events, currentSlug, wishlist = [], onToggleWishlist
   return (
     <>
       {wishlistMatches.length > 0 && (
-        <section key="wishlist" className="mt-6 md:mt-5">
+        <section key="wishlist" className="mt-4 md:mt-5">
           <h2 className="mb-2 text-xs font-extrabold tracking-[0.04em] text-faint">내 위시리스트</h2>
-          <div className="flex flex-col gap-3 md:gap-1">
+          <div className="flex flex-col gap-2 md:gap-1">
             {wishlistMatches.map((candidate) => {
               const current = candidate.slug === currentSlug;
               return (
                 <div
                   key={`wishlist-${candidate.slug}`}
                   className={
-                    "block rounded-[18px] border p-4 md:rounded-[10px] md:border-transparent md:px-3 md:py-2 " +
+                    "block rounded-[14px] border px-3.5 py-3 md:rounded-[10px] md:border-transparent md:px-3 md:py-2 " +
                     (current ? "border-accent/40 bg-accent/10" : "border-line bg-card md:bg-transparent md:hover:bg-chip")
                   }
                 >
                   <div className="flex items-center gap-1.5">
-                    <a href={`#/events/${encodeURIComponent(candidate.slug)}`} aria-current={current ? "page" : undefined} className={"min-w-0 flex-1 no-underline text-[17px] font-extrabold md:text-sm " + (current ? "text-accent" : "text-ink")}>
+                    <a href={`#/events/${encodeURIComponent(candidate.slug)}`} aria-current={current ? "page" : undefined} className={"min-w-0 flex-1 no-underline text-[15px] font-extrabold md:text-sm " + (current ? "text-accent" : "text-ink")}>
                       {current ? <span aria-hidden="true">✓</span> : null}
                       {candidate.title}
                     </a>
@@ -42,13 +42,13 @@ export function EventList({ events, currentSlug, wishlist = [], onToggleWishlist
                         onClick={() => onToggleWishlist(candidate.slug)}
                         aria-pressed={true}
                         aria-label={`${candidate.title} 행사 찜 해제`}
-                        className="ml-auto flex items-center justify-center w-11 h-11 md:w-8 md:h-8 rounded-xl md:rounded-lg text-lg md:text-base border border-transparent hover:border-line hover:bg-chip cursor-pointer text-amber-500 shrink-0"
+                        className="ml-auto flex items-center justify-center w-9 h-9 md:w-8 md:h-8 rounded-lg text-base md:text-base border border-transparent hover:border-line hover:bg-chip cursor-pointer text-amber-500 shrink-0"
                       >
                         ★
                       </button>
                     )}
                   </div>
-                  <div className="mt-1 text-xs font-semibold text-faint md:mt-0.5 md:text-[11px]">{eventSubtitle(candidate)}</div>
+                  <div className="mt-0.5 text-[11px] font-semibold text-faint md:mt-0.5 md:text-[11px]">{eventSubtitle(candidate)}</div>
                 </div>
               );
             })}
@@ -57,7 +57,7 @@ export function EventList({ events, currentSlug, wishlist = [], onToggleWishlist
       )}
       {EVENT_SECTIONS.map(({ status, label }) => {
         const matches = events
-          .filter((event) => event.status === status)
+          .filter((event) => event.status === status && !wishlist.includes(event.slug))
           .sort((a, b) => {
             const comparison = (a.start_date ?? "").localeCompare(b.start_date ?? "");
             return status === "past" ? -comparison : comparison;
@@ -74,12 +74,12 @@ export function EventList({ events, currentSlug, wishlist = [], onToggleWishlist
                   <div
                     key={candidate.slug}
                     className={
-                      "block rounded-[18px] border p-4 md:rounded-[10px] md:border-transparent md:px-3 md:py-2 " +
+                      "block rounded-[14px] border px-3.5 py-3 md:rounded-[10px] md:border-transparent md:px-3 md:py-2 " +
                       (current ? "border-accent/40 bg-accent/10" : "border-line bg-card md:bg-transparent md:hover:bg-chip")
                     }
                   >
                     <div className="flex items-center gap-1.5">
-                      <a href={`#/events/${encodeURIComponent(candidate.slug)}`} aria-current={current ? "page" : undefined} className={"min-w-0 flex-1 no-underline text-[17px] font-extrabold md:text-sm " + (current ? "text-accent" : "text-ink")}>
+                      <a href={`#/events/${encodeURIComponent(candidate.slug)}`} aria-current={current ? "page" : undefined} className={"min-w-0 flex-1 no-underline text-[15px] font-extrabold md:text-sm " + (current ? "text-accent" : "text-ink")}>
                         {current ? <span aria-hidden="true">✓</span> : null}
                         {candidate.title}
                       </a>
@@ -90,7 +90,7 @@ export function EventList({ events, currentSlug, wishlist = [], onToggleWishlist
                           aria-pressed={isStarred}
                           aria-label={`${candidate.title} 행사 찜 ${isStarred ? "해제" : "하기"}`}
                           className={
-                            "ml-auto flex items-center justify-center w-11 h-11 md:w-8 md:h-8 rounded-xl md:rounded-lg text-lg md:text-base border border-transparent hover:border-line hover:bg-chip cursor-pointer shrink-0 " +
+                            "ml-auto flex items-center justify-center w-9 h-9 md:w-8 md:h-8 rounded-lg text-base md:text-base border border-transparent hover:border-line hover:bg-chip cursor-pointer shrink-0 " +
                             (isStarred ? "text-amber-500" : "text-faint hover:text-muted")
                           }
                         >
@@ -98,7 +98,7 @@ export function EventList({ events, currentSlug, wishlist = [], onToggleWishlist
                         </button>
                       )}
                     </div>
-                    <div className="mt-1 text-xs font-semibold text-faint md:mt-0.5 md:text-[11px]">{eventSubtitle(candidate)}</div>
+                    <div className="mt-0.5 text-[11px] font-semibold text-faint md:mt-0.5 md:text-[11px]">{eventSubtitle(candidate)}</div>
                   </div>
                 );
               })}

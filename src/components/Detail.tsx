@@ -228,7 +228,7 @@ export function Detail({
               aria-pressed={starred}
               aria-label={`${item.name} 찜 ${starred ? "해제" : "하기"}`}
               className={
-                "flex items-center justify-center w-[54px] h-[54px] rounded-2xl border text-xl font-extrabold cursor-pointer transition-colors shrink-0 " +
+                "flex items-center justify-center w-12 h-12 rounded-xl border text-lg font-extrabold cursor-pointer transition-colors shrink-0 md:w-[54px] md:h-[54px] md:rounded-2xl md:text-xl " +
                 (starred ? "text-amber-500 border-amber-500/30 bg-amber-500/10" : "text-faint hover:text-muted border-line bg-card hover:bg-chip")
               }
             >
@@ -238,7 +238,7 @@ export function Detail({
           <button
             onClick={onToggle}
             className={
-              "flex items-center justify-center gap-2 w-full h-[54px] rounded-2xl text-[15.5px] font-extrabold cursor-pointer border-0 text-white " +
+              "flex items-center justify-center gap-2 w-full h-12 rounded-xl text-[15.5px] font-extrabold cursor-pointer border-0 text-white md:h-[54px] md:rounded-2xl " +
               (checked ? "bg-accent" : "bg-ink text-bg")
             }
           >
