@@ -507,11 +507,11 @@ describe("<App/> bottom navigation (mobile)", () => {
     vi.unstubAllGlobals();
   });
 
-  it("renders 4 tabs and opens the 행사 sheet without hiding the nav", async () => {
+  it("renders 6 tabs and opens the 행사 sheet without hiding the nav", async () => {
     render(<App />);
     await screen.findByText("부스서클");
     const nav = screen.getByRole("navigation", { name: "하단 메뉴" });
-    expect(nav.querySelectorAll("button").length).toBe(5);
+    expect(nav.querySelectorAll("button").length).toBe(6);
     expect(screen.getByRole("button", { name: "목록" }).getAttribute("aria-current")).toBe("page");
     const indicator = nav.querySelector<HTMLElement>('span[aria-hidden="true"]')!;
     expect(indicator.style.transform).toBe("translateX(0%)");
@@ -520,7 +520,7 @@ describe("<App/> bottom navigation (mobile)", () => {
 
     const eventsTab = screen.getByRole("button", { name: "행사" });
     fireEvent.click(eventsTab);
-    expect(indicator.style.transform).toBe("translateX(300%)");
+    expect(indicator.style.transform).toBe("translateX(400%)");
     expect(eventsTab.getAttribute("aria-expanded")).toBe("true");
     expect(eventsTab.getAttribute("aria-controls")).toBe("sheet-events");
     const sheet = document.getElementById("sheet-events")!;

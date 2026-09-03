@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { eventsQuery } from "../lib/queries";
 import type { ApiEvent } from "../api";
+import { eventHash } from "../lib/route";
 import { eventSubtitle } from "../lib/event";
 
 const EVENT_SECTIONS = [
@@ -19,7 +20,7 @@ export function EventList({ events, currentSlug, wishlist = [], onToggleWishlist
     <>
       {wishlistMatches.length > 0 && (
         <section key="wishlist" className="mt-4 md:mt-5">
-          <h2 className="mb-2 text-xs font-extrabold tracking-[0.04em] text-faint">내 위시리스트</h2>
+          <h2 className="mb-2 text-xs font-extrabold tracking-[0.04em] text-faint">찜한 행사</h2>
           <div className="flex flex-col gap-2 md:gap-1">
             {wishlistMatches.map((candidate) => {
               const current = candidate.slug === currentSlug;
@@ -32,7 +33,7 @@ export function EventList({ events, currentSlug, wishlist = [], onToggleWishlist
                   }
                 >
                   <div className="flex items-center gap-1.5">
-                    <a href={`#/events/${encodeURIComponent(candidate.slug)}`} aria-current={current ? "page" : undefined} className={"min-w-0 flex-1 no-underline text-[15px] font-extrabold md:text-sm " + (current ? "text-accent" : "text-ink")}>
+                    <a href={eventHash(candidate.slug)} aria-current={current ? "page" : undefined} className={"min-w-0 flex-1 no-underline text-[15px] font-extrabold md:text-sm " + (current ? "text-accent" : "text-ink")}>
                       {current ? <span aria-hidden="true">✓</span> : null}
                       {candidate.title}
                     </a>
@@ -79,7 +80,7 @@ export function EventList({ events, currentSlug, wishlist = [], onToggleWishlist
                     }
                   >
                     <div className="flex items-center gap-1.5">
-                      <a href={`#/events/${encodeURIComponent(candidate.slug)}`} aria-current={current ? "page" : undefined} className={"min-w-0 flex-1 no-underline text-[15px] font-extrabold md:text-sm " + (current ? "text-accent" : "text-ink")}>
+                      <a href={eventHash(candidate.slug)} aria-current={current ? "page" : undefined} className={"min-w-0 flex-1 no-underline text-[15px] font-extrabold md:text-sm " + (current ? "text-accent" : "text-ink")}>
                         {current ? <span aria-hidden="true">✓</span> : null}
                         {candidate.title}
                       </a>
@@ -120,6 +121,8 @@ export function Sidebar({
   onToggleWishlist,
   showOnMobile,
   settingsActive,
+  wishlistActive,
+  onWishlist,
   onSettings,
 }: {
   currentSlug: string | null;
@@ -127,6 +130,8 @@ export function Sidebar({
   onToggleWishlist?: (slug: string) => void;
   showOnMobile: boolean;
   settingsActive: boolean;
+  wishlistActive: boolean;
+  onWishlist: () => void;
   onSettings: () => void;
 }) {
   const { data: events = [] } = useQuery(eventsQuery());
@@ -141,6 +146,11 @@ export function Sidebar({
         <a href="#/" className="text-sm font-extrabold text-accent no-underline">걸즈밴드 체크리스트</a>
       </div>
       <nav aria-label="행사" className="flex-1 px-5 pb-6">
+        <a href="#/wishlist" onClick={(e) => { e.preventDefault(); onWishlist(); }} aria-current={wishlistActive ? "page" : undefined} className={(wishlistActive ? "bg-accent/10 text-accent " : "text-muted ") + "mt-5 flex items-center gap-2 rounded-[10px] px-3 py-2.5 text-sm font-extrabold no-underline hover:bg-chip hover:text-ink"}>
+          <span aria-hidden="true">★</span>
+          찜목록
+          {wishlist.length > 0 ? <span className="ml-auto text-xs font-bold">{wishlist.length}</span> : null}
+        </a>
         <EventList events={events} currentSlug={currentSlug} wishlist={wishlist} onToggleWishlist={onToggleWishlist} />
       </nav>
       <div className={(showOnMobile ? "hidden md:block " : "") + "border-t border-line px-5 py-4"}>

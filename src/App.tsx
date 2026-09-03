@@ -11,6 +11,7 @@ import { BottomNav, type Sheet } from "./components/BottomNav";
 import { ChecklistScreen } from "./screens/ChecklistScreen";
 import { EventsScreen } from "./screens/EventsScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
+import { WishlistScreen } from "./screens/WishlistScreen";
 import { clearAllChecks } from "./lib/checks";
 import { clearAllWishlist } from "./lib/wishlist";
 import { useEventWishlist, useCircleWishlist } from "./hooks/useWishlist";
@@ -20,7 +21,7 @@ import { authQuery, circlesQuery as circlesOptions, eventsQuery as eventsOptions
 const EMPTY_EVENTS: never[] = [];
 
 export default function App() {
-  const { route, openEvents, openEvent, openCircle, openSettings } = useAppRoute();
+  const { route, openEvents, openWishlist, openEvent, openCircle, openSettings } = useAppRoute();
   const queryClient = useQueryClient();
   const auth = useQuery(authQuery());
   const { enabled: authEnabled, user } = auth.data ?? SIGNED_OUT;
@@ -113,6 +114,7 @@ export default function App() {
   const visibleSheet = route.kind === "event" ? sheet : null;
   const navContext = route.kind === "settings" ? "settings" : route.kind === "events" ? "events" : "event";
   const showNav = route.kind !== "circle" && route.kind !== "legacy-circle";
+  const wishlistNav = route.kind === "wishlist";
 
   return (
     // 쉘: 모바일은 단일 컬럼(560px), md 이상은 사이드바 + 콘텐츠 2컬럼. 컴포넌트는 공유하고 레이아웃만 분기.
@@ -123,6 +125,8 @@ export default function App() {
       <Sidebar
         currentSlug={requestedEventSlug !== null ? eventSlug : null}
         showOnMobile={route.kind === "events"}
+        wishlistActive={route.kind === "wishlist"}
+        onWishlist={openWishlist}
         settingsActive={route.kind === "settings"}
         wishlist={eventWishlist}
         onToggleWishlist={handleToggleEventWishlist}
@@ -131,6 +135,8 @@ export default function App() {
       <main className={"w-full max-w-[560px] mx-auto border-x border-line md:max-w-none md:mx-0 md:border-x-0 md:min-h-screen " + (route.kind === "events" ? "" : "flex-1")}>
         {route.kind === "settings" ? (
           <SettingsScreen authEnabled={authEnabled} user={user} syncedAt={syncedAt} theme={theme} onTheme={setTheme} onLogout={handleLogout} install={install} />
+        ) : route.kind === "wishlist" ? (
+           <WishlistScreen events={events} eventWishlist={eventWishlist} />
         ) : route.kind === "events" ? (
           <EventsScreen install={install} onOpenSettings={openSettings} wishlist={eventWishlist} onToggleWishlist={handleToggleEventWishlist} />
         ) : (
@@ -153,7 +159,7 @@ export default function App() {
         )}
       </main>
       {showNav && (
-        <BottomNav context={navContext} sheet={visibleSheet} onSheet={handleNavSheet} onList={handleNavList} onEvents={openEvents} searchCount={filters.query ? 1 : 0} filterCount={filters.filterCount} onSettings={openSettings} />
+        <BottomNav context={navContext} sheet={visibleSheet} onSheet={handleNavSheet} onList={handleNavList} onEvents={openEvents} onWishlist={openWishlist} wishlistActive={wishlistNav} searchCount={filters.query ? 1 : 0} filterCount={filters.filterCount} onSettings={openSettings} />
       )}
     </div>
   );

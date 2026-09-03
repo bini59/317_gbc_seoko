@@ -3,6 +3,7 @@
 
 export type AppRoute =
   | { kind: "events" }
+  | { kind: "wishlist" }
   | { kind: "settings" }
   | { kind: "event"; eventSlug: string }
   | { kind: "circle"; eventSlug: string; circleSlug: string }
@@ -18,6 +19,7 @@ function decodeSegment(segment: string): string | null {
 
 /** location.hash → 현재 앱 화면. */
 export function parseRoute(hash: string): AppRoute {
+  if (/^#?\/wishlist$/.test(hash)) return { kind: "wishlist" };
   if (/^#?\/settings$/.test(hash)) return { kind: "settings" };
   const circle = /^#?\/events\/([^/]+)\/c\/([^/]+)$/.exec(hash);
   if (circle) {
@@ -43,6 +45,8 @@ export function parseRoute(hash: string): AppRoute {
 export const eventsHash = () => "#/";
 
 export const settingsHash = () => "#/settings";
+
+export const wishlistHash = () => "#/wishlist";
 
 export const eventHash = (eventSlug: string) =>
   `#/events/${encodeURIComponent(eventSlug)}`;
