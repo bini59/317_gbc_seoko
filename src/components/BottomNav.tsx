@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 export type Sheet = "search-filter" | "events" | null;
 
 const ICONS = {
@@ -69,17 +71,47 @@ export function BottomNav({
 }) {
   const settingsActive = context === "settings";
   const toggle = (s: Exclude<Sheet, null>) => onSheet(sheet === s ? null : s);
-  const activeIndex = settingsActive ? 5 : wishlistActive ? 3 : context === "events" ? 4 : sheet === "search-filter" ? 1 : sheet === "events" ? 4 : 0;
+  const tabsCount = 5;
+  const activeIndex = settingsActive ? 4 : wishlistActive ? 2 : context === "events" ? 3 : sheet === "search-filter" ? 1 : sheet === "events" ? 3 : 0;
+  const [contentOverlaps, setContentOverlaps] = useState(false);
   const listActive = activeIndex === 0;
   const sheetsDisabled = context === "events";
   const listDisabled = context === "events";
+
+  useEffect(() => {
+    const nav = document.querySelector<HTMLElement>('nav[aria-label="하단 메뉴"]');
+    const content = document.querySelector<HTMLElement>("main");
+    if (!nav || !content) return;
+    const updateOverlap = () => {
+      const navRect = nav.getBoundingClientRect();
+      const x = navRect.left + navRect.width / 2;
+      const y = navRect.top + navRect.height / 2;
+      const previousPointerEvents = nav.style.pointerEvents;
+      nav.style.pointerEvents = "none";
+      const underlying = typeof document.elementFromPoint === "function" ? document.elementFromPoint(x, y) : null;
+      nav.style.pointerEvents = previousPointerEvents;
+      setContentOverlaps(underlying instanceof HTMLElement && content.contains(underlying));
+    };
+    const resizeObserver = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updateOverlap);
+    resizeObserver?.observe(nav);
+    resizeObserver?.observe(content);
+    updateOverlap();
+    window.addEventListener("resize", updateOverlap);
+    window.addEventListener("scroll", updateOverlap, { passive: true });
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", updateOverlap);
+      window.removeEventListener("scroll", updateOverlap);
+    };
+  }, [context, sheet]);
+
   return (
-    <nav aria-label="하단 메뉴" className="glass glass-refract fixed left-1/2 -translate-x-1/2 w-[calc(100%-24px)] max-w-[536px] bottom-[calc(env(safe-area-inset-bottom)+12px)] z-30 flex rounded-full p-1.5 md:hidden">
+    <nav aria-label="하단 메뉴" data-content-overlap={contentOverlaps ? "true" : "false"} className="glass glass-refract fixed left-1/2 -translate-x-1/2 w-[calc(100%-24px)] max-w-[536px] bottom-[calc(env(safe-area-inset-bottom)+12px)] z-30 flex rounded-full p-1.5 md:hidden">
       {/* 렌즈 인디케이터 — 탭 사이를 액체처럼 미끄러진다. */}
       <span
         aria-hidden="true"
-        className="glass-lens absolute inset-y-1.5 left-1.5 w-[calc(16.6667%-2.5px)]"
-        style={{ transform: `translateX(${activeIndex * 100}%)` }}
+        className="glass-lens absolute inset-y-1.5 left-1.5"
+        style={{ transform: `translateX(${activeIndex * 100}%)`, width: `calc(${100 / tabsCount}% - 2.5px)` }}
       >
         <span key={activeIndex} className="glass-lens-body block h-full w-full rounded-full" />
       </span>
