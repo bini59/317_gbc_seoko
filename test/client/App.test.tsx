@@ -615,7 +615,8 @@ describe("<App/> bottom navigation (mobile)", () => {
   });
 
   it("strengthens the nav background when content is underneath", async () => {
-    const elementFromPoint = vi.spyOn(document, "elementFromPoint").mockReturnValue(null);
+    const elementFromPoint = vi.fn().mockReturnValue(null);
+    Object.defineProperty(document, "elementFromPoint", { configurable: true, value: elementFromPoint });
     render(<App />);
     await screen.findByText("부스서클");
     const nav = screen.getByRole("navigation", { name: "하단 메뉴" });
