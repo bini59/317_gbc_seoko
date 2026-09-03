@@ -9,12 +9,18 @@ export function Card({
   onToggle,
   onOpen,
   color,
+  starred = false,
+  memo,
+  onStar,
 }: {
   item: Circle;
   checked: boolean;
   onToggle: () => void;
   onOpen: () => void;
   color: string;
+  starred?: boolean;
+  memo?: string;
+  onStar?: () => void;
 }) {
   const short = boothShort(item);
   const cardCls = [
@@ -58,6 +64,25 @@ export function Card({
             {item.name}
           </div>
         </button>
+        {onStar && (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onStar();
+            }}
+            aria-pressed={starred}
+            aria-label={`${item.name} 찜 ${starred ? "해제" : "하기"}`}
+            className={
+              "flex items-center justify-center w-11 h-11 rounded-xl text-lg font-extrabold cursor-pointer transition-colors border " +
+              (starred
+                ? "text-amber-500 border-amber-500/30 bg-amber-500/10"
+                : "text-faint hover:text-muted border-line bg-card hover:bg-chip")
+            }
+          >
+            {starred ? "★" : "☆"}
+          </button>
+        )}
         <button
           onClick={onToggle}
           aria-label={checked ? "방문 체크 해제" : "방문 체크"}
@@ -82,6 +107,8 @@ export function Card({
           )}
         </button>
       </div>
+
+      {memo && <div className="text-[12.5px] text-muted leading-[1.55] mt-[7px] bg-chip rounded-[8px] px-[11px] py-[9px] truncate">{memo}</div>}
 
       {item.note && (
         <div className="text-[12.5px] text-muted leading-[1.55] mt-[7px] bg-chip rounded-[8px] px-[11px] py-[9px]">

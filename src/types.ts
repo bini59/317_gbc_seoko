@@ -15,6 +15,27 @@ export type TweetInfo = {
   ogSiteName?: string;
 };
 
+export type CircleWishlistEntry = {
+  star?: boolean;
+  memo?: string;
+};
+
+export type CircleWishlistMap = Record<string, CircleWishlistEntry>;
+
+export type EventWishlistResponse = {
+  events: string[];
+  updatedAt: string | null;
+  saved?: boolean;
+  conflict?: "stale" | "clock_skew";
+};
+
+export type CircleWishlistResponse = {
+  circles: CircleWishlistMap;
+  updatedAt: string | null;
+  saved?: boolean;
+  conflict?: "stale" | "clock_skew";
+};
+
 export type Circle = {
   id: string;
   name: string;

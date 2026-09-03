@@ -10,43 +10,104 @@ const EVENT_SECTIONS = [
 ] as const;
 
 /** 행사 목록(진행 중/예정/지난). 데스크톱 사이드바와 모바일 행사 시트가 공유한다. */
-export function EventList({ events, currentSlug }: { events: ApiEvent[]; currentSlug: string | null }) {
-  return EVENT_SECTIONS.map(({ status, label }) => {
-    const matches = events
-      .filter((event) => event.status === status)
-      .sort((a, b) => {
-        const comparison = (a.start_date ?? "").localeCompare(b.start_date ?? "");
-        return status === "past" ? -comparison : comparison;
-      });
-    if (matches.length === 0) return null;
-    return (
-      <section key={status} className="mt-6 md:mt-5">
-        <h2 className="mb-2 text-xs font-extrabold tracking-[0.04em] text-faint">{label}</h2>
-        <div className="flex flex-col gap-3 md:gap-1">
-          {matches.map((candidate) => {
-            const current = candidate.slug === currentSlug;
-            return (
-              <a
-                key={candidate.slug}
-                href={`#/events/${encodeURIComponent(candidate.slug)}`}
-                aria-current={current ? "page" : undefined}
-                className={
-                  "block rounded-[18px] border p-4 no-underline md:rounded-[10px] md:border-transparent md:px-3 md:py-2 " +
-                  (current ? "border-accent/40 bg-accent/10" : "border-line bg-card md:bg-transparent md:hover:bg-chip")
-                }
-              >
-                <div className={"flex items-center gap-1.5 text-[17px] font-extrabold md:text-sm " + (current ? "text-accent" : "text-ink")}>
-                  {current ? <span aria-hidden="true">✓</span> : null}
-                  {candidate.title}
+export function EventList({ events, currentSlug, wishlist = [], onToggleWishlist }: { events: ApiEvent[]; currentSlug: string | null; wishlist?: string[]; onToggleWishlist?: (slug: string) => void }) {
+  const wishlistMatches = events
+    .filter((event) => wishlist.includes(event.slug))
+    .sort((a, b) => (a.start_date ?? "").localeCompare(b.start_date ?? ""));
+
+  return (
+    <>
+      {wishlistMatches.length > 0 && (
+        <section key="wishlist" className="mt-6 md:mt-5">
+          <h2 className="mb-2 text-xs font-extrabold tracking-[0.04em] text-faint">내 위시리스트</h2>
+          <div className="flex flex-col gap-3 md:gap-1">
+            {wishlistMatches.map((candidate) => {
+              const current = candidate.slug === currentSlug;
+              return (
+                <div
+                  key={`wishlist-${candidate.slug}`}
+                  className={
+                    "block rounded-[18px] border p-4 md:rounded-[10px] md:border-transparent md:px-3 md:py-2 " +
+                    (current ? "border-accent/40 bg-accent/10" : "border-line bg-card md:bg-transparent md:hover:bg-chip")
+                  }
+                >
+                  <div className="flex items-center gap-1.5">
+                    <a href={`#/events/${encodeURIComponent(candidate.slug)}`} aria-current={current ? "page" : undefined} className={"min-w-0 flex-1 no-underline text-[17px] font-extrabold md:text-sm " + (current ? "text-accent" : "text-ink")}>
+                      {current ? <span aria-hidden="true">✓</span> : null}
+                      {candidate.title}
+                    </a>
+                    {onToggleWishlist && (
+                      <button
+                        type="button"
+                        onClick={() => onToggleWishlist(candidate.slug)}
+                        aria-pressed={true}
+                        aria-label={`${candidate.title} 행사 찜 해제`}
+                        className="ml-auto flex items-center justify-center w-11 h-11 md:w-8 md:h-8 rounded-xl md:rounded-lg text-lg md:text-base border border-transparent hover:border-line hover:bg-chip cursor-pointer text-amber-500 shrink-0"
+                      >
+                        ★
+                      </button>
+                    )}
+                  </div>
+                  <div className="mt-1 text-xs font-semibold text-faint md:mt-0.5 md:text-[11px]">{eventSubtitle(candidate)}</div>
                 </div>
-                <div className="mt-1 text-xs font-semibold text-faint md:mt-0.5 md:text-[11px]">{eventSubtitle(candidate)}</div>
-              </a>
-            );
-          })}
-        </div>
-      </section>
-    );
-  });
+              );
+            })}
+          </div>
+        </section>
+      )}
+      {EVENT_SECTIONS.map(({ status, label }) => {
+        const matches = events
+          .filter((event) => event.status === status)
+          .sort((a, b) => {
+            const comparison = (a.start_date ?? "").localeCompare(b.start_date ?? "");
+            return status === "past" ? -comparison : comparison;
+          });
+        if (matches.length === 0) return null;
+        return (
+          <section key={status} className="mt-6 md:mt-5">
+            <h2 className="mb-2 text-xs font-extrabold tracking-[0.04em] text-faint">{label}</h2>
+            <div className="flex flex-col gap-3 md:gap-1">
+              {matches.map((candidate) => {
+                const current = candidate.slug === currentSlug;
+                const isStarred = wishlist.includes(candidate.slug);
+                return (
+                  <div
+                    key={candidate.slug}
+                    className={
+                      "block rounded-[18px] border p-4 md:rounded-[10px] md:border-transparent md:px-3 md:py-2 " +
+                      (current ? "border-accent/40 bg-accent/10" : "border-line bg-card md:bg-transparent md:hover:bg-chip")
+                    }
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <a href={`#/events/${encodeURIComponent(candidate.slug)}`} aria-current={current ? "page" : undefined} className={"min-w-0 flex-1 no-underline text-[17px] font-extrabold md:text-sm " + (current ? "text-accent" : "text-ink")}>
+                        {current ? <span aria-hidden="true">✓</span> : null}
+                        {candidate.title}
+                      </a>
+                      {onToggleWishlist && (
+                        <button
+                          type="button"
+                          onClick={() => onToggleWishlist(candidate.slug)}
+                          aria-pressed={isStarred}
+                          aria-label={`${candidate.title} 행사 찜 ${isStarred ? "해제" : "하기"}`}
+                          className={
+                            "ml-auto flex items-center justify-center w-11 h-11 md:w-8 md:h-8 rounded-xl md:rounded-lg text-lg md:text-base border border-transparent hover:border-line hover:bg-chip cursor-pointer shrink-0 " +
+                            (isStarred ? "text-amber-500" : "text-faint hover:text-muted")
+                          }
+                        >
+                          {isStarred ? "★" : "☆"}
+                        </button>
+                      )}
+                    </div>
+                    <div className="mt-1 text-xs font-semibold text-faint md:mt-0.5 md:text-[11px]">{eventSubtitle(candidate)}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        );
+      })}
+    </>
+  );
 }
 
 /**
@@ -55,11 +116,15 @@ export function EventList({ events, currentSlug }: { events: ApiEvent[]; current
  */
 export function Sidebar({
   currentSlug,
+  wishlist = [],
+  onToggleWishlist,
   showOnMobile,
   settingsActive,
   onSettings,
 }: {
   currentSlug: string | null;
+  wishlist?: string[];
+  onToggleWishlist?: (slug: string) => void;
   showOnMobile: boolean;
   settingsActive: boolean;
   onSettings: () => void;
@@ -76,7 +141,7 @@ export function Sidebar({
         <a href="#/" className="text-sm font-extrabold text-accent no-underline">걸즈밴드 체크리스트</a>
       </div>
       <nav aria-label="행사" className="flex-1 px-5 pb-6">
-        <EventList events={events} currentSlug={currentSlug} />
+        <EventList events={events} currentSlug={currentSlug} wishlist={wishlist} onToggleWishlist={onToggleWishlist} />
       </nav>
       <div className={(showOnMobile ? "hidden md:block " : "") + "border-t border-line px-5 py-4"}>
         <a href="#/settings" onClick={(e) => { e.preventDefault(); onSettings(); }} aria-current={settingsActive ? "page" : undefined} className={(settingsActive ? "bg-accent/10 text-accent " : "text-muted ") + "flex items-center gap-2 rounded-[10px] px-3 py-2.5 text-xs font-semibold no-underline hover:bg-chip hover:text-ink"}>

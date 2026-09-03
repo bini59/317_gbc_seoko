@@ -1,4 +1,4 @@
-import type { Circle } from "../types";
+import type { Circle, CircleWishlistMap } from "../types";
 
 /* 카드 앞 아이콘(부스 배지) 색상 팔레트 */
 export const BADGE = [
@@ -49,9 +49,10 @@ export const chipsFor = (c: Circle): Chip[] => {
 
 export const norm = (s: string) => s.replace(/\s/g, "");
 
-export type Status = "all" | "done" | "undone";
+export type Status = "all" | "starred" | "done" | "undone";
 export const STATUS: { k: Status; label: string }[] = [
   { k: "all", label: "전체" },
+  { k: "starred", label: "찜한 것" },
   { k: "done", label: "체크함" },
   { k: "undone", label: "안 본 것" },
 ];
@@ -61,13 +62,15 @@ export type CircleFilter = {
   status: Status;
   ips: string[];
   query: string;
+  wishlist?: CircleWishlistMap;
 };
 
-/** 순수 검색/필터/정렬 — React 없이 테스트 가능. */
+
 export function filterCircles(circles: Circle[], f: CircleFilter): Circle[] {
   const q = norm(f.query.toLowerCase());
   return circles
     .filter((c) => {
+      if (f.status === "starred" && !f.wishlist?.[c.id]?.star) return false;
       if (f.status === "done" && !f.checks[c.id]) return false;
       if (f.status === "undone" && f.checks[c.id]) return false;
       if (f.ips.length > 0) {
@@ -76,7 +79,7 @@ export function filterCircles(circles: Circle[], f: CircleFilter): Circle[] {
       }
       if (q) {
         const hay = norm(
-          (c.name + (c.booth || "") + (c.ips || []).join("")).toLowerCase(),
+          (c.name + (c.booth || "") + (c.ips || []).join("") + (f.wishlist?.[c.id]?.memo || "")).toLowerCase(),
         );
         if (!hay.includes(q)) return false;
       }

@@ -23,6 +23,11 @@ type Props = {
   onSheet: (next: Sheet) => void;
   onOpenEvent: (eventSlug: string) => void;
   onOpenCircle: (eventSlug: string, circleSlug: string) => void;
+  wishlist?: import("../types").CircleWishlistMap;
+  onToggleStar?: (id: string) => void;
+  onUpdateMemo?: (id: string, memo: string) => void;
+  eventWishlist?: string[];
+  onToggleEventWishlist?: (slug: string) => void;
 };
 
 const statusChip = (active: boolean) =>
@@ -35,7 +40,8 @@ const genreChip = (active: boolean) =>
 /** 행사 하나의 체크리스트 화면. 필터/시트 상태는 하단 네비와 공유하므로 쉘이 소유하고 props로 받는다. */
 export function ChecklistScreen({
   event, circleSlug, checks, onToggle, filters, sheet, onSheet: setSheet,
-  onOpenEvent, onOpenCircle,
+  onOpenEvent, onOpenCircle, wishlist = {}, onToggleStar, onUpdateMemo,
+  eventWishlist = [], onToggleEventWishlist,
 }: Props) {
   const { status, setStatus, selectedIps, setSelectedIps, query, setQuery } = filters;
   const searchRef = useRef<HTMLInputElement>(null);
@@ -57,7 +63,6 @@ export function ChecklistScreen({
         : null;
   const loading = eventsQuery.isFetching || circlesQuery.isFetching;
 
-  // 행사장 서클 + 통판(unlisted)을 한 데이터셋으로 다뤄 검색·필터·체크를 일관 적용
   const all = useMemo(() => [...circles, ...witchformExtra], [circles, witchformExtra]);
 
   const opener = useRef<HTMLElement | null>(null);
@@ -76,21 +81,19 @@ export function ChecklistScreen({
     };
   }, [sheet]);
 
-  // 진행률은 통판 포함(모두 방문 대상) — 제품 규칙
   const doneCount = all.filter((c) => checks[c.id]).length;
+  const starCount = all.filter((c) => wishlist[c.id]?.star).length;
 
   const filtered = useMemo(
-    () => filterCircles(all, { checks, status, ips: selectedIps, query }),
-    [all, checks, status, selectedIps, query],
+    () => filterCircles(all, { checks, status, ips: selectedIps, query, wishlist }),
+    [all, checks, status, selectedIps, query, wishlist],
   );
   const boothList = filtered.filter((c) => !c.unlisted);
   const tsuhanList = filtered.filter((c) => c.unlisted);
   const detail = circleSlug ? all.find((c) => c.id === circleSlug) ?? null : null;
 
-  // 상세 패널이 열리면 xl에서도 2열 유지(목록 폭이 줄어듦)
   const gridCls = "grid gap-3 md:grid-cols-2 " + (detail ? "" : "xl:grid-cols-3");
   const visibleSheet = sheet;
-  // 모바일: 시트가 열렸을 때만 하단 패널로 노출(네비 높이만큼 위). md 이상: topbar 인라인.
   const sheetPanel = (s: Exclude<Sheet, null>) =>
     visibleSheet === s
       ? "glass fixed left-1/2 -translate-x-1/2 w-full max-w-[560px] bottom-0 z-20 rounded-t-[28px] border-b-0 px-5 pt-5 pb-[calc(92px+env(safe-area-inset-bottom))] max-h-[75vh] overflow-y-auto "
@@ -107,8 +110,11 @@ export function ChecklistScreen({
           item={c}
           checked={!!checks[c.id]}
           onToggle={() => onToggle(c.id)}
-          onOpen={() => eventSlug && onOpenCircle(eventSlug, c.id)}
-          color={badgeColor(c.id, all)}
+           onOpen={() => eventSlug && onOpenCircle(eventSlug, c.id)}
+           color={badgeColor(c.id, all)}
+           starred={wishlist[c.id]?.star}
+           memo={wishlist[c.id]?.memo}
+           onStar={onToggleStar ? () => onToggleStar(c.id) : undefined}
         />
       ))}
     </div>
@@ -116,9 +122,9 @@ export function ChecklistScreen({
 
   return (
     <div className="xl:flex xl:items-start">
-      {/* 목록 — 상세가 열리면 xl 미만은 숨김(전체 화면 상세), xl 이상은 유지 */}
+
       <div className={"min-w-0 flex-1 pb-[calc(88px+env(safe-area-inset-bottom))] md:pb-7 " /* 하단 바 64px + 오프셋 12px + 여백 12px */ + (detail ? "hidden xl:block" : "")}>
-        {/* sticky 헤더(모바일: 제목 + 진행률만) / topbar(데스크톱: 검색·필터 인라인) — fixed 시트가 자식이라 backdrop-blur 금지 */}
+
         <div className="sticky top-0 z-10 bg-bg px-5 pt-4 pb-3 border-b border-line md:px-8 md:bg-bg/95 md:backdrop-blur">
           <div className="flex items-center justify-between gap-3 md:mb-3 md:gap-6">
             <div className="min-w-0">
@@ -130,7 +136,7 @@ export function ChecklistScreen({
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <div className="text-[12.5px] font-bold text-accent">방문 {doneCount}/{all.length}</div>
+              <div className="text-[12.5px] font-bold text-accent">찜 {starCount} · 방문 {doneCount}/{all.length}</div>
             </div>
           </div>
 
@@ -147,8 +153,8 @@ export function ChecklistScreen({
                 type="search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="서클 · 부스 · 장르 검색"
-                aria-label="서클·부스·장르 검색"
+                placeholder="서클 · 부스 · 장르 · 메모 검색"
+                aria-label="서클·부스·장르·메모 검색"
                 className="flex-1 min-w-0 border-0 outline-none bg-transparent text-[16px] text-ink placeholder:text-faint"
               />
               {query ? (
@@ -177,7 +183,7 @@ export function ChecklistScreen({
               ))}
             </div>
 
-            {/* 장르 칩 — 모바일 시트 안에서는 줄바꿈, 데스크톱은 topbar 아래 */}
+
             <div className="flex flex-wrap gap-2 pt-3 md:pt-4 md:max-h-24 md:overflow-y-auto">
               <button onClick={() => setSelectedIps([])} aria-pressed={selectedIps.length === 0} className={genreChip(selectedIps.length === 0)}>
                 전체 장르
@@ -195,13 +201,13 @@ export function ChecklistScreen({
             </div>
           </div>
 
-          {/* 행사 전환 시트 — 항목 탭 시 닫힘(현재 행사를 다시 눌러도 hashchange가 없어 명시적으로 닫는다). md 이상은 사이드바가 담당 */}
+
           <div id="sheet-events" role="group" aria-label="행사 전환" onClick={() => setSheet(null)} className={sheetPanel("events") + "md:hidden"}>
             {sheet === "events" ? (
               <>
                 <div className="text-xs font-extrabold tracking-[0.04em] text-faint">현재 행사</div>
                 <div className="mt-1 text-[17px] font-extrabold text-ink truncate">{event?.title}</div>
-                <EventList events={events} currentSlug={eventSlug} />
+                <EventList events={events} currentSlug={eventSlug} wishlist={eventWishlist} onToggleWishlist={onToggleEventWishlist} />
               </>
             ) : null}
           </div>
@@ -209,7 +215,7 @@ export function ChecklistScreen({
 
         <div className="px-[22px] pt-3.5 pb-2 text-[12.5px] font-bold text-faint md:px-8">참가 서클 {filtered.length}곳</div>
 
-        {/* 카드 목록 — 데스크톱은 2~3열 그리드 */}
+
         <div className="px-5 md:px-8" {...(visibleSheet ? { inert: "" } : {})}>
           {loadError && (
             <div className="text-center py-14" role="alert">
@@ -228,7 +234,7 @@ export function ChecklistScreen({
           )}
           {!loadError && renderCards(boothList)}
 
-          {/* 통판(윗치폼) 섹션 — 행사장 부스 없이 온라인 주문 */}
+
           {!loadError && tsuhanList.length > 0 && (
             <>
               <div className="flex items-center gap-2 mt-7 mb-3.5">
@@ -246,7 +252,7 @@ export function ChecklistScreen({
         </div>
       </div>
 
-      {/* 서클 상세 — xl 미만은 전체 화면, xl 이상은 우측 패널(목록 유지) */}
+
       {detail && (
         <section aria-label="서클 상세" className="min-w-0 xl:w-[400px] xl:shrink-0 xl:sticky xl:top-0 xl:h-screen xl:overflow-y-auto xl:border-l xl:border-line">
           <Detail
@@ -254,8 +260,12 @@ export function ChecklistScreen({
             checked={!!checks[detail.id]}
             onToggle={() => onToggle(detail.id)}
             onBack={() => eventSlug && onOpenEvent(eventSlug)}
-            color={badgeColor(detail.id, all)}
-          />
+             color={badgeColor(detail.id, all)}
+             starred={wishlist[detail.id]?.star}
+             memo={wishlist[detail.id]?.memo}
+             onStar={onToggleStar ? () => onToggleStar(detail.id) : undefined}
+             onUpdateMemo={onUpdateMemo ? (memo) => onUpdateMemo(detail.id, memo) : undefined}
+           />
         </section>
       )}
     </div>
