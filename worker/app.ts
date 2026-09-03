@@ -303,7 +303,7 @@ app.post("/feedback", async (c) => {
   await c.env.DB.prepare("INSERT INTO feedback (message, contact, user_id, user_agent) VALUES (?, ?, ?, ?)")
     .bind(message.trim(), contact?.trim() || null, user?.userId ?? null, (c.req.header("user-agent") || "").slice(0, 300))
     .run();
-  // 메일 전달은 부가 기능 — 바인딩/도메인 미설정이나 실패해도 저장은 이미 끝났으므로 응답에 영향 없음.
+  // 메일 전달은 선택 — Email Sending이 유료라 현재 꺼둠. 켜려면 wrangler.jsonc에 send_email 바인딩(EMAIL)과 FEEDBACK_TO만 추가.
   if (c.env.EMAIL && c.env.FEEDBACK_TO) {
     const to = c.env.FEEDBACK_TO;
     c.executionCtx.waitUntil(
