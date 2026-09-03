@@ -511,7 +511,7 @@ describe("<App/> bottom navigation (mobile)", () => {
     render(<App />);
     await screen.findByText("부스서클");
     const nav = screen.getByRole("navigation", { name: "하단 메뉴" });
-    expect(nav.querySelectorAll("button").length).toBe(6);
+    expect(nav.querySelectorAll("button").length).toBe(5);
     expect(screen.getByRole("button", { name: "목록" }).getAttribute("aria-current")).toBe("page");
     const indicator = nav.querySelector<HTMLElement>('span[aria-hidden="true"]')!;
     expect(indicator.style.transform).toBe("translateX(0%)");
