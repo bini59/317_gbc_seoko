@@ -30,7 +30,10 @@ describe("worker API", () => {
   beforeEach(() => {
     env = makeEnv();
   });
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
 
   it("rejects mutations without a valid bearer token", async () => {
     const r = await call(env, "POST", "/api/events", { slug: "e", title: "t" }, false);
@@ -271,6 +274,7 @@ describe("worker API", () => {
   });
 
   it("uses date-derived activity for implicit circle lookups", async () => {
+    vi.useFakeTimers({ now: new Date("2026-09-02T12:00:00Z"), toFake: ["Date"] });
     await call(env, "POST", "/api/events", {
       slug: "current-event",
       title: "현재 행사",
