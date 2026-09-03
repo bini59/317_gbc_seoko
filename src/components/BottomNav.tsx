@@ -88,7 +88,7 @@ export function BottomNav({
       const y = navRect.top + navRect.height / 2;
       const previousPointerEvents = nav.style.pointerEvents;
       nav.style.pointerEvents = "none";
-      const underlying = document.elementFromPoint(x, y);
+      const underlying = typeof document.elementFromPoint === "function" ? document.elementFromPoint(x, y) : null;
       nav.style.pointerEvents = previousPointerEvents;
       setContentOverlaps(underlying instanceof HTMLElement && content.contains(underlying));
     };
