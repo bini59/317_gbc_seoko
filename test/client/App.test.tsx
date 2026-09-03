@@ -507,7 +507,7 @@ describe("<App/> bottom navigation (mobile)", () => {
     vi.unstubAllGlobals();
   });
 
-  it("renders 6 tabs and opens the 행사 sheet without hiding the nav", async () => {
+  it("renders 5 tabs and opens the 행사 sheet without hiding the nav", async () => {
     render(<App />);
     await screen.findByText("부스서클");
     const nav = screen.getByRole("navigation", { name: "하단 메뉴" });
@@ -520,7 +520,7 @@ describe("<App/> bottom navigation (mobile)", () => {
 
     const eventsTab = screen.getByRole("button", { name: "행사" });
     fireEvent.click(eventsTab);
-    expect(indicator.style.transform).toBe("translateX(400%)");
+    expect(indicator.style.transform).toBe("translateX(300%)");
     expect(eventsTab.getAttribute("aria-expanded")).toBe("true");
     expect(eventsTab.getAttribute("aria-controls")).toBe("sheet-events");
     const sheet = document.getElementById("sheet-events")!;
@@ -593,6 +593,7 @@ describe("<App/> bottom navigation (mobile)", () => {
     expect(within(screen.getByRole("complementary")).getByRole("link", { name: "설정" }).parentElement?.classList.contains("hidden")).toBe(true);
     const nav = screen.getByRole("navigation", { name: "하단 메뉴" });
     expect(screen.getByRole("button", { name: "행사" }).getAttribute("aria-current")).toBe("page");
+    expect(nav.querySelector<HTMLElement>('span[aria-hidden="true"]')!.style.transform).toBe("translateX(300%)");
     const unavailable = [screen.getByRole("button", { name: "목록" }), screen.getByRole("button", { name: "검색·필터" })];
     for (const tab of unavailable) {
       expect((tab as HTMLButtonElement).disabled).toBe(true);
@@ -611,6 +612,32 @@ describe("<App/> bottom navigation (mobile)", () => {
     fireEvent.click(screen.getByRole("button", { name: "행사" }));
     await screen.findByRole("heading", { name: "행사 선택" });
     expect(screen.getByRole("link", { name: /코믹월드/ }).getAttribute("aria-current")).toBeNull();
+  });
+
+  it("strengthens the nav background when content is underneath", async () => {
+    const elementFromPoint = vi.spyOn(document, "elementFromPoint").mockReturnValue(null);
+    render(<App />);
+    await screen.findByText("부스서클");
+    const nav = screen.getByRole("navigation", { name: "하단 메뉴" });
+    expect(nav.dataset.contentOverlap).toBe("false");
+
+    elementFromPoint.mockReturnValue(screen.getByText("부스서클"));
+    fireEvent(window, new Event("resize"));
+    expect(nav.dataset.contentOverlap).toBe("true");
+  });
+
+  it("marks wishlist and settings as the active tab position", async () => {
+    window.location.hash = "#/wishlist";
+    render(<App />);
+    expect(await screen.findByRole("heading", { name: "찜목록" })).toBeTruthy();
+    const nav = screen.getByRole("navigation", { name: "하단 메뉴" });
+    expect(nav.querySelector<HTMLElement>('span[aria-hidden="true"]')!.style.transform).toBe("translateX(200%)");
+    expect(screen.getByRole("button", { name: "찜목록" }).getAttribute("aria-current")).toBe("page");
+
+    fireEvent.click(screen.getByRole("button", { name: "설정" }));
+    expect(await screen.findByRole("heading", { name: "설정" })).toBeTruthy();
+    expect(nav.querySelector<HTMLElement>('span[aria-hidden="true"]')!.style.transform).toBe("translateX(400%)");
+    expect(screen.getByRole("button", { name: "설정" }).getAttribute("aria-current")).toBe("page");
   });
 
   it("connects settings navigation to the current checklist", async () => {

@@ -141,7 +141,15 @@ body {
   @supports (backdrop-filter: url(#lg-refract)) {
     backdrop-filter: blur(2px) url(#lg-refract) saturate(170%) brightness(1.08);
   }
+  &[data-content-overlap="true"] {
+    background: color-mix(in srgb, var(--glass-bg) 82%, var(--app-panel));
+    -webkit-backdrop-filter: blur(18px) saturate(170%) brightness(1.08);
+    backdrop-filter: blur(18px) saturate(170%) brightness(1.08);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, .28), inset 0 1px 1px var(--glass-rim);
+  }
   @media (prefers-reduced-transparency: reduce) {
+    background: var(--app-panel);
+    -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
 }
