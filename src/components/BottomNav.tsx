@@ -4,6 +4,7 @@ const ICONS = {
   list: <><path d="M4 6h16M4 12h16M4 18h16" /></>,
   search: <><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></>,
   filter: <><path d="M4 7h16M7 12h10M10 17h4" /></>,
+  wishlist: <><path d="M20.8 8.9c0 5.5-8.8 10.1-8.8 10.1S3.2 14.4 3.2 8.9A4.7 4.7 0 0 1 12 6.3a4.7 4.7 0 0 1 8.8 2.6Z" /></>,
   events: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></>,
   settings: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></>,
 };
@@ -53,20 +54,22 @@ function Tab({
 
 /** 모바일 전용 하단 네비 — md 이상은 사이드바/topbar가 대신한다. */
 export function BottomNav({
-  context, sheet, onSheet, onList, onEvents, searchCount, filterCount, onSettings,
+  context, sheet, onSheet, onList, onEvents, onWishlist, wishlistActive, searchCount, filterCount, onSettings,
 }: {
   context: "event" | "events" | "settings";
   sheet: Sheet;
   onSheet: (next: Sheet) => void;
   onList: () => void;
   onEvents: () => void;
+  onWishlist: () => void;
+  wishlistActive: boolean;
   searchCount: number;
   filterCount: number;
   onSettings: () => void;
 }) {
   const settingsActive = context === "settings";
   const toggle = (s: Exclude<Sheet, null>) => onSheet(sheet === s ? null : s);
-  const activeIndex = settingsActive ? 4 : context === "events" ? 3 : sheet === "search" ? 1 : sheet === "filter" ? 2 : sheet === "events" ? 3 : 0;
+  const activeIndex = settingsActive ? 5 : wishlistActive ? 3 : context === "events" ? 4 : sheet === "search" ? 1 : sheet === "filter" ? 2 : sheet === "events" ? 4 : 0;
   const listActive = activeIndex === 0;
   const sheetsDisabled = context === "events";
   const listDisabled = context === "events";
@@ -75,14 +78,15 @@ export function BottomNav({
       {/* 렌즈 인디케이터 — 탭 사이를 액체처럼 미끄러진다. */}
       <span
         aria-hidden="true"
-        className="glass-lens absolute inset-y-1.5 left-1.5 w-[calc(20%-3px)]"
+        className="glass-lens absolute inset-y-1.5 left-1.5 w-[calc(16.6667%-2.5px)]"
         style={{ transform: `translateX(${activeIndex * 100}%)` }}
       >
         <span key={activeIndex} className="glass-lens-body block h-full w-full rounded-full" />
       </span>
-      <Tab icon="list" label="목록" active={listActive} aria-current={listActive ? "page" : undefined} aria-disabled={listDisabled || undefined} disabled={listDisabled} onClick={onList} />
+      <Tab icon="list" label="목록" active={listActive && !wishlistActive} aria-current={listActive && !wishlistActive ? "page" : undefined} aria-disabled={listDisabled || undefined} disabled={listDisabled} onClick={onList} />
       <Tab icon="search" label="검색" active={sheet === "search"} badge={searchCount} aria-current={sheet === "search" ? "page" : undefined} aria-expanded={sheetsDisabled ? undefined : sheet === "search"} aria-controls={sheetsDisabled ? undefined : "sheet-search"} aria-disabled={sheetsDisabled || undefined} disabled={sheetsDisabled} onClick={() => { if (!sheetsDisabled) toggle("search"); }} />
       <Tab icon="filter" label="필터" active={sheet === "filter"} badge={filterCount} aria-current={sheet === "filter" ? "page" : undefined} aria-expanded={sheetsDisabled ? undefined : sheet === "filter"} aria-controls={sheetsDisabled ? undefined : "sheet-filter"} aria-disabled={sheetsDisabled || undefined} disabled={sheetsDisabled} onClick={() => { if (!sheetsDisabled) toggle("filter"); }} />
+      <Tab icon="wishlist" label="찜목록" active={wishlistActive} aria-current={wishlistActive ? "page" : undefined} onClick={onWishlist} />
       <Tab icon="events" label="행사" active={sheet === "events" || context === "events"} aria-current={sheet === "events" || context === "events" ? "page" : undefined} aria-expanded={context === "settings" ? undefined : sheet === "events"} aria-controls={context === "settings" ? undefined : "sheet-events"} onClick={() => { if (context === "settings") onEvents(); else if (context !== "events") toggle("events"); }} />
       <Tab icon="settings" label="설정" active={settingsActive} aria-current={settingsActive ? "page" : undefined} onClick={onSettings} />
     </nav>
