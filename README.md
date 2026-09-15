@@ -6,6 +6,22 @@
 - 각 서클의 X(트위터), 통판, 행사 관련 링크를 새 탭으로 열어 확인
 - 행사·서클 응답은 서버 MD5 메타데이터와 버전 캐시를 사용하며, 네트워크가 끊기면 유효한 로컬 캐시로 대체
 
+## 클라이언트 구조 (`src/`)
+
+의존 방향은 위에서 아래로만 흐른다. 화면은 데이터를 hooks/queries를 통해서만 받고, `api.ts`만 네트워크를 안다.
+
+![클라이언트 구조](docs/architecture.png)
+
+<sub>원본: docs/architecture.html · 갱신: `docs/architecture.html` 수정 후 PNG 재출력</sub>
+
+| 계층 | 역할 |
+| --- | --- |
+| `screens/` | 라우트별 화면. API나 `localStorage`를 직접 읽지 않는다. |
+| `components/` | 화면이 조합하는 표시용 조각. |
+| `hooks/` | 인증·체크·위시리스트 상태와 서버 동기화(`useSyncedState`). |
+| `lib/` | 쿼리 정의, 영속 캐시, 동기화 병합 규칙, 순수 유틸, zustand 스토어. |
+| `api.ts` | 유일한 네트워크 경계. 응답을 `lib/cache`에 저장하고 오프라인 시 fallback. |
+
 ## 읽기 데이터 캐시 역할
 
 - TanStack Query는 런타임 메모리에서 읽기 데이터를 재사용한다. 행사 목록은 `['events']`, 행사별 서클은 `['circles', eventSlug]` 키를 사용하며 `staleTime`은 5분이다.

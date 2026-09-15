@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>클라이언트 구조 — src/</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&family=Noto+Sans+KR:wght@400;500;600&family=Noto+Serif+KR:wght@400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    /* 프로젝트 토큰: docs/DESIGN.md (라이트) */
+    :root {
+      --color-paper:  #f4f5f7;
+      --color-ink:    #17181c;
+      --color-muted:  #6b7280;
+      --color-accent: #c8286b;
+      --font-sans:  'Geist', 'Noto Sans KR', system-ui, sans-serif;
+      --font-serif: 'Instrument Serif', 'Noto Serif KR', serif;
+      --font-mono:  'Geist Mono', ui-monospace, monospace;
+    }
+    body { font-family: var(--font-sans); background: var(--color-paper); color: var(--color-ink); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 3rem 2rem; }
+    .frame { max-width: 1200px; width: 100%; }
+    .eyebrow { font-family: var(--font-mono); font-size: .66rem; font-weight: 500; letter-spacing: .18em; text-transform: uppercase; color: var(--color-muted); margin-bottom: .5rem; }
+    h1 { font-family: var(--font-serif); font-size: clamp(1.5rem, 2.4vw + .75rem, 2rem); font-weight: 400; letter-spacing: -.02em; line-height: 1.15; margin-bottom: 1.5rem; }
+    svg { width: 100%; min-width: 900px; display: block; }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Architecture · gbc-seoko</p>
+    <h1>클라이언트 구조 — <span style="font-family:var(--font-mono);font-size:.8em">src/</span></h1>
+
+    <svg viewBox="0 0 1000 680" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="src-architecture-title src-architecture-desc">
+      <title id="src-architecture-title">클라이언트 구조 — src/</title>
+      <desc id="src-architecture-desc">App 쉘이 화면·컴포넌트·훅으로 나뉘고, 화면은 lib/queries로 읽고 훅은 lib/sync로 동기화하며, 모든 네트워크는 api.ts 하나를 거쳐 Worker에 닿는 계층 구조.</desc>
+      <defs>
+        <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#6b7280"/></marker>
+      </defs>
+
+      <rect width="100%" height="100%" fill="#f4f5f7"/>
+
+      <!-- zones -->
+      <rect x="96" y="136" width="808" height="104" rx="8" fill="rgba(23,24,28,0.02)" stroke="rgba(23,24,28,0.10)" stroke-width="0.8"/>
+      <rect x="108" y="140" width="24" height="12" rx="2" fill="#f4f5f7"/>
+      <text x="120" y="149" fill="rgba(23,24,28,0.40)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.14em">UI</text>
+
+      <rect x="96" y="264" width="808" height="104" rx="8" fill="rgba(23,24,28,0.02)" stroke="rgba(23,24,28,0.10)" stroke-width="0.8"/>
+      <rect x="108" y="268" width="72" height="12" rx="2" fill="#f4f5f7"/>
+      <text x="144" y="277" fill="rgba(23,24,28,0.40)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.14em">STATE · LIB</text>
+
+      <rect x="376" y="392" width="248" height="216" rx="8" fill="rgba(23,24,28,0.02)" stroke="rgba(23,24,28,0.10)" stroke-width="0.8"/>
+      <rect x="388" y="396" width="56" height="12" rx="2" fill="#f4f5f7"/>
+      <text x="416" y="405" fill="rgba(23,24,28,0.40)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.14em">NETWORK</text>
+
+      <!-- arrows (before nodes) -->
+      <path d="M488,96 V116 Q488,124 480,124 H228 Q220,124 220,132 V168" fill="none" stroke="#6b7280" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M500,96 V168" fill="none" stroke="#6b7280" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M512,96 V116 Q512,124 520,124 H772 Q780,124 780,132 V168" fill="none" stroke="#6b7280" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+      <path d="M320,196 H400" fill="none" stroke="#6b7280" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+      <path d="M220,224 V296" fill="none" stroke="#6b7280" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <rect x="226" y="246" width="56" height="12" rx="2" fill="#f4f5f7"/>
+      <text x="230" y="255" fill="#9aa0aa" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.06em">useQuery</text>
+
+      <path d="M500,224 V296" fill="none" stroke="#6b7280" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+      <path d="M780,224 V296" fill="none" stroke="#6b7280" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <rect x="786" y="246" width="88" height="12" rx="2" fill="#f4f5f7"/>
+      <text x="790" y="255" fill="#9aa0aa" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.06em">useSyncedState</text>
+
+      <path d="M220,352 V380 Q220,388 228,388 H480 Q488,388 488,396 V424" fill="none" stroke="#6b7280" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <rect x="340" y="368" width="32" height="12" rx="2" fill="#f4f5f7"/>
+      <text x="356" y="377" fill="#9aa0aa" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">READ</text>
+
+      <path d="M780,352 V380 Q780,388 772,388 H520 Q512,388 512,396 V424" fill="none" stroke="#6b7280" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <rect x="630" y="368" width="32" height="12" rx="2" fill="#f4f5f7"/>
+      <text x="646" y="377" fill="#9aa0aa" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">SYNC</text>
+
+      <path d="M500,480 V536" fill="none" stroke="#6b7280" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <rect x="506" y="502" width="60" height="12" rx="2" fill="#f4f5f7"/>
+      <text x="510" y="511" fill="#9aa0aa" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.06em">fetch /api</text>
+
+      <!-- nodes -->
+      <!-- App shell -->
+      <rect x="400" y="40" width="200" height="56" rx="6" fill="#ffffff" stroke="#17181c" stroke-width="1"/>
+      <text x="500" y="64" fill="#17181c" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">App.tsx</text>
+      <text x="500" y="80" fill="#6b7280" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">main.tsx · route → screen</text>
+
+      <!-- row 1: UI -->
+      <rect x="120" y="168" width="200" height="56" rx="6" fill="#ffffff" stroke="#17181c" stroke-width="1"/>
+      <text x="220" y="192" fill="#17181c" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">screens/</text>
+      <text x="220" y="208" fill="#6b7280" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">Events · Checklist · Wishlist +2</text>
+
+      <rect x="400" y="168" width="200" height="56" rx="6" fill="#ffffff" stroke="#17181c" stroke-width="1"/>
+      <text x="500" y="192" fill="#17181c" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">components/</text>
+      <text x="500" y="208" fill="#6b7280" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">Sidebar · Nav · Card · Detail</text>
+
+      <rect x="680" y="168" width="200" height="56" rx="6" fill="#ffffff" stroke="#17181c" stroke-width="1"/>
+      <text x="780" y="192" fill="#17181c" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">hooks/</text>
+      <text x="780" y="208" fill="#6b7280" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">useAuth · useChecks · useWishlist</text>
+
+      <!-- row 2: state / lib -->
+      <rect x="120" y="296" width="200" height="56" rx="6" fill="rgba(23,24,28,0.05)" stroke="#6b7280" stroke-width="1"/>
+      <text x="220" y="320" fill="#17181c" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">lib/queries</text>
+      <text x="220" y="336" fill="#6b7280" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">TanStack Query keys · stale 5m</text>
+
+      <rect x="400" y="296" width="200" height="56" rx="6" fill="rgba(23,24,28,0.05)" stroke="#6b7280" stroke-width="1"/>
+      <text x="500" y="320" fill="#17181c" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">lib/store · utils</text>
+      <text x="500" y="336" fill="#6b7280" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">zustand UI · circle · event · route</text>
+
+      <rect x="680" y="296" width="200" height="56" rx="6" fill="rgba(23,24,28,0.05)" stroke="#6b7280" stroke-width="1"/>
+      <text x="780" y="320" fill="#17181c" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">lib/checks · wishlist · sync</text>
+      <text x="780" y="336" fill="#6b7280" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">localStorage · timestamp merge</text>
+
+      <!-- row 3: api (focal) -->
+      <rect x="400" y="424" width="200" height="56" rx="6" fill="rgba(200,40,107,0.08)" stroke="#c8286b" stroke-width="1.2"/>
+      <text x="500" y="448" fill="#17181c" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">api.ts</text>
+      <text x="500" y="464" fill="#6b7280" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">fetch · lib/cache MD5 fallback</text>
+
+      <!-- row 4: worker (external) -->
+      <rect x="400" y="536" width="200" height="56" rx="6" fill="rgba(23,24,28,0.03)" stroke="rgba(23,24,28,0.30)" stroke-width="1"/>
+      <text x="500" y="560" fill="#17181c" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Worker /api/*</text>
+      <text x="500" y="576" fill="#6b7280" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">Hono · D1</text>
+
+      <!-- legend -->
+      <line x1="30" y1="632" x2="970" y2="632" stroke="rgba(23,24,28,0.10)" stroke-width="0.8"/>
+      <text x="30" y="652" fill="#6b7280" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.14em">LEGEND</text>
+      <rect x="110" y="643" width="12" height="12" rx="2" fill="#ffffff" stroke="#17181c" stroke-width="1"/>
+      <text x="130" y="652" fill="#6b7280" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.06em">UI</text>
+      <rect x="270" y="643" width="12" height="12" rx="2" fill="rgba(23,24,28,0.05)" stroke="#6b7280" stroke-width="1"/>
+      <text x="290" y="652" fill="#6b7280" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.06em">STATE / LIB</text>
+      <rect x="430" y="643" width="12" height="12" rx="2" fill="rgba(200,40,107,0.08)" stroke="#c8286b" stroke-width="1.2"/>
+      <text x="450" y="652" fill="#6b7280" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.06em">NETWORK BOUNDARY</text>
+      <rect x="590" y="643" width="12" height="12" rx="2" fill="rgba(23,24,28,0.03)" stroke="rgba(23,24,28,0.30)" stroke-width="1"/>
+      <text x="610" y="652" fill="#6b7280" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.06em">EXTERNAL</text>
+    </svg>
+  </div>
+</body>
+</html>
