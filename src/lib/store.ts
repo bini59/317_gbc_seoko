@@ -8,12 +8,15 @@ type UiState = {
   status: Status;
   selectedIps: string[];
   query: string;
+  /** 마지막 서버 동기화 시각. 설정 화면이 읽는다. */
+  syncedAt: number | null;
   setSheet: (sheet: Sheet) => void;
   setStatus: (status: Status) => void;
   toggleIp: (ip: string) => void;
   clearIps: () => void;
   setQuery: (query: string) => void;
   resetFilters: () => void;
+  setSyncedAt: (syncedAt: number | null) => void;
 };
 
 export const useUiStore = create<UiState>((set) => ({
@@ -21,6 +24,7 @@ export const useUiStore = create<UiState>((set) => ({
   status: "all",
   selectedIps: [],
   query: "",
+  syncedAt: null,
   setSheet: (sheet) => set({ sheet }),
   setStatus: (status) => set({ status }),
   toggleIp: (ip) => set((s) => ({
@@ -29,6 +33,7 @@ export const useUiStore = create<UiState>((set) => ({
   clearIps: () => set({ selectedIps: [] }),
   setQuery: (query) => set({ query }),
   resetFilters: () => set({ status: "all", selectedIps: [], query: "" }),
+  setSyncedAt: (syncedAt) => set({ syncedAt }),
 }));
 
 export const filterCount = (s: UiState) => (s.status === "all" ? 0 : 1) + s.selectedIps.length;

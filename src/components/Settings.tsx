@@ -115,7 +115,6 @@ export function Settings({
   onLogout: () => void;
   install: InstallState;
 }) {
-
   const displayName = user?.name ?? user?.email ?? "사용자";
   const fallback = [...displayName][0]?.toUpperCase() ?? "?";
   const savedAt = syncedAt ? new Date(syncedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) : null;

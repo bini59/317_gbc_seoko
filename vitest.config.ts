@@ -7,6 +7,7 @@ export default defineConfig({
     // 파일별 // @vitest-environment 주석으로 jsdom 오버라이드 (UI 테스트)
     environment: "node",
     environmentMatchGlobs: [["test/client/**", "jsdom"]],
+    setupFiles: ["test/setup.ts"],
     fileParallelism: false,
     maxWorkers: 1,
     include: ["test/**/*.test.{ts,tsx}"],

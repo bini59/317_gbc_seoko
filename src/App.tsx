@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { logout, pickActiveEvent } from "./api";
+import { useQuery } from "@tanstack/react-query";
+import { pickActiveEvent } from "./api";
 import { useChecks } from "./hooks/useChecks";
+import { useAuth } from "./hooks/useAuth";
 import { useAppRoute } from "./hooks/useAppRoute";
 import { useInstallPrompt } from "./hooks/useInstallPrompt";
 import { useTheme } from "./components/Settings";
@@ -11,22 +12,17 @@ import { ChecklistScreen } from "./screens/ChecklistScreen";
 import { EventsScreen } from "./screens/EventsScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { WishlistScreen } from "./screens/WishlistScreen";
-import { clearAllChecks } from "./lib/checks";
-import { clearAllWishlist } from "./lib/wishlist";
 import { useUiStore } from "./lib/store";
 import { useEventWishlist, useCircleWishlist } from "./hooks/useWishlist";
-import { authQuery, circlesQuery as circlesOptions, eventsQuery as eventsOptions, SIGNED_OUT } from "./lib/queries";
+import { circlesQuery as circlesOptions, eventsQuery as eventsOptions } from "./lib/queries";
 
 /* ---------- 앱 쉘: 라우트 → 화면 분기, 사이드바/하단 네비, 인증, 체크 동기화 ---------- */
 const EMPTY_EVENTS: never[] = [];
 
 export default function App() {
   const { route, openEvents, openWishlist, openEvent, openCircle, openSettings } = useAppRoute();
-  const queryClient = useQueryClient();
-  const auth = useQuery(authQuery());
-  const { enabled: authEnabled, user } = auth.data ?? SIGNED_OUT;
-  const authLoading = auth.isPending;
-  const [syncedAt, setSyncedAt] = useState<number | null>(null);
+  const { user, userId, authenticated, loading: authLoading } = useAuth();
+  const setSyncedAt = useUiStore((s) => s.setSyncedAt);
   const [announce, setAnnounce] = useState("");
   const [theme, setTheme] = useTheme();
   const install = useInstallPrompt();
@@ -34,7 +30,7 @@ export default function App() {
   const handleSync = useCallback((merged: number) => {
     setSyncedAt(Date.now());
     if (merged > 0) setAnnounce(`${merged}개 항목을 동기화했어요`);
-  }, []);
+  }, [setSyncedAt]);
   const handleSyncError = useCallback(() => setAnnounce("방문 체크를 저장하지 못했어요"), []);
 
   const { data: events = EMPTY_EVENTS, isFetched: eventsFetched } = useQuery({ ...eventsOptions(), enabled: route.kind !== "settings" });
@@ -63,9 +59,9 @@ export default function App() {
     () => circleData?.circles.concat(circleData.witchformExtra).map((candidate) => candidate.id) ?? null,
     [circleData],
   );
-  const [checks, toggle] = useChecks(eventSlug, event?.status === "active", !!user, authLoading, handleSync, handleSyncError, user?.userId ?? null);
-  const [eventWishlist, toggleEventWishlist] = useEventWishlist(!!user, user?.userId ?? null, () => setAnnounce("위시리스트를 저장했어요"), () => setAnnounce("위시리스트를 저장하지 못했어요"), validEventSlugs);
-  const circleWishlist = useCircleWishlist(eventSlug, !!user, user?.userId ?? null, () => setAnnounce("위시리스트를 저장했어요"), () => setAnnounce("위시리스트를 저장하지 못했어요"), validCircleIds);
+  const [checks, toggle] = useChecks(eventSlug, event?.status === "active", authenticated, authLoading, handleSync, handleSyncError, userId);
+  const [eventWishlist, toggleEventWishlist] = useEventWishlist(authenticated, userId, () => setAnnounce("위시리스트를 저장했어요"), () => setAnnounce("위시리스트를 저장하지 못했어요"), validEventSlugs);
+  const circleWishlist = useCircleWishlist(eventSlug, authenticated, userId, () => setAnnounce("위시리스트를 저장했어요"), () => setAnnounce("위시리스트를 저장하지 못했어요"), validCircleIds);
   const handleToggle = (id: string) => {
     setAnnounce(checks[id] ? "방문 체크를 해제했어요" : "방문 체크했어요");
     toggle(id);
@@ -80,15 +76,6 @@ export default function App() {
     setAnnounce(isStarred ? "서클 찜을 해제했어요" : "서클을 찜했어요");
     circleWishlist.toggleStar(id);
   };
-
-  const handleLogout = useCallback(() => {
-    void logout().catch(() => {}).finally(() => {
-      clearAllChecks(localStorage);
-      clearAllWishlist(localStorage);
-      queryClient.setQueryData(authQuery().queryKey, (prev) => (prev ? { ...prev, user: null } : SIGNED_OUT));
-      setSyncedAt(null);
-    });
-  }, [queryClient]);
 
   const setSheet = useUiStore((s) => s.setSheet);
   const resetFilters = useUiStore((s) => s.resetFilters);
@@ -137,7 +124,7 @@ export default function App() {
       />
       <main className={"w-full max-w-[560px] mx-auto border-x border-line md:max-w-none md:mx-0 md:border-x-0 md:min-h-screen " + (route.kind === "events" ? "" : "flex-1")}>
         {route.kind === "settings" ? (
-          <SettingsScreen authEnabled={authEnabled} user={user} syncedAt={syncedAt} theme={theme} onTheme={setTheme} onLogout={handleLogout} install={install} />
+          <SettingsScreen theme={theme} onTheme={setTheme} install={install} />
         ) : route.kind === "wishlist" ? (
            <WishlistScreen events={events} eventWishlist={eventWishlist} />
         ) : route.kind === "events" ? (
