@@ -12,6 +12,8 @@ type UiState = {
   query: string;
   /** 마지막 서버 동기화 시각. 설정 화면이 읽는다. */
   syncedAt: number | null;
+  /** 스크린리더용 라이브 메시지. App 쉘이 role="status"로 출력한다. */
+  announce: string;
   setSheet: (sheet: Sheet) => void;
   setStatus: (status: Status) => void;
   toggleIp: (ip: string) => void;
@@ -19,6 +21,7 @@ type UiState = {
   setQuery: (query: string) => void;
   resetFilters: () => void;
   setSyncedAt: (syncedAt: number | null) => void;
+  setAnnounce: (announce: string) => void;
 };
 
 export const useUiStore = create<UiState>((set) => ({
@@ -27,6 +30,7 @@ export const useUiStore = create<UiState>((set) => ({
   selectedIps: [],
   query: "",
   syncedAt: null,
+  announce: "",
   setSheet: (sheet) => set({ sheet }),
   setStatus: (status) => set({ status }),
   toggleIp: (ip) => set((s) => ({
@@ -36,6 +40,7 @@ export const useUiStore = create<UiState>((set) => ({
   setQuery: (query) => set({ query }),
   resetFilters: () => set({ status: "all", selectedIps: [], query: "" }),
   setSyncedAt: (syncedAt) => set({ syncedAt }),
+  setAnnounce: (announce) => set({ announce }),
 }));
 
 export const filterCount = (s: UiState) => (s.status === "all" ? 0 : 1) + s.selectedIps.length;
