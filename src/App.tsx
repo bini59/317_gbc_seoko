@@ -7,7 +7,7 @@ import { useAppRoute } from "./hooks/useAppRoute";
 import { useInstallPrompt } from "./hooks/useInstallPrompt";
 import { useTheme } from "./components/Settings";
 import { Sidebar } from "./components/Sidebar";
-import { BottomNav, type Sheet } from "./components/BottomNav";
+import { BottomNav, type NavTab } from "./components/BottomNav";
 import { ChecklistScreen } from "./screens/ChecklistScreen";
 import { CircleDetailScreen } from "./screens/CircleDetailScreen";
 import { EventsScreen } from "./screens/EventsScreen";
@@ -46,7 +46,8 @@ export default function App() {
     if (route.kind === "events") lastEventSlug.current = null;
     else if (routeEvent) lastEventSlug.current = routeEvent.slug;
   }, [routeEvent, route.kind]);
-  const event = route.kind === "settings"
+  // 설정/찜목록에서는 마지막으로 본 행사를 유지해 "서클" 탭이 그 행사로 돌아갈 수 있게 한다.
+  const event = route.kind === "settings" || route.kind === "wishlist"
     ? events.find((candidate) => candidate.slug === lastEventSlug.current) ?? null
     : routeEvent;
   const eventSlug = event?.slug ?? null;
@@ -91,28 +92,21 @@ export default function App() {
   useEffect(() => {
     if (requestedEventSlug !== null) resetFilters();
   }, [requestedEventSlug, resetFilters]);
-  const pendingSheet = useRef<Sheet>(null);
-  useEffect(() => {
-    setSheet(pendingSheet.current);
-    pendingSheet.current = null;
-  }, [route]);
-  const handleNavSheet = (next: Sheet) => {
-    if (route.kind === "settings") {
-      if (next === "events" || !eventSlug) return openEvents();
-      pendingSheet.current = next;
-      return openEvent(eventSlug);
-    }
-    if (route.kind !== "events") setSheet(next);
-  };
-  const handleNavList = () => {
+  // 화면이 바뀌면 시트는 닫힌 채로 시작한다.
+  useEffect(() => { setSheet(null); }, [route, setSheet]);
+  const handleNav = (tab: NavTab) => {
+    if (tab === "events") return openEvents();
+    if (tab === "wishlist") return openWishlist();
+    if (tab === "settings") return openSettings();
     setSheet(null);
     if (route.kind === "event") return;
     if (eventSlug) openEvent(eventSlug);
     else openEvents();
   };
-  const navContext = route.kind === "settings" ? "settings" : route.kind === "events" ? "events" : "event";
+  const navActive: NavTab = route.kind === "events" ? "events" : route.kind === "wishlist" ? "wishlist" : route.kind === "settings" ? "settings" : "list";
+  // 돌아갈 행사가 없으면(행사 목록을 거쳐 선택이 풀린 상태) 목록 탭은 갈 곳이 없다.
+  const navDisabled: NavTab[] = navActive !== "list" && !eventSlug ? ["list"] : [];
   const showNav = route.kind !== "circle" && route.kind !== "legacy-circle";
-  const wishlistNav = route.kind === "wishlist";
 
   return (
     // 쉘: 모바일은 단일 컬럼(560px), md 이상은 사이드바 + 콘텐츠 2컬럼. 컴포넌트는 공유하고 레이아웃만 분기.
@@ -155,15 +149,11 @@ export default function App() {
               onToggle={handleToggle}
               onOpenCircle={openCircle}
               circleWishlist={{ ...circleWishlist, toggleStar: handleToggleCircleStar }}
-              eventWishlist={eventWishlist}
-              onToggleEventWishlist={handleToggleEventWishlist}
             />
           )
         )}
       </main>
-      {showNav && (
-        <BottomNav context={navContext} onSheet={handleNavSheet} onList={handleNavList} onEvents={openEvents} onWishlist={openWishlist} wishlistActive={wishlistNav} onSettings={openSettings} />
-      )}
+      {showNav && <BottomNav active={navActive} disabled={navDisabled} onSelect={handleNav} />}
     </div>
   );
 }

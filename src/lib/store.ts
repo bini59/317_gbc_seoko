@@ -1,8 +1,10 @@
 import { create } from "zustand";
-import type { Sheet } from "../components/BottomNav";
 import type { Status } from "./circle";
 
-/** 하단 네비와 체크리스트 화면이 공유하는 UI 상태(시트 + 검색/필터). */
+/** 모바일 검색·필터 시트. 체크리스트 화면 안에서만 열린다. */
+export type Sheet = "search-filter" | null;
+
+/** 체크리스트 화면과 설정 화면이 공유하는 UI 상태(시트 + 검색/필터). */
 type UiState = {
   sheet: Sheet;
   status: Status;
