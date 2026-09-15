@@ -9,7 +9,8 @@ import { Card } from "../components/Card";
 import { Detail } from "../components/Detail";
 import { EventList } from "../components/Sidebar";
 import type { Sheet } from "../components/BottomNav";
-import type { ChecklistFilters } from "../hooks/useChecklistFilters";
+import { useUiStore } from "../lib/store";
+import type { useCircleWishlist } from "../hooks/useWishlist";
 
 type Props = {
   /** 라우트가 가리키는 행사. events 로딩 중이거나 slug가 없으면 null. */
@@ -17,17 +18,11 @@ type Props = {
   circleSlug: string | null;
   checks: Checks;
   onToggle: (id: string) => void;
-  filters: ChecklistFilters;
-  /** 열린 시트. 부모(쉘)가 하단 네비와 함께 소유한다 — 상세 라우트에서는 null로 내려온다. */
-  sheet: Sheet;
-  onSheet: (next: Sheet) => void;
   onOpenEvent: (eventSlug: string) => void;
   onOpenCircle: (eventSlug: string, circleSlug: string) => void;
-  wishlist?: import("../types").CircleWishlistMap;
-  onToggleStar?: (id: string) => void;
-  onUpdateMemo?: (id: string, memo: string) => void;
-  eventWishlist?: string[];
-  onToggleEventWishlist?: (slug: string) => void;
+  circleWishlist: ReturnType<typeof useCircleWishlist>;
+  eventWishlist: string[];
+  onToggleEventWishlist: (slug: string) => void;
 };
 
 const statusChip = (active: boolean) =>
@@ -37,13 +32,24 @@ const genreChip = (active: boolean) =>
   "inline-flex items-center h-7 px-2.5 rounded-full text-[12px] font-medium cursor-pointer whitespace-nowrap border " +
   (active ? "bg-accent/10 text-accent border-accent/30" : "bg-card text-muted border-line");
 
-/** 행사 하나의 체크리스트 화면. 필터/시트 상태는 하단 네비와 공유하므로 쉘이 소유하고 props로 받는다. */
+/** 행사 하나의 체크리스트 화면. 필터/시트 상태는 하단 네비와 공유하므로 UI store에서 읽는다. */
 export function ChecklistScreen({
-  event, circleSlug, checks, onToggle, filters, sheet, onSheet: setSheet,
-  onOpenEvent, onOpenCircle, wishlist = {}, onToggleStar, onUpdateMemo,
-  eventWishlist = [], onToggleEventWishlist,
+  event, circleSlug, checks, onToggle,
+  onOpenEvent, onOpenCircle, circleWishlist,
+  eventWishlist, onToggleEventWishlist,
 }: Props) {
-  const { status, setStatus, selectedIps, setSelectedIps, query, setQuery } = filters;
+  const status = useUiStore((s) => s.status);
+  const setStatus = useUiStore((s) => s.setStatus);
+  const selectedIps = useUiStore((s) => s.selectedIps);
+  const toggleIp = useUiStore((s) => s.toggleIp);
+  const clearIps = useUiStore((s) => s.clearIps);
+  const query = useUiStore((s) => s.query);
+  const setQuery = useUiStore((s) => s.setQuery);
+  const setSheet = useUiStore((s) => s.setSheet);
+  // 상세(서클) 라우트에서는 하단 네비가 숨겨지므로 시트도 열지 않는다.
+  const openSheet = useUiStore((s) => s.sheet);
+  const sheet: Sheet = circleSlug ? null : openSheet;
+  const { circles: wishlist, toggleStar, updateMemo } = circleWishlist;
   const searchRef = useRef<HTMLInputElement>(null);
   const eventSlug = event?.slug ?? null;
 
@@ -114,7 +120,7 @@ export function ChecklistScreen({
            color={badgeColor(c.id, all)}
            starred={wishlist[c.id]?.star}
            memo={wishlist[c.id]?.memo}
-           onStar={onToggleStar ? () => onToggleStar(c.id) : undefined}
+           onStar={() => toggleStar(c.id)}
         />
       ))}
     </div>
@@ -185,13 +191,13 @@ export function ChecklistScreen({
 
 
             <div className="flex flex-wrap gap-2 pt-3 md:pt-4 md:max-h-24 md:overflow-y-auto">
-              <button onClick={() => setSelectedIps([])} aria-pressed={selectedIps.length === 0} className={genreChip(selectedIps.length === 0)}>
+              <button onClick={clearIps} aria-pressed={selectedIps.length === 0} className={genreChip(selectedIps.length === 0)}>
                 전체 장르
               </button>
               {genres.map((g) => (
                 <button
                   key={g}
-                  onClick={() => setSelectedIps((prev) => (prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g]))}
+                  onClick={() => toggleIp(g)}
                   aria-pressed={selectedIps.includes(g)}
                   className={genreChip(selectedIps.includes(g))}
                 >
@@ -263,8 +269,8 @@ export function ChecklistScreen({
              color={badgeColor(detail.id, all)}
              starred={wishlist[detail.id]?.star}
              memo={wishlist[detail.id]?.memo}
-             onStar={onToggleStar ? () => onToggleStar(detail.id) : undefined}
-             onUpdateMemo={onUpdateMemo ? (memo) => onUpdateMemo(detail.id, memo) : undefined}
+             onStar={() => toggleStar(detail.id)}
+             onUpdateMemo={(memo) => updateMemo(detail.id, memo)}
            />
         </section>
       )}

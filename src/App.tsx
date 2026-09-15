@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { logout, pickActiveEvent } from "./api";
 import { useChecks } from "./hooks/useChecks";
 import { useAppRoute } from "./hooks/useAppRoute";
-import { useChecklistFilters } from "./hooks/useChecklistFilters";
 import { useInstallPrompt } from "./hooks/useInstallPrompt";
 import { useTheme } from "./components/Settings";
 import { Sidebar } from "./components/Sidebar";
@@ -14,6 +13,7 @@ import { SettingsScreen } from "./screens/SettingsScreen";
 import { WishlistScreen } from "./screens/WishlistScreen";
 import { clearAllChecks } from "./lib/checks";
 import { clearAllWishlist } from "./lib/wishlist";
+import { useUiStore } from "./lib/store";
 import { useEventWishlist, useCircleWishlist } from "./hooks/useWishlist";
 import { authQuery, circlesQuery as circlesOptions, eventsQuery as eventsOptions, SIGNED_OUT } from "./lib/queries";
 
@@ -90,8 +90,12 @@ export default function App() {
     });
   }, [queryClient]);
 
-  const filters = useChecklistFilters(requestedEventSlug);
-  const [sheet, setSheet] = useState<Sheet>(null);
+  const setSheet = useUiStore((s) => s.setSheet);
+  const resetFilters = useUiStore((s) => s.resetFilters);
+  // 행사가 바뀌면 검색/필터를 초기화한다.
+  useEffect(() => {
+    if (requestedEventSlug !== null) resetFilters();
+  }, [requestedEventSlug, resetFilters]);
   const pendingSheet = useRef<Sheet>(null);
   useEffect(() => {
     setSheet(pendingSheet.current);
@@ -111,7 +115,6 @@ export default function App() {
     if (eventSlug) openEvent(eventSlug);
     else openEvents();
   };
-  const visibleSheet = route.kind === "event" ? sheet : null;
   const navContext = route.kind === "settings" ? "settings" : route.kind === "events" ? "events" : "event";
   const showNav = route.kind !== "circle" && route.kind !== "legacy-circle";
   const wishlistNav = route.kind === "wishlist";
@@ -145,21 +148,16 @@ export default function App() {
             circleSlug={route.kind === "circle" || route.kind === "legacy-circle" ? route.circleSlug : null}
             checks={checks}
             onToggle={handleToggle}
-            filters={filters}
-            sheet={visibleSheet}
-            onSheet={setSheet}
             onOpenEvent={openEvent}
             onOpenCircle={openCircle}
-            wishlist={circleWishlist.circles}
-            onToggleStar={handleToggleCircleStar}
-            onUpdateMemo={circleWishlist.updateMemo}
+            circleWishlist={{ ...circleWishlist, toggleStar: handleToggleCircleStar }}
             eventWishlist={eventWishlist}
             onToggleEventWishlist={handleToggleEventWishlist}
           />
         )}
       </main>
       {showNav && (
-        <BottomNav context={navContext} sheet={visibleSheet} onSheet={handleNavSheet} onList={handleNavList} onEvents={openEvents} onWishlist={openWishlist} wishlistActive={wishlistNav} searchCount={filters.query ? 1 : 0} filterCount={filters.filterCount} onSettings={openSettings} />
+        <BottomNav context={navContext} onSheet={handleNavSheet} onList={handleNavList} onEvents={openEvents} onWishlist={openWishlist} wishlistActive={wishlistNav} onSettings={openSettings} />
       )}
     </div>
   );
