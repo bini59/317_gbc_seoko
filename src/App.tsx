@@ -128,7 +128,7 @@ export default function App() {
         {route.kind === "settings" ? (
           <SettingsScreen theme={theme} onTheme={setTheme} install={install} />
         ) : route.kind === "wishlist" ? (
-           <WishlistScreen events={events} eventWishlist={eventWishlist} />
+          <WishlistScreen eventWishlist={eventWishlist} />
         ) : route.kind === "events" ? (
           <EventsScreen install={install} onOpenSettings={openSettings} wishlist={eventWishlist} onToggleWishlist={handleToggleEventWishlist} />
         ) : (
