@@ -1,7 +1,7 @@
 import type { ComponentProps } from "react";
-import { Settings } from "../components/Settings";
-import { useAuth, useSignOut } from "../hooks/useAuth";
-import { useUiStore } from "../lib/store";
+import { Settings } from "@/components/Settings";
+import { useAuth, useSignOut } from "@/hooks/useAuth";
+import { useUiStore } from "@/lib/store";
 
 /** Settings는 표현만 담당하고, 세션·동기화 상태 배선은 화면이 맡는다. */
 type Props = Omit<ComponentProps<typeof Settings>, "authEnabled" | "user" | "syncedAt" | "onLogout">;

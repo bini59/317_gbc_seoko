@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { AUTH_ORIGIN, login, sendFeedback, type AuthUser } from "../api";
-import { InstallGuide } from "./InstallGuide";
-import type { InstallState } from "../hooks/useInstallPrompt";
+import { AUTH_ORIGIN, login, sendFeedback, type AuthUser } from "@/api";
+import { InstallGuide } from "@/components/InstallGuide";
+import type { InstallState } from "@/hooks/useInstallPrompt";
 
 const ACCOUNT_CENTER_URL = `${AUTH_ORIGIN}/client`;
 const CONTACT_EMAIL = "contact@bini59.dev";

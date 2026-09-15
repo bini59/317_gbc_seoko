@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { InstallBanner, InstallGuide } from "../../src/components/InstallGuide";
-import { useInstallPrompt, type InstallState } from "../../src/hooks/useInstallPrompt";
+import { InstallBanner, InstallGuide } from "@/components/InstallGuide";
+import { useInstallPrompt, type InstallState } from "@/hooks/useInstallPrompt";
 
 function Harness() {
   const install = useInstallPrompt();

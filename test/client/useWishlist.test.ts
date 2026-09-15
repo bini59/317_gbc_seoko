@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useCircleWishlist, useEventWishlist } from "../../src/hooks/useWishlist";
+import { useCircleWishlist, useEventWishlist } from "@/hooks/useWishlist";
 
 const json = (value: unknown) =>
   new Response(JSON.stringify(value), {

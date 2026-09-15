@@ -1,21 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { pickActiveEvent } from "./api";
-import { useChecks } from "./hooks/useChecks";
-import { useAuth } from "./hooks/useAuth";
-import { useAppRoute } from "./hooks/useAppRoute";
-import { useInstallPrompt } from "./hooks/useInstallPrompt";
-import { useTheme } from "./components/Settings";
-import { Sidebar } from "./components/Sidebar";
-import { BottomNav, type NavTab } from "./components/BottomNav";
-import { ChecklistScreen } from "./screens/ChecklistScreen";
-import { CircleDetailScreen } from "./screens/CircleDetailScreen";
-import { EventsScreen } from "./screens/EventsScreen";
-import { SettingsScreen } from "./screens/SettingsScreen";
-import { WishlistScreen } from "./screens/WishlistScreen";
-import { useUiStore } from "./lib/store";
-import { useEventWishlist, useCircleWishlist } from "./hooks/useWishlist";
-import { circlesQuery as circlesOptions, eventsQuery as eventsOptions } from "./lib/queries";
+import { pickActiveEvent } from "@/api";
+import { useChecks } from "@/hooks/useChecks";
+import { useAuth } from "@/hooks/useAuth";
+import { useAppRoute } from "@/hooks/useAppRoute";
+import { useInstallPrompt } from "@/hooks/useInstallPrompt";
+import { useTheme } from "@/components/Settings";
+import { Sidebar } from "@/components/Sidebar";
+import { BottomNav, type NavTab } from "@/components/BottomNav";
+import { ChecklistScreen } from "@/screens/ChecklistScreen";
+import { CircleDetailScreen } from "@/screens/CircleDetailScreen";
+import { EventsScreen } from "@/screens/EventsScreen";
+import { SettingsScreen } from "@/screens/SettingsScreen";
+import { WishlistScreen } from "@/screens/WishlistScreen";
+import { useUiStore } from "@/lib/store";
+import { useEventWishlist, useCircleWishlist } from "@/hooks/useWishlist";
+import { circlesQuery as circlesOptions, eventsQuery as eventsOptions } from "@/lib/queries";
 
 /* ---------- 앱 쉘: 라우트 → 화면 분기, 사이드바/하단 네비, 인증, 체크 동기화 ---------- */
 const EMPTY_EVENTS: never[] = [];

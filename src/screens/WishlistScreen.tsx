@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
 import { useQueries } from "@tanstack/react-query";
-import type { ApiEvent } from "../api";
-import { circlesQuery } from "../lib/queries";
-import { eventHash, circleHash } from "../lib/route";
-import { loadCircleWishlistState } from "../lib/wishlist";
-import type { Circle } from "../types";
+import type { ApiEvent } from "@/api";
+import { circlesQuery } from "@/lib/queries";
+import { eventHash, circleHash } from "@/lib/route";
+import { loadCircleWishlistState } from "@/lib/wishlist";
+import type { Circle } from "@/types";
 
 export function WishlistScreen({ events, eventWishlist }: { events: ApiEvent[]; eventWishlist: string[] }) {
   const [query, setQuery] = useState("");

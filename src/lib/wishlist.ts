@@ -1,5 +1,5 @@
-import type { CircleWishlistMap } from "../types";
-import type { KV } from "./checks";
+import type { CircleWishlistMap } from "@/types";
+import type { KV } from "@/lib/checks";
 
 export type WishlistState<T> = { value: T; updatedAt: string | null };
 export const eventWishlistKey = "gbc-seoko-event-wishlist";

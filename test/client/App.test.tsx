@@ -3,8 +3,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render as rtlRender, screen, fireEvent, cleanup, waitFor, act, within } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import App from "../../src/App";
-import { cacheKeys } from "../../src/lib/cache";
+import App from "@/App";
+import { cacheKeys } from "@/lib/cache";
 
 type ApiCircleLike = Record<string, unknown>;
 

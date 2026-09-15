@@ -1,15 +1,15 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent, cleanup, within } from "@testing-library/react";
-import { Settings, useTheme } from "../../src/components/Settings";
-import type { InstallState } from "../../src/hooks/useInstallPrompt";
+import { Settings, useTheme } from "@/components/Settings";
+import type { InstallState } from "@/hooks/useInstallPrompt";
 
-vi.mock("../../src/api", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../src/api")>()),
+vi.mock("@/api", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/api")>()),
   login: vi.fn(),
   sendFeedback: vi.fn(async () => {}),
 }));
-import { login, sendFeedback } from "../../src/api";
+import { login, sendFeedback } from "@/api";
 
 const USER = { userId: "u1", email: "seoko@example.com", name: "세오코", avatarUrl: null };
 const noop = () => {};

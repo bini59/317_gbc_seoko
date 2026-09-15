@@ -1,5 +1,5 @@
 import { queryOptions } from "@tanstack/react-query";
-import { fetchAuth, fetchCircles, fetchEvents } from "../api";
+import { fetchAuth, fetchCircles, fetchEvents } from "@/api";
 
 /** 읽기 전용 데이터(events/circles) 캐시 신선도. */
 const READ_STALE_TIME = 5 * 60 * 1000;

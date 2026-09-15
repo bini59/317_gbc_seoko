@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Status } from "./circle";
+import type { Status } from "@/lib/circle";
 
 /** 모바일 검색·필터 시트. 체크리스트 화면 안에서만 열린다. */
 export type Sheet = "search-filter" | null;

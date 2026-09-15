@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import type { Circle } from "../types";
-import { boothShort } from "../lib/circle";
-import { TweetCard } from "./TweetCard";
+import type { Circle } from "@/types";
+import { boothShort } from "@/lib/circle";
+import { TweetCard } from "@/components/TweetCard";
 
 export function Detail({
   item,

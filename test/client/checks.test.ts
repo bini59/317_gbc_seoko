@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { loadChecks, loadChecksState, saveChecks, saveChecksState, checksKey, checksMetaKey, type KV } from "../../src/lib/checks";
+import { loadChecks, loadChecksState, saveChecks, saveChecksState, checksKey, checksMetaKey, type KV } from "@/lib/checks";
 
 function fakeKV(seed: Record<string, string> = {}): KV & { store: Map<string, string> } {
   const store = new Map(Object.entries(seed));

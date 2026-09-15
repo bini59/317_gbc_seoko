@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
-import { fetchCircles, fetchEvents, pickActiveEvent, type ApiEvent } from "../../src/api";
+import { fetchCircles, fetchEvents, pickActiveEvent, type ApiEvent } from "@/api";
 
 const ev = (slug: string, status: string): ApiEvent =>
   ({ id: 1, slug, title: slug, alias: null, fare_id: null, date_label: null, start_date: null, end_date: null, venue: null, map_url: null, status }) as ApiEvent;

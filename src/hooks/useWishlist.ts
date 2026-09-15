@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { fetchCircleWishlist, fetchEventWishlist, saveCircleWishlist, saveEventWishlist } from "../api";
-import type { CircleWishlistMap } from "../types";
-import { compareTimestamps, loadCircleWishlistState, loadEventWishlistState, nextWishlistTimestamp, saveCircleWishlistState, saveEventWishlistState, clearAllWishlist } from "../lib/wishlist";
+import { fetchCircleWishlist, fetchEventWishlist, saveCircleWishlist, saveEventWishlist } from "@/api";
+import type { CircleWishlistMap } from "@/types";
+import { compareTimestamps, loadCircleWishlistState, loadEventWishlistState, nextWishlistTimestamp, saveCircleWishlistState, saveEventWishlistState, clearAllWishlist } from "@/lib/wishlist";
 
 export function useEventWishlist(authenticated: boolean, userId: string | null, onSync?: () => void, onSyncError?: () => void, validEventSlugs: readonly string[] | null = null) {
   const [events, setEvents] = useState<string[]>([]);

@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { ApiEvent } from "../api";
-import { badgeColor, filterCircles, STATUS } from "../lib/circle";
-import type { Checks } from "../lib/checks";
-import { eventSubtitle } from "../lib/event";
-import { circlesQuery as circlesOptions, eventsQuery as eventsOptions } from "../lib/queries";
-import { Card } from "../components/Card";
-import { filterCount, useUiStore } from "../lib/store";
-import type { useCircleWishlist } from "../hooks/useWishlist";
+import type { ApiEvent } from "@/api";
+import { badgeColor, filterCircles, STATUS } from "@/lib/circle";
+import type { Checks } from "@/lib/checks";
+import { eventSubtitle } from "@/lib/event";
+import { circlesQuery as circlesOptions, eventsQuery as eventsOptions } from "@/lib/queries";
+import { Card } from "@/components/Card";
+import { filterCount, useUiStore } from "@/lib/store";
+import type { useCircleWishlist } from "@/hooks/useWishlist";
 
 type Props = {
   /** 라우트가 가리키는 행사. events 로딩 중이거나 slug가 없으면 null. */

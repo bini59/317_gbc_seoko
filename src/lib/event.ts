@@ -1,4 +1,4 @@
-import type { ApiEvent } from "../api";
+import type { ApiEvent } from "@/api";
 
 /** 행사 부제: 별칭·장소·기간 중 존재하는 것만 · 로 잇는다. */
 export function eventSubtitle(event: ApiEvent | null): string {

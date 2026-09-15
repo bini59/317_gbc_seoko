@@ -1,4 +1,4 @@
-import type { Circle, CircleWishlistMap } from "../types";
+import type { Circle, CircleWishlistMap } from "@/types";
 
 /* 카드 앞 아이콘(부스 배지) 색상 팔레트 */
 export const BADGE = [

@@ -7,8 +7,8 @@ import {
   loadChecksState,
   nextChecksTimestamp,
   saveChecksState,
-} from "../lib/checks";
-import { fetchChecks, saveChecks as saveRemoteChecks, type ChecksResponse } from "../api";
+} from "@/lib/checks";
+import { fetchChecks, saveChecks as saveRemoteChecks, type ChecksResponse } from "@/api";
 
 function checksEqual(a: Checks, b: Checks): boolean {
   const keys = new Set([...Object.keys(a), ...Object.keys(b)]);

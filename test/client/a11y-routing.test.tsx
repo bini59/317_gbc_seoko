@@ -3,8 +3,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render as rtlRender, screen, fireEvent, cleanup, waitFor } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import App from "../../src/App";
-import { circleHash, parseRoute } from "../../src/lib/route";
+import App from "@/App";
+import { circleHash, parseRoute } from "@/lib/route";
 
 const EVENT = {
   id: 1,

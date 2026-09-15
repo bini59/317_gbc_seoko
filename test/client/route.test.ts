@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { circleHash, eventHash, eventsHash, parseRoute, settingsHash, wishlistHash } from "../../src/lib/route";
+import { circleHash, eventHash, eventsHash, parseRoute, settingsHash, wishlistHash } from "@/lib/route";
 
 describe("parseRoute", () => {
   it("represents the root hash as the 행사 목록", () => {

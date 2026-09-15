@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cacheKeys, loadCache, saveCache, type CacheStorage } from "../../src/lib/cache";
+import { cacheKeys, loadCache, saveCache, type CacheStorage } from "@/lib/cache";
 
 function fakeStorage(seed: Record<string, string> = {}): CacheStorage & { store: Map<string, string> } {
   const store = new Map(Object.entries(seed));
