@@ -1,32 +1,29 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { logout, pickActiveEvent } from "./api";
+import { useQuery } from "@tanstack/react-query";
+import { pickActiveEvent } from "./api";
 import { useChecks } from "./hooks/useChecks";
+import { useAuth } from "./hooks/useAuth";
 import { useAppRoute } from "./hooks/useAppRoute";
-import { useChecklistFilters } from "./hooks/useChecklistFilters";
 import { useInstallPrompt } from "./hooks/useInstallPrompt";
 import { useTheme } from "./components/Settings";
 import { Sidebar } from "./components/Sidebar";
 import { BottomNav, type Sheet } from "./components/BottomNav";
 import { ChecklistScreen } from "./screens/ChecklistScreen";
+import { CircleDetailScreen } from "./screens/CircleDetailScreen";
 import { EventsScreen } from "./screens/EventsScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { WishlistScreen } from "./screens/WishlistScreen";
-import { clearAllChecks } from "./lib/checks";
-import { clearAllWishlist } from "./lib/wishlist";
+import { useUiStore } from "./lib/store";
 import { useEventWishlist, useCircleWishlist } from "./hooks/useWishlist";
-import { authQuery, circlesQuery as circlesOptions, eventsQuery as eventsOptions, SIGNED_OUT } from "./lib/queries";
+import { circlesQuery as circlesOptions, eventsQuery as eventsOptions } from "./lib/queries";
 
 /* ---------- 앱 쉘: 라우트 → 화면 분기, 사이드바/하단 네비, 인증, 체크 동기화 ---------- */
 const EMPTY_EVENTS: never[] = [];
 
 export default function App() {
   const { route, openEvents, openWishlist, openEvent, openCircle, openSettings } = useAppRoute();
-  const queryClient = useQueryClient();
-  const auth = useQuery(authQuery());
-  const { enabled: authEnabled, user } = auth.data ?? SIGNED_OUT;
-  const authLoading = auth.isPending;
-  const [syncedAt, setSyncedAt] = useState<number | null>(null);
+  const { user, userId, authenticated, loading: authLoading } = useAuth();
+  const setSyncedAt = useUiStore((s) => s.setSyncedAt);
   const [announce, setAnnounce] = useState("");
   const [theme, setTheme] = useTheme();
   const install = useInstallPrompt();
@@ -34,7 +31,7 @@ export default function App() {
   const handleSync = useCallback((merged: number) => {
     setSyncedAt(Date.now());
     if (merged > 0) setAnnounce(`${merged}개 항목을 동기화했어요`);
-  }, []);
+  }, [setSyncedAt]);
   const handleSyncError = useCallback(() => setAnnounce("방문 체크를 저장하지 못했어요"), []);
 
   const { data: events = EMPTY_EVENTS, isFetched: eventsFetched } = useQuery({ ...eventsOptions(), enabled: route.kind !== "settings" });
@@ -59,13 +56,20 @@ export default function App() {
     [events, eventsFetched],
   );
   const { data: circleData } = useQuery(circlesOptions(eventSlug));
-  const validCircleIds = useMemo(
-    () => circleData?.circles.concat(circleData.witchformExtra).map((candidate) => candidate.id) ?? null,
+  const allCircles = useMemo(
+    () => circleData ? [...circleData.circles, ...circleData.witchformExtra] : [],
     [circleData],
   );
-  const [checks, toggle] = useChecks(eventSlug, event?.status === "active", !!user, authLoading, handleSync, handleSyncError, user?.userId ?? null);
-  const [eventWishlist, toggleEventWishlist] = useEventWishlist(!!user, user?.userId ?? null, () => setAnnounce("위시리스트를 저장했어요"), () => setAnnounce("위시리스트를 저장하지 못했어요"), validEventSlugs);
-  const circleWishlist = useCircleWishlist(eventSlug, !!user, user?.userId ?? null, () => setAnnounce("위시리스트를 저장했어요"), () => setAnnounce("위시리스트를 저장하지 못했어요"), validCircleIds);
+  const validCircleIds = useMemo(
+    () => circleData ? allCircles.map((candidate) => candidate.id) : null,
+    [circleData, allCircles],
+  );
+  const circleSlug = route.kind === "circle" || route.kind === "legacy-circle" ? route.circleSlug : null;
+  // 서클 목록이 도착하기 전에는 상세를 확정할 수 없다 — 그동안은 목록을 계속 보여준다.
+  const detail = circleSlug ? allCircles.find((candidate) => candidate.id === circleSlug) ?? null : null;
+  const [checks, toggle] = useChecks(eventSlug, event?.status === "active", authenticated, authLoading, handleSync, handleSyncError, userId);
+  const [eventWishlist, toggleEventWishlist] = useEventWishlist(authenticated, userId, () => setAnnounce("위시리스트를 저장했어요"), () => setAnnounce("위시리스트를 저장하지 못했어요"), validEventSlugs);
+  const circleWishlist = useCircleWishlist(eventSlug, authenticated, userId, () => setAnnounce("위시리스트를 저장했어요"), () => setAnnounce("위시리스트를 저장하지 못했어요"), validCircleIds);
   const handleToggle = (id: string) => {
     setAnnounce(checks[id] ? "방문 체크를 해제했어요" : "방문 체크했어요");
     toggle(id);
@@ -81,17 +85,12 @@ export default function App() {
     circleWishlist.toggleStar(id);
   };
 
-  const handleLogout = useCallback(() => {
-    void logout().catch(() => {}).finally(() => {
-      clearAllChecks(localStorage);
-      clearAllWishlist(localStorage);
-      queryClient.setQueryData(authQuery().queryKey, (prev) => (prev ? { ...prev, user: null } : SIGNED_OUT));
-      setSyncedAt(null);
-    });
-  }, [queryClient]);
-
-  const filters = useChecklistFilters(requestedEventSlug);
-  const [sheet, setSheet] = useState<Sheet>(null);
+  const setSheet = useUiStore((s) => s.setSheet);
+  const resetFilters = useUiStore((s) => s.resetFilters);
+  // 행사가 바뀌면 검색/필터를 초기화한다.
+  useEffect(() => {
+    if (requestedEventSlug !== null) resetFilters();
+  }, [requestedEventSlug, resetFilters]);
   const pendingSheet = useRef<Sheet>(null);
   useEffect(() => {
     setSheet(pendingSheet.current);
@@ -111,7 +110,6 @@ export default function App() {
     if (eventSlug) openEvent(eventSlug);
     else openEvents();
   };
-  const visibleSheet = route.kind === "event" ? sheet : null;
   const navContext = route.kind === "settings" ? "settings" : route.kind === "events" ? "events" : "event";
   const showNav = route.kind !== "circle" && route.kind !== "legacy-circle";
   const wishlistNav = route.kind === "wishlist";
@@ -134,32 +132,37 @@ export default function App() {
       />
       <main className={"w-full max-w-[560px] mx-auto border-x border-line md:max-w-none md:mx-0 md:border-x-0 md:min-h-screen " + (route.kind === "events" ? "" : "flex-1")}>
         {route.kind === "settings" ? (
-          <SettingsScreen authEnabled={authEnabled} user={user} syncedAt={syncedAt} theme={theme} onTheme={setTheme} onLogout={handleLogout} install={install} />
+          <SettingsScreen theme={theme} onTheme={setTheme} install={install} />
         ) : route.kind === "wishlist" ? (
            <WishlistScreen events={events} eventWishlist={eventWishlist} />
         ) : route.kind === "events" ? (
           <EventsScreen install={install} onOpenSettings={openSettings} wishlist={eventWishlist} onToggleWishlist={handleToggleEventWishlist} />
         ) : (
-          <ChecklistScreen
-            event={event}
-            circleSlug={route.kind === "circle" || route.kind === "legacy-circle" ? route.circleSlug : null}
-            checks={checks}
-            onToggle={handleToggle}
-            filters={filters}
-            sheet={visibleSheet}
-            onSheet={setSheet}
-            onOpenEvent={openEvent}
-            onOpenCircle={openCircle}
-            wishlist={circleWishlist.circles}
-            onToggleStar={handleToggleCircleStar}
-            onUpdateMemo={circleWishlist.updateMemo}
-            eventWishlist={eventWishlist}
-            onToggleEventWishlist={handleToggleEventWishlist}
-          />
+          // 상세는 목록을 대신 차지한다. 서클 목록이 도착하기 전에는 상세를 확정할 수 없어 목록(로딩·에러 UI)을 그대로 둔다.
+          detail ? (
+            <CircleDetailScreen
+              item={detail}
+              all={allCircles}
+              checks={checks}
+              onToggle={handleToggle}
+              circleWishlist={{ ...circleWishlist, toggleStar: handleToggleCircleStar }}
+              onBack={() => eventSlug && openEvent(eventSlug)}
+            />
+          ) : (
+            <ChecklistScreen
+              event={event}
+              checks={checks}
+              onToggle={handleToggle}
+              onOpenCircle={openCircle}
+              circleWishlist={{ ...circleWishlist, toggleStar: handleToggleCircleStar }}
+              eventWishlist={eventWishlist}
+              onToggleEventWishlist={handleToggleEventWishlist}
+            />
+          )
         )}
       </main>
       {showNav && (
-        <BottomNav context={navContext} sheet={visibleSheet} onSheet={handleNavSheet} onList={handleNavList} onEvents={openEvents} onWishlist={openWishlist} wishlistActive={wishlistNav} searchCount={filters.query ? 1 : 0} filterCount={filters.filterCount} onSettings={openSettings} />
+        <BottomNav context={navContext} onSheet={handleNavSheet} onList={handleNavList} onEvents={openEvents} onWishlist={openWishlist} wishlistActive={wishlistNav} onSettings={openSettings} />
       )}
     </div>
   );

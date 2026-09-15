@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { filterCount as countFilters, useUiStore } from "../lib/store";
 
 export type Sheet = "search-filter" | "events" | null;
 
@@ -56,19 +57,19 @@ function Tab({
 
 /** 모바일 전용 하단 네비 — md 이상은 사이드바/topbar가 대신한다. */
 export function BottomNav({
-  context, sheet, onSheet, onList, onEvents, onWishlist, wishlistActive, searchCount, filterCount, onSettings,
+  context, onSheet, onList, onEvents, onWishlist, wishlistActive, onSettings,
 }: {
   context: "event" | "events" | "settings";
-  sheet: Sheet;
   onSheet: (next: Sheet) => void;
   onList: () => void;
   onEvents: () => void;
   onWishlist: () => void;
   wishlistActive: boolean;
-  searchCount: number;
-  filterCount: number;
   onSettings: () => void;
 }) {
+  const openSheet = useUiStore((s) => s.sheet);
+  const sheet: Sheet = context === "event" ? openSheet : null;
+  const badge = useUiStore((s) => (s.query ? 1 : 0) + countFilters(s));
   const settingsActive = context === "settings";
   const toggle = (s: Exclude<Sheet, null>) => onSheet(sheet === s ? null : s);
   const tabsCount = 5;
@@ -116,7 +117,7 @@ export function BottomNav({
         <span key={activeIndex} className="glass-lens-body block h-full w-full rounded-full" />
       </span>
       <Tab icon="list" label="목록" active={listActive && !wishlistActive} aria-current={listActive && !wishlistActive ? "page" : undefined} aria-disabled={listDisabled || undefined} disabled={listDisabled} onClick={onList} />
-      <Tab icon="search" label="검색·필터" active={sheet === "search-filter"} badge={searchCount + filterCount} aria-current={sheet === "search-filter" ? "page" : undefined} aria-expanded={sheetsDisabled ? undefined : sheet === "search-filter"} aria-controls={sheetsDisabled ? undefined : "sheet-search-filter"} aria-disabled={sheetsDisabled || undefined} disabled={sheetsDisabled} onClick={() => { if (!sheetsDisabled) toggle("search-filter"); }} />
+      <Tab icon="search" label="검색·필터" active={sheet === "search-filter"} badge={badge} aria-current={sheet === "search-filter" ? "page" : undefined} aria-expanded={sheetsDisabled ? undefined : sheet === "search-filter"} aria-controls={sheetsDisabled ? undefined : "sheet-search-filter"} aria-disabled={sheetsDisabled || undefined} disabled={sheetsDisabled} onClick={() => { if (!sheetsDisabled) toggle("search-filter"); }} />
       <Tab icon="wishlist" label="찜목록" active={wishlistActive} aria-current={wishlistActive ? "page" : undefined} onClick={onWishlist} />
       <Tab icon="events" label="행사" active={sheet === "events" || context === "events"} aria-current={sheet === "events" || context === "events" ? "page" : undefined} aria-expanded={context === "settings" ? undefined : sheet === "events"} aria-controls={context === "settings" ? undefined : "sheet-events"} onClick={() => { if (context === "settings") onEvents(); else if (context !== "events") toggle("events"); }} />
       <Tab icon="settings" label="설정" active={settingsActive} aria-current={settingsActive ? "page" : undefined} onClick={onSettings} />
