@@ -1,0 +1,5 @@
+ran_at,route,performance,first-contentful-paint,largest-contentful-paint,total-blocking-time,cumulative-layout-shift,speed-index
+2026-09-15T01:14:08.704Z,#/,54,12820.059,15380.412,0,0.083,12820.059
+2026-09-15T01:14:08.704Z,#/wishlist,55,13357.108,16201.129,0,0,13357.108
+2026-09-15T01:14:08.704Z,#/settings,49,12751.757,15451.757,0,0.155,12751.757
+2026-09-15T01:14:08.704Z,#/events/illustar-fes-14,55,12769.178,15611.056,0,0,12769.178

@@ -1,0 +1,25 @@
+name: Perf
+
+on:
+  schedule:
+    - cron: '0 18 * * 0' # 매주 월요일 03:00 KST
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm run perf
+      - run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add docs/perf-history.csv
+          git diff --cached --quiet || git commit -m "chore: perf 측정 기록"
+          git push
