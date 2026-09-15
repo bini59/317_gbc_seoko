@@ -1,5 +1,7 @@
 import type { CircleWishlistMap } from "@/types";
 import type { KV } from "@/lib/checks";
+import { nextTimestamp } from "@/lib/sync";
+export { compareTimestamps } from "@/lib/sync";
 
 export type WishlistState<T> = { value: T; updatedAt: string | null };
 export const eventWishlistKey = "gbc-seoko-event-wishlist";
@@ -10,17 +12,7 @@ function timestamp(value: unknown): string | null {
   return new Date(Date.parse(value)).toISOString();
 }
 
-export function compareTimestamps(a: string | null, b: string | null): number {
-  if (a === b) return 0;
-  if (!a) return -1;
-  if (!b) return 1;
-  return a < b ? -1 : 1;
-}
-
-export function nextWishlistTimestamp(base: string | null, wallClock = true): string {
-  const time = base ? Date.parse(base) : 0;
-  return new Date(Math.max(wallClock ? Date.now() : 0, Number.isNaN(time) ? 0 : time + 1)).toISOString();
-}
+export const nextWishlistTimestamp = nextTimestamp;
 
 function parse<T>(raw: string | null, fallback: T): WishlistState<T> {
   if (!raw) return { value: fallback, updatedAt: null };

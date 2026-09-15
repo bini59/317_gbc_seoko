@@ -121,6 +121,8 @@ describe("useEventWishlist", () => {
     );
 
     const { result } = renderHook(() => useEventWishlist(true, "u1"));
+    // 첫 동기화 전 편집은 로컬에만 쌓였다가 동기화 직후 한 번에 올라간다 — 여기선 개별 PUT 순서를 보려고 기다린다
+    await waitFor(() => expect(localStorage.getItem("gbc-seoko-event-wishlist")).not.toBeNull());
 
     act(() => {
       result.current[1]("ev1");

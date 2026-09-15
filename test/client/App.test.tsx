@@ -97,7 +97,7 @@ describe("<App/> confirmed + unlisted", () => {
     render(<App />);
     expect(await screen.findByRole("heading", { name: "행사 선택" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "홈 화면에 추가하는 방법" })).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "진행 중" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "진행 중" })).toBeTruthy(); // 행사 목록은 비동기 로드
     expect(screen.getByRole("heading", { name: "예정" })).toBeTruthy();
     expect(screen.getByText("코믹월드")).toBeTruthy();
     fireEvent.click(screen.getByRole("link", { name: /일러스타 페스/ }));

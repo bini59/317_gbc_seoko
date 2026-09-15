@@ -48,19 +48,6 @@ export function isChecksTimestamp(value: unknown): value is string {
   return !Number.isNaN(Date.parse(value));
 }
 
-export function compareChecksTimestamps(a: string | null, b: string | null): number {
-  if (a === b) return 0;
-  if (a === null) return -1;
-  if (b === null) return 1;
-  return a < b ? -1 : 1;
-}
-
-/** 서버가 준 시각을 기준으로 다음 논리 시각을 만든다. 인증 상태에서는 이 값을 사용해 클라이언트 시계에 의존하지 않는다. */
-export function nextChecksTimestamp(base: string | null, useWallClock = true): string {
-  const baseTime = base && isChecksTimestamp(base) ? Date.parse(base) : 0;
-  return new Date(Math.max(useWallClock ? Date.now() : 0, baseTime + 1)).toISOString();
-}
-
 function parseState(raw: string | null): ChecksState {
   if (!raw) return { checks: {}, updatedAt: null };
   try {
