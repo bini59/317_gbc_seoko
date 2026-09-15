@@ -9,6 +9,7 @@ import { useTheme } from "./components/Settings";
 import { Sidebar } from "./components/Sidebar";
 import { BottomNav, type Sheet } from "./components/BottomNav";
 import { ChecklistScreen } from "./screens/ChecklistScreen";
+import { CircleDetailScreen } from "./screens/CircleDetailScreen";
 import { EventsScreen } from "./screens/EventsScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { WishlistScreen } from "./screens/WishlistScreen";
@@ -55,10 +56,17 @@ export default function App() {
     [events, eventsFetched],
   );
   const { data: circleData } = useQuery(circlesOptions(eventSlug));
-  const validCircleIds = useMemo(
-    () => circleData?.circles.concat(circleData.witchformExtra).map((candidate) => candidate.id) ?? null,
+  const allCircles = useMemo(
+    () => circleData ? [...circleData.circles, ...circleData.witchformExtra] : [],
     [circleData],
   );
+  const validCircleIds = useMemo(
+    () => circleData ? allCircles.map((candidate) => candidate.id) : null,
+    [circleData, allCircles],
+  );
+  const circleSlug = route.kind === "circle" || route.kind === "legacy-circle" ? route.circleSlug : null;
+  // 서클 목록이 도착하기 전에는 상세를 확정할 수 없다 — 그동안은 목록을 계속 보여준다.
+  const detail = circleSlug ? allCircles.find((candidate) => candidate.id === circleSlug) ?? null : null;
   const [checks, toggle] = useChecks(eventSlug, event?.status === "active", authenticated, authLoading, handleSync, handleSyncError, userId);
   const [eventWishlist, toggleEventWishlist] = useEventWishlist(authenticated, userId, () => setAnnounce("위시리스트를 저장했어요"), () => setAnnounce("위시리스트를 저장하지 못했어요"), validEventSlugs);
   const circleWishlist = useCircleWishlist(eventSlug, authenticated, userId, () => setAnnounce("위시리스트를 저장했어요"), () => setAnnounce("위시리스트를 저장하지 못했어요"), validCircleIds);
@@ -130,17 +138,27 @@ export default function App() {
         ) : route.kind === "events" ? (
           <EventsScreen install={install} onOpenSettings={openSettings} wishlist={eventWishlist} onToggleWishlist={handleToggleEventWishlist} />
         ) : (
-          <ChecklistScreen
-            event={event}
-            circleSlug={route.kind === "circle" || route.kind === "legacy-circle" ? route.circleSlug : null}
-            checks={checks}
-            onToggle={handleToggle}
-            onOpenEvent={openEvent}
-            onOpenCircle={openCircle}
-            circleWishlist={{ ...circleWishlist, toggleStar: handleToggleCircleStar }}
-            eventWishlist={eventWishlist}
-            onToggleEventWishlist={handleToggleEventWishlist}
-          />
+          // 상세는 목록을 대신 차지한다. 서클 목록이 도착하기 전에는 상세를 확정할 수 없어 목록(로딩·에러 UI)을 그대로 둔다.
+          detail ? (
+            <CircleDetailScreen
+              item={detail}
+              all={allCircles}
+              checks={checks}
+              onToggle={handleToggle}
+              circleWishlist={{ ...circleWishlist, toggleStar: handleToggleCircleStar }}
+              onBack={() => eventSlug && openEvent(eventSlug)}
+            />
+          ) : (
+            <ChecklistScreen
+              event={event}
+              checks={checks}
+              onToggle={handleToggle}
+              onOpenCircle={openCircle}
+              circleWishlist={{ ...circleWishlist, toggleStar: handleToggleCircleStar }}
+              eventWishlist={eventWishlist}
+              onToggleEventWishlist={handleToggleEventWishlist}
+            />
+          )
         )}
       </main>
       {showNav && (

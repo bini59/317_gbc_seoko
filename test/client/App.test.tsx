@@ -225,7 +225,7 @@ describe("<App/> confirmed + unlisted", () => {
     render(<App />);
     fireEvent.click(await screen.findByText("통판서클"));
     expect(screen.getByText("서클 상세")).toBeTruthy();
-    expect(screen.getByText("부스서클")).toBeTruthy(); // 데스크톱 2컬럼: 목록 유지
+    expect(screen.queryByText("부스서클")).toBeNull(); // 상세는 목록을 대신 차지한다
   });
 
   it("search matches 통판 by name and hides booth circles", async () => {
@@ -729,6 +729,11 @@ describe("<App/> bottom navigation (mobile)", () => {
     fireEvent.click(screen.getByText("부스서클"));
     expect(await screen.findByText("서클 상세")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "시트 닫기" })).toBeNull();
+    expect(screen.queryByRole("group", { name: "검색과 필터" })).toBeNull();
+
+    // 목록으로 돌아와도 시트는 닫힌 채로 시작한다
+    fireEvent.click(screen.getByRole("button", { name: "목록으로 뒤로" }));
+    expect(await screen.findByText("부스서클")).toBeTruthy();
     expect(screen.getByRole("group", { name: "검색과 필터" }).classList.contains("hidden")).toBe(true);
   });
 });
