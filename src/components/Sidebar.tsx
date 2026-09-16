@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
-import { eventsQuery } from "../lib/queries";
-import type { ApiEvent } from "../api";
-import { eventHash } from "../lib/route";
-import { eventSubtitle } from "../lib/event";
+import { eventsQuery } from "@/lib/queries";
+import type { ApiEvent } from "@/api";
+import { eventHash } from "@/lib/route";
+import { eventSubtitle } from "@/lib/event";
 
 const EVENT_SECTIONS = [
   { status: "active", label: "진행 중" },

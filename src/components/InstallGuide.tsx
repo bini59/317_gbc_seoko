@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { InstallState } from "../hooks/useInstallPrompt";
+import type { InstallState } from "@/hooks/useInstallPrompt";
 
 export const INSTALL_BANNER_DISMISSED_KEY = "gbc-seoko-install-banner-dismissed";
 

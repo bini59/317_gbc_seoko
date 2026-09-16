@@ -1,6 +1,6 @@
-import type { Circle, CircleWishlistMap, CircleWishlistResponse, EventWishlistResponse, TweetInfo } from "./types";
-import type { Checks } from "./lib/checks";
-import { cacheKeys, loadCache, saveCache, type CacheStorage } from "./lib/cache";
+import type { Circle, CircleWishlistMap, CircleWishlistResponse, EventWishlistResponse, TweetInfo } from "@/types";
+import type { Checks } from "@/lib/checks";
+import { cacheKeys, loadCache, saveCache, type CacheStorage } from "@/lib/cache";
 
 export type ApiMeta = { schemaVersion: number; hash: string };
 

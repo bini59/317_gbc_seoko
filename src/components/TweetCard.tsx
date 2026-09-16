@@ -1,4 +1,4 @@
-import type { TweetInfo } from "../types";
+import type { TweetInfo } from "@/types";
 
 /* ---------- X 참가공지 트윗 카드 (og 태그 기반) ---------- */
 export function TweetCard({ tweet }: { tweet: TweetInfo }) {

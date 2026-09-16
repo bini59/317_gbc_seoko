@@ -3,8 +3,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render as rtlRender, screen, fireEvent, cleanup, waitFor, act, within } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import App from "../../src/App";
-import { cacheKeys } from "../../src/lib/cache";
+import App from "@/App";
+import { cacheKeys } from "@/lib/cache";
 
 type ApiCircleLike = Record<string, unknown>;
 
@@ -97,7 +97,7 @@ describe("<App/> confirmed + unlisted", () => {
     render(<App />);
     expect(await screen.findByRole("heading", { name: "행사 선택" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "홈 화면에 추가하는 방법" })).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "진행 중" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "진행 중" })).toBeTruthy(); // 행사 목록은 비동기 로드
     expect(screen.getByRole("heading", { name: "예정" })).toBeTruthy();
     expect(screen.getByText("코믹월드")).toBeTruthy();
     fireEvent.click(screen.getByRole("link", { name: /일러스타 페스/ }));
@@ -507,111 +507,26 @@ describe("<App/> bottom navigation (mobile)", () => {
     vi.unstubAllGlobals();
   });
 
-  it("renders 5 tabs and opens the 행사 sheet without hiding the nav", async () => {
+  it("renders 4 page tabs and marks the current screen", async () => {
     render(<App />);
     await screen.findByText("부스서클");
     const nav = screen.getByRole("navigation", { name: "하단 메뉴" });
-    expect(nav.querySelectorAll("button").length).toBe(5);
-    expect(screen.getByRole("button", { name: "목록" }).getAttribute("aria-current")).toBe("page");
+    expect([...nav.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["행사", "서클", "찜목록", "설정"]);
+    expect(nav.querySelectorAll("button[disabled]").length).toBe(0);
+    expect(screen.getByRole("button", { name: "서클" }).getAttribute("aria-current")).toBe("page");
     const indicator = nav.querySelector<HTMLElement>('span[aria-hidden="true"]')!;
-    expect(indicator.style.transform).toBe("translateX(0%)");
-    fireEvent.click(screen.getByRole("button", { name: "검색·필터" }));
     expect(indicator.style.transform).toBe("translateX(100%)");
 
-    const eventsTab = screen.getByRole("button", { name: "행사" });
-    fireEvent.click(eventsTab);
-    expect(indicator.style.transform).toBe("translateX(300%)");
-    expect(eventsTab.getAttribute("aria-expanded")).toBe("true");
-    expect(eventsTab.getAttribute("aria-controls")).toBe("sheet-events");
-    const sheet = document.getElementById("sheet-events")!;
-    expect(sheet.className).toContain("md:hidden");
-    expect(document.activeElement).toBe(within(sheet).getByRole("link", { name: /코믹월드/ }));
-    expect(screen.getByRole("navigation", { name: "하단 메뉴" })).toBeTruthy();
-    expect(window.location.hash).toBe("#/events/ev");
-    // 현재 행사는 헤더 + 체크 표시
-    expect(within(sheet).getByRole("link", { name: /코믹월드/ }).getAttribute("aria-current")).toBe("page");
-
-    fireEvent.click(within(sheet).getByRole("link", { name: /일러스타 페스/ }));
-    await waitFor(() => expect(window.location.hash).toBe("#/events/illustar"));
-    await waitFor(() => expect(within(sheet).queryByRole("link", { name: /일러스타 페스/ })).toBeNull());
-    expect(eventsTab.getAttribute("aria-expanded")).toBe("false");
-    expect(screen.getByRole("navigation", { name: "하단 메뉴" })).toBeTruthy();
-  });
-
-  it("closes the 행사 sheet with Escape, the backdrop, and re-tapping the current 행사", async () => {
-    render(<App />);
-    await screen.findByText("부스서클");
-    const tab = screen.getByRole("button", { name: "행사" });
-    const sheet = document.getElementById("sheet-events")!;
-    fireEvent.click(tab);
-    expect(document.body.style.overflow).toBe("hidden");
-    fireEvent.keyDown(window, { key: "Escape" });
-    expect(tab.getAttribute("aria-expanded")).toBe("false");
-    fireEvent.click(tab);
-    fireEvent.click(screen.getByRole("button", { name: "시트 닫기" }));
-    expect(tab.getAttribute("aria-expanded")).toBe("false");
-    fireEvent.click(tab);
-    fireEvent.click(within(sheet).getByRole("link", { name: /코믹월드/ })); // 같은 해시 → hashchange 없음
-    expect(tab.getAttribute("aria-expanded")).toBe("false");
-    expect(window.location.hash).toBe("#/events/ev");
-    expect(document.body.style.overflow).toBe("");
-    await act(() => new Promise((r) => setTimeout(r, 0))); // jsdom의 지연된 앵커 내비게이션이 다음 테스트로 새지 않게
-  });
-
-  it.skip("opens the settings sheet from the header gear, keeps 4 tabs, and closes on Escape (#45)", async () => {
-    mockApi(CIRCLES, true);
-    render(<App />);
-    await screen.findByText("부스서클");
-    const gear = screen.getByRole("button", { name: "설정" });
-    expect(gear.getAttribute("aria-controls")).toBe("sheet-settings");
-    const sheet = document.getElementById("sheet-settings")!;
-    expect(sheet.className.split(" ")).toContain("hidden");
-    expect(within(sheet).queryByRole("button", { name: "연동하기" })).toBeNull(); // 닫힘 = 미렌더(사이드바 사본과 중복 방지)
-    gear.focus(); // 브라우저는 클릭 시 포커스가 붙지만 jsdom의 fireEvent.click은 아니다
-    fireEvent.click(gear);
-    expect(gear.getAttribute("aria-expanded")).toBe("true");
-    expect(sheet.className.split(" ")).not.toContain("hidden");
-    expect(sheet.className).toContain("md:hidden");
-    expect(document.activeElement).toBe(within(sheet).getByRole("button", { name: "연동하기" }));
-    expect(screen.getByRole("navigation", { name: "하단 메뉴" }).querySelectorAll("button").length).toBe(4);
-    expect(screen.getByRole("button", { name: "목록" }).getAttribute("aria-current")).toBe("page");
-    // 테마는 App이 한 번만 들고 있어 시트에서 고르면 사이드바 사본도 같은 값을 본다
-    fireEvent.click(within(sheet).getByRole("button", { name: "다크" }));
-    const aside = screen.getByText("설정", { selector: "summary" }).closest("aside")!;
-    expect(within(aside).getByRole("button", { name: "다크" }).getAttribute("aria-pressed")).toBe("true");
-    fireEvent.click(within(sheet).getByRole("button", { name: "시스템" })); // data-theme 정리
-    fireEvent.keyDown(window, { key: "Escape" });
-    expect(gear.getAttribute("aria-expanded")).toBe("false");
-    expect(document.activeElement).toBe(gear);
-  });
-
-  it("shows the 행사 landing with a nav and disables irrelevant actions", async () => {
-    window.location.hash = "#/events";
-    render(<App />);
-    expect(await screen.findByRole("heading", { name: "행사 선택" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: /코믹월드/ })).toBeTruthy();
-    expect(within(screen.getByRole("complementary")).getByRole("link", { name: "설정" }).parentElement?.classList.contains("hidden")).toBe(true);
-    const nav = screen.getByRole("navigation", { name: "하단 메뉴" });
-    expect(screen.getByRole("button", { name: "행사" }).getAttribute("aria-current")).toBe("page");
-    expect(nav.querySelector<HTMLElement>('span[aria-hidden="true"]')!.style.transform).toBe("translateX(300%)");
-    const unavailable = [screen.getByRole("button", { name: "목록" }), screen.getByRole("button", { name: "검색·필터" })];
-    for (const tab of unavailable) {
-      expect((tab as HTMLButtonElement).disabled).toBe(true);
-      expect(tab.getAttribute("aria-disabled")).toBe("true");
-      expect(tab.className).toContain("cursor-not-allowed");
-      expect(tab.className).toContain("opacity");
-    }
-    expect(nav.querySelectorAll('button[aria-disabled="true"]').length).toBe(2);
-  });
-
-  it("clears the selected 행사 when opening the landing from a checklist", async () => {
-    window.location.hash = "#/events/ev";
-    render(<App />);
-    await screen.findByText("부스서클");
-    fireEvent.click(screen.getByRole("button", { name: "설정" }));
     fireEvent.click(screen.getByRole("button", { name: "행사" }));
-    await screen.findByRole("heading", { name: "행사 선택" });
+    expect(await screen.findByRole("heading", { name: "행사 선택" })).toBeTruthy();
+    expect(window.location.hash).toBe("#/");
+    expect(screen.getByRole("button", { name: "행사" }).getAttribute("aria-current")).toBe("page");
+    expect(indicator.style.transform).toBe("translateX(0%)");
     expect(screen.getByRole("link", { name: /코믹월드/ }).getAttribute("aria-current")).toBeNull();
+
+    fireEvent.click(screen.getByRole("link", { name: /일러스타 페스/ }));
+    await waitFor(() => expect(window.location.hash).toBe("#/events/illustar"));
+    expect(screen.getByRole("button", { name: "서클" }).getAttribute("aria-current")).toBe("page");
   });
 
   it("strengthens the nav background when content is underneath", async () => {
@@ -637,31 +552,39 @@ describe("<App/> bottom navigation (mobile)", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "설정" }));
     expect(await screen.findByRole("heading", { name: "설정" })).toBeTruthy();
-    expect(nav.querySelector<HTMLElement>('span[aria-hidden="true"]')!.style.transform).toBe("translateX(400%)");
+    expect(nav.querySelector<HTMLElement>('span[aria-hidden="true"]')!.style.transform).toBe("translateX(300%)");
     expect(screen.getByRole("button", { name: "설정" }).getAttribute("aria-current")).toBe("page");
   });
 
-  it("connects settings navigation to the current checklist", async () => {
+  it("returns to the last checklist from settings and wishlist via 서클", async () => {
     window.location.hash = "#/events/ev";
     render(<App />);
     await screen.findByText("부스서클");
     fireEvent.click(screen.getByRole("button", { name: "설정" }));
     expect(await screen.findByRole("heading", { name: "설정" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "설정" }).parentElement?.className).toContain("pb-[calc(88px+env(safe-area-inset-bottom))]");
-    fireEvent.click(screen.getByRole("button", { name: "행사" }));
-    expect(await screen.findByRole("heading", { name: "행사 선택" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("link", { name: /코믹월드/ }));
+    fireEvent.click(screen.getByRole("button", { name: "서클" }));
     expect(await screen.findByText("부스서클")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "설정" }));
-    fireEvent.click(screen.getByRole("button", { name: "목록" }));
-    expect(await screen.findByText("부스서클")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "설정" }));
-    fireEvent.click(screen.getByRole("button", { name: "검색·필터" }));
-    expect(await screen.findByRole("searchbox")).toBeTruthy();
     expect(window.location.hash).toBe("#/events/ev");
-    await act(async () => { fireEvent(window, new Event("hashchange")); });
-    expect(document.getElementById("sheet-search-filter")!.classList.contains("hidden")).toBe(false);
-    expect(screen.getByRole("button", { name: "검색·필터" }).getAttribute("aria-expanded")).toBe("true");
+
+    fireEvent.click(screen.getByRole("button", { name: "찜목록" }));
+    expect(await screen.findByRole("heading", { name: "찜목록" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "서클" }));
+    expect(await screen.findByText("부스서클")).toBeTruthy();
+    expect(window.location.hash).toBe("#/events/ev");
+
+    // 행사 목록을 거치면 선택이 풀려 서클 탭은 비활성이 된다
+    fireEvent.click(screen.getByRole("button", { name: "행사" }));
+    await screen.findByRole("heading", { name: "행사 선택" });
+    const list = screen.getByRole("button", { name: "서클" }) as HTMLButtonElement;
+    expect(list.disabled).toBe(true);
+    expect(list.getAttribute("aria-disabled")).toBe("true");
+    expect(list.className).toContain("cursor-not-allowed");
+    fireEvent.click(screen.getByRole("button", { name: "설정" }));
+    await screen.findByRole("heading", { name: "설정" });
+    expect((screen.getByRole("button", { name: "서클" }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "서클" }));
+    expect(screen.getByRole("heading", { name: "설정" })).toBeTruthy();
   });
 
   it("keeps the bottom nav focused across screen changes", async () => {
@@ -673,44 +596,47 @@ describe("<App/> bottom navigation (mobile)", () => {
     fireEvent.click(settings);
     expect(await screen.findByRole("heading", { name: "설정" })).toBeTruthy();
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "설정" }));
-    const list = screen.getByRole("button", { name: "목록" });
+    const list = screen.getByRole("button", { name: "서클" });
     list.focus();
     fireEvent.click(list);
     expect(await screen.findByText("부스서클")).toBeTruthy();
-    expect(document.activeElement).toBe(screen.getByRole("button", { name: "목록" }));
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "서클" }));
   });
 
-  it("toggles the search/filter sheets and shows the active filter count", async () => {
+  it("toggles the search/filter sheet from the header and shows the active filter count", async () => {
     render(<App />);
     await screen.findByText("부스서클");
     const search = screen.getByRole("button", { name: "검색·필터" });
+    expect(search.getAttribute("aria-controls")).toBe("sheet-search-filter");
+    expect(search.className).toContain("md:hidden");
     expect(document.getElementById("sheet-search-filter")!.classList.contains("hidden")).toBe(true);
     search.focus();
     fireEvent.click(search);
     expect(search.getAttribute("aria-expanded")).toBe("true");
-    expect(search.getAttribute("aria-current")).toBe("page");
     expect(document.getElementById("sheet-search-filter")!.classList.contains("hidden")).toBe(false);
+    expect(document.body.style.overflow).toBe("hidden");
     expect(document.activeElement).toBe(screen.getByRole("searchbox"));
     fireEvent.change(screen.getByRole("searchbox"), { target: { value: "부스" } });
     expect(screen.getByRole("button", { name: "검색·필터 1개 적용" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "시트 닫기" }));
     expect(document.getElementById("sheet-search-filter")!.classList.contains("hidden")).toBe(true);
+    expect(document.body.style.overflow).toBe("");
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "검색·필터 1개 적용" }));
     fireEvent.change(screen.getByRole("searchbox"), { target: { value: "" } });
 
     fireEvent.click(search);
-    expect(search.getAttribute("aria-expanded")).toBe("true");
     fireEvent.click(screen.getByRole("button", { name: "체크함" }));
     fireEvent.click(screen.getByRole("button", { name: "걸즈밴드크라이" }));
     expect(screen.getByRole("button", { name: "검색·필터 2개 적용" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "목록" }).getAttribute("aria-current")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "목록" }));
-    expect(screen.getByRole("button", { name: "목록" }).getAttribute("aria-current")).toBe("page");
-    fireEvent.click(screen.getByRole("button", { name: "검색·필터 2개 적용" }));
-
+    // 시트가 열려도 하단 바의 현재 화면 표시는 그대로다
+    expect(screen.getByRole("button", { name: "서클" }).getAttribute("aria-current")).toBe("page");
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.getByRole("button", { name: "검색·필터 2개 적용" }).getAttribute("aria-expanded")).toBe("false");
     expect(screen.queryByRole("button", { name: "시트 닫기" })).toBeNull();
+    // 서클 탭을 다시 눌러도 시트는 닫힌다
+    fireEvent.click(screen.getByRole("button", { name: "검색·필터 2개 적용" }));
+    fireEvent.click(screen.getByRole("button", { name: "서클" }));
+    expect(screen.getByRole("button", { name: "검색·필터 2개 적용" }).getAttribute("aria-expanded")).toBe("false");
   });
 
   it("hides the nav while a circle detail is open", async () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterCircles } from "../../src/lib/circle";
+import { filterCircles } from "@/lib/circle";
 import {
   clearAllWishlist,
   compareTimestamps,
@@ -9,8 +9,8 @@ import {
   pruneCircleWishlist,
   saveCircleWishlistState,
   saveEventWishlistState,
-} from "../../src/lib/wishlist";
-import type { Circle } from "../../src/types";
+} from "@/lib/wishlist";
+import type { Circle } from "@/types";
 
 const circle = (id: string): Circle => ({ id, name: id, links: [] });
 

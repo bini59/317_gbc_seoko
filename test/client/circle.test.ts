@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { filterCircles, chipLabel, boothShort, chipsFor } from "../../src/lib/circle";
-import type { Circle } from "../../src/types";
+import { filterCircles, chipLabel, boothShort, chipsFor } from "@/lib/circle";
+import type { Circle } from "@/types";
 
 const mk = (o: Partial<Circle> & { id: string }): Circle => ({
   name: o.id,

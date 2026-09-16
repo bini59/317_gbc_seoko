@@ -1,12 +1,14 @@
 import { useMemo, useState } from "react";
-import { useQueries } from "@tanstack/react-query";
-import type { ApiEvent } from "../api";
-import { circlesQuery } from "../lib/queries";
-import { eventHash, circleHash } from "../lib/route";
-import { loadCircleWishlistState } from "../lib/wishlist";
-import type { Circle } from "../types";
+import { useQueries, useQuery } from "@tanstack/react-query";
+import { circlesQuery, eventsQuery } from "@/lib/queries";
+import { eventHash, circleHash } from "@/lib/route";
+import { loadCircleWishlistState } from "@/lib/wishlist";
 
-export function WishlistScreen({ events, eventWishlist }: { events: ApiEvent[]; eventWishlist: string[] }) {
+const EMPTY_EVENTS: never[] = [];
+
+/** 찜한 행사·서클 모아보기. 행사 찜은 App의 useEventWishlist가 단일 소유라 prop으로 받는다. */
+export function WishlistScreen({ eventWishlist }: { eventWishlist: string[] }) {
+  const { data: events = EMPTY_EVENTS } = useQuery(eventsQuery());
   const [query, setQuery] = useState("");
   const likedEvents = useMemo(() => events.filter((event) => eventWishlist.includes(event.slug)), [events, eventWishlist]);
   const circleQueries = useQueries({ queries: events.map((event) => circlesQuery(event.slug)) });

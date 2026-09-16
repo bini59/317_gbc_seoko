@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
-import { InstallBanner } from "../components/InstallGuide";
-import type { InstallState } from "../hooks/useInstallPrompt";
-import { eventsQuery } from "../lib/queries";
-import { eventSubtitle } from "../lib/event";
+import { InstallBanner } from "@/components/InstallGuide";
+import type { InstallState } from "@/hooks/useInstallPrompt";
+import { eventsQuery } from "@/lib/queries";
+import { eventSubtitle } from "@/lib/event";
 
 export function EventsScreen({ install, onOpenSettings, wishlist = [], onToggleWishlist }: { install: InstallState; onOpenSettings: () => void; wishlist?: string[]; onToggleWishlist?: (slug: string) => void }) {
   const { data: events = [], error, isFetching } = useQuery(eventsQuery());

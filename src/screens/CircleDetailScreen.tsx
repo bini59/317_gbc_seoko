@@ -1,8 +1,8 @@
-import type { Circle } from "../types";
-import { badgeColor } from "../lib/circle";
-import { Detail } from "../components/Detail";
-import type { Checks } from "../lib/checks";
-import type { useCircleWishlist } from "../hooks/useWishlist";
+import type { Circle } from "@/types";
+import { badgeColor } from "@/lib/circle";
+import { Detail } from "@/components/Detail";
+import type { Checks } from "@/lib/checks";
+import type { useCircleWishlist } from "@/hooks/useWishlist";
 
 type Props = {
   item: Circle;

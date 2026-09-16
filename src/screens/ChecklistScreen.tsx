@@ -1,15 +1,13 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { ApiEvent } from "../api";
-import { badgeColor, filterCircles, STATUS } from "../lib/circle";
-import type { Checks } from "../lib/checks";
-import { eventSubtitle } from "../lib/event";
-import { circlesQuery as circlesOptions, eventsQuery as eventsOptions } from "../lib/queries";
-import { Card } from "../components/Card";
-import { EventList } from "../components/Sidebar";
-import type { Sheet } from "../components/BottomNav";
-import { useUiStore } from "../lib/store";
-import type { useCircleWishlist } from "../hooks/useWishlist";
+import type { ApiEvent } from "@/api";
+import { badgeColor, filterCircles, STATUS } from "@/lib/circle";
+import type { Checks } from "@/lib/checks";
+import { eventSubtitle } from "@/lib/event";
+import { circlesQuery as circlesOptions, eventsQuery as eventsOptions } from "@/lib/queries";
+import { Card } from "@/components/Card";
+import { filterCount, useUiStore } from "@/lib/store";
+import type { useCircleWishlist } from "@/hooks/useWishlist";
 
 type Props = {
   /** 라우트가 가리키는 행사. events 로딩 중이거나 slug가 없으면 null. */
@@ -18,8 +16,6 @@ type Props = {
   onToggle: (id: string) => void;
   onOpenCircle: (eventSlug: string, circleSlug: string) => void;
   circleWishlist: ReturnType<typeof useCircleWishlist>;
-  eventWishlist: string[];
-  onToggleEventWishlist: (slug: string) => void;
 };
 
 const statusChip = (active: boolean) =>
@@ -29,11 +25,10 @@ const genreChip = (active: boolean) =>
   "inline-flex items-center h-7 px-2.5 rounded-full text-[12px] font-medium cursor-pointer whitespace-nowrap border " +
   (active ? "bg-accent/10 text-accent border-accent/30" : "bg-card text-muted border-line");
 
-/** 행사 하나의 체크리스트 화면. 필터/시트 상태는 하단 네비와 공유하므로 UI store에서 읽는다. */
+/** 행사 하나의 체크리스트 화면. 필터/시트 상태는 UI store에서 읽는다(행사 전환 시 App이 초기화). */
 export function ChecklistScreen({
   event, checks, onToggle,
   onOpenCircle, circleWishlist,
-  eventWishlist, onToggleEventWishlist,
 }: Props) {
   const status = useUiStore((s) => s.status);
   const setStatus = useUiStore((s) => s.setStatus);
@@ -43,13 +38,13 @@ export function ChecklistScreen({
   const query = useUiStore((s) => s.query);
   const setQuery = useUiStore((s) => s.setQuery);
   const setSheet = useUiStore((s) => s.setSheet);
-  const sheet: Sheet = useUiStore((s) => s.sheet);
+  const sheet = useUiStore((s) => s.sheet);
+  const badge = useUiStore((s) => (s.query ? 1 : 0) + filterCount(s));
   const { circles: wishlist, toggleStar } = circleWishlist;
   const searchRef = useRef<HTMLInputElement>(null);
   const eventSlug = event?.slug ?? null;
 
   const eventsQuery = useQuery(eventsOptions());
-  const events = eventsQuery.data ?? [];
   const circlesQuery = useQuery(circlesOptions(eventSlug));
   const circles = circlesQuery.data?.circles ?? [];
   const witchformExtra = circlesQuery.data?.witchformExtra ?? [];
@@ -70,9 +65,7 @@ export function ChecklistScreen({
   useEffect(() => {
     if (!sheet) { opener.current?.focus(); opener.current = null; return; }
     opener.current = document.activeElement as HTMLElement | null;
-    if (sheet === "search-filter") searchRef.current?.focus();
-    // 시트가 네비보다 DOM 앞에 있어 Tab으로 못 들어간다 — 첫 항목으로 포커스 이동
-    if (sheet === "events") document.querySelector<HTMLElement>(`#sheet-${sheet} a, #sheet-${sheet} button`)?.focus();
+    searchRef.current?.focus();
     document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setSheet(null); };
     window.addEventListener("keydown", onKey);
@@ -93,13 +86,12 @@ export function ChecklistScreen({
   const tsuhanList = filtered.filter((c) => c.unlisted);
 
   const gridCls = "grid gap-3 md:grid-cols-2 xl:grid-cols-3";
-  const visibleSheet = sheet;
-  const sheetPanel = (s: Exclude<Sheet, null>) =>
-    visibleSheet === s
+  const visibleSheet = sheet !== null;
+  const sheetCls =
+    (visibleSheet
       ? "glass fixed left-1/2 -translate-x-1/2 w-full max-w-[560px] bottom-0 z-20 rounded-t-[24px] border-b-0 px-5 pt-4 pb-[calc(76px+env(safe-area-inset-bottom))] max-h-[68vh] overflow-y-auto "
-      : "hidden ";
-  const sheetCls = (s: Exclude<Sheet, null>) =>
-    sheetPanel(s) + "md:static md:block md:translate-x-0 md:max-w-none md:rounded-none md:border-0 md:bg-transparent md:shadow-none md:backdrop-filter-none md:after:hidden md:p-0 md:max-h-none md:overflow-visible";
+      : "hidden ") +
+    "md:static md:block md:translate-x-0 md:max-w-none md:rounded-none md:border-0 md:bg-transparent md:shadow-none md:backdrop-filter-none md:after:hidden md:p-0 md:max-h-none md:overflow-visible";
   const genres = Array.from(new Set(all.flatMap((circle) => circle.ips ?? []).filter(Boolean))).sort();
 
   const renderCards = (list: typeof all) => (
@@ -135,12 +127,27 @@ export function ChecklistScreen({
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <div className="text-[12.5px] font-bold text-accent">찜 {starCount} · 방문 {doneCount}/{all.length}</div>
+            <button
+              type="button"
+              onClick={() => setSheet(visibleSheet ? null : "search-filter")}
+              aria-label={badge ? `검색·필터 ${badge}개 적용` : "검색·필터"}
+              aria-expanded={visibleSheet}
+              aria-controls="sheet-search-filter"
+              className={"relative flex items-center justify-center w-10 h-10 rounded-full border border-line bg-card cursor-pointer md:hidden " + (visibleSheet || badge ? "text-accent" : "text-muted")}
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" />
+              </svg>
+              {badge ? (
+                <span aria-hidden="true" className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-accent text-bg text-[10px] leading-4 text-center">{badge}</span>
+              ) : null}
+            </button>
           </div>
         </div>
 
         {visibleSheet ? <button type="button" aria-label="시트 닫기" onClick={() => setSheet(null)} className="fixed inset-0 z-20 bg-black/40 md:hidden" /> : null}
 
-        <div id="sheet-search-filter" role="group" aria-label="검색과 필터" className={sheetCls("search-filter")}>
+        <div id="sheet-search-filter" role="group" aria-label="검색과 필터" className={sheetCls}>
           <div className="flex items-center gap-2.5 h-11 bg-card border border-line rounded-[14px] px-3.5 md:h-10 md:max-w-[520px]">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#9aa0aa" strokeWidth="2" strokeLinecap="round">
               <circle cx="11" cy="11" r="7" />
@@ -197,17 +204,6 @@ export function ChecklistScreen({
               </button>
             ))}
           </div>
-        </div>
-
-
-        <div id="sheet-events" role="group" aria-label="행사 전환" onClick={() => setSheet(null)} className={sheetPanel("events") + "md:hidden"}>
-          {sheet === "events" ? (
-            <>
-              <div className="text-xs font-extrabold tracking-[0.04em] text-faint">현재 행사</div>
-              <div className="mt-1 text-[17px] font-extrabold text-ink truncate">{event?.title}</div>
-              <EventList events={events} currentSlug={eventSlug} wishlist={eventWishlist} onToggleWishlist={onToggleEventWishlist} />
-            </>
-          ) : null}
         </div>
       </div>
 

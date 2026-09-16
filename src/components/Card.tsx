@@ -1,6 +1,6 @@
-import type { Circle } from "../types";
-import { boothShort, chipsFor } from "../lib/circle";
-import { LinkChips } from "./LinkChips";
+import type { Circle } from "@/types";
+import { boothShort, chipsFor } from "@/lib/circle";
+import { LinkChips } from "@/components/LinkChips";
 
 /* ---------- 목록 카드 ---------- */
 export function Card({

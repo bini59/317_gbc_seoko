@@ -1,10 +1,10 @@
 import { useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { logout } from "../api";
-import { authQuery, SIGNED_OUT } from "../lib/queries";
-import { clearAllChecks } from "../lib/checks";
-import { clearAllWishlist } from "../lib/wishlist";
-import { useUiStore } from "../lib/store";
+import { logout } from "@/api";
+import { authQuery, SIGNED_OUT } from "@/lib/queries";
+import { clearAllChecks } from "@/lib/checks";
+import { clearAllWishlist } from "@/lib/wishlist";
+import { useUiStore } from "@/lib/store";
 
 /**
  * 세션은 서버 상태라 react-query가 단일 출처로 들고 있고, 이 훅은 화면이

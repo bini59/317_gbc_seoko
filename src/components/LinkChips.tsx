@@ -1,4 +1,4 @@
-import type { Chip } from "../lib/circle";
+import type { Chip } from "@/lib/circle";
 
 /* ---------- 링크 칩 ---------- */
 export function LinkChips({ chips }: { chips: Chip[] }) {
