@@ -30,29 +30,29 @@
 
 ## 로컬 실행
 ```bash
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 ## 로컬 DB (D1)
 빈 로컬 D1를 마이그레이션만으로 구성하고 개발용 seed를 넣는다:
 ```bash
-npm run db:migrate:local   # migrations/ 적용 → 스키마 재현
-npm run db:seed:local      # migrations/seed-dev.sql (최소 개발 데이터)
+pnpm db:migrate:local   # migrations/ 적용 → 스키마 재현
+pnpm db:seed:local      # migrations/seed-dev.sql (최소 개발 데이터)
 ```
 
 ## 검증
 ```bash
-npm run typecheck   # 클라이언트 + Worker 타입 체크
-npm test            # vitest (Worker API 통합 + 클라이언트 단위)
-npm run build
+pnpm typecheck   # 클라이언트 + Worker 타입 체크
+pnpm test            # vitest (Worker API 통합 + 클라이언트 단위)
+pnpm build
 ```
 > 테스트는 Node 내장 `node:sqlite`(Node ≥ 22.5)로 마이그레이션을 인메모리 D1에 적용해 실행한다. PR마다 GitHub Actions(`.github/workflows/ci.yml`)가 install → typecheck → test → build를 수행한다.
 
 ## 빌드
 ```bash
-npm run build   # → dist/ 생성
-npm run preview # 빌드 결과 미리보기
+pnpm build   # → dist/ 생성
+pnpm preview # 빌드 결과 미리보기
 ```
 
 ## API 오류 응답
@@ -100,19 +100,19 @@ npm run preview # 빌드 결과 미리보기
 ## Cloudflare 배포
 ### 방법 A — Workers (권장)
 ```bash
-npm run deploy
+pnpm deploy
 ```
 
 `wrangler.jsonc`의 `assets.directory`가 `dist/client`를 정적 자산으로 배포합니다.
 
 ### 방법 B — Cloudflare Pages
 - Framework preset: **Vite**
-- Build command: `npm run build`
+- Build command: `pnpm build`
 - Build output directory: `dist/client`
 
 Wrangler로 직접 업로드할 때도 정적 클라이언트 산출물인 `dist/client`를 지정합니다.
 ```bash
-npx wrangler pages deploy dist/client --project-name gbc-seoko
+pnpm exec wrangler pages deploy dist/client --project-name gbc-seoko
 ```
 
 해시 라우팅을 사용하는 SPA라 별도 리라이트 설정은 필요 없습니다. (Cloudflare Workers 정적 자산 배포에서 `_redirects`의 `/* /index.html 200` 규칙은 무한 루프로 거부되므로 사용하지 않습니다.)
