@@ -16,7 +16,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - run: npm run perf
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.10.0
+      - run: pnpm perf
       - run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
