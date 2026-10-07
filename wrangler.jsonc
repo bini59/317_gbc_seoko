@@ -24,5 +24,9 @@
   "vars": {
     "AUTH_ORIGIN": "https://auth.bini59.dev",
     "AUTH_CLIENT_ID": "seoko-maps"
+  },
+  // 321_auth 탈퇴 반영(worker/deletions.ts)
+  "triggers": {
+    "crons": ["*/10 * * * *"]
   }
 }
