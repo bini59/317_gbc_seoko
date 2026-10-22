@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Wait for "Workers Builds: gbcseoko" on this commit
+      - name: Wait for the Workers Builds check on this commit
         env:
           GH_TOKEN: ${{ github.token }}
           CHECK: "Workers Builds: gbcseoko"
